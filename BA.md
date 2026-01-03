@@ -1,121 +1,135 @@
-# Business Analysis & Feature Specifications
+# Tài liệu Phân tích Nghiệp vụ & Đặc tả Tính năng (BA)
 
-## 1. Actors & Roles
+## 1. Tác nhân & Vai trò (Actors & Roles)
 
--   **Admin**: Full system access.
--   **Client**: Can view own orders, quotes, and create requests.
--   **Collaborator (CTV)**: Can view/manage assigned clients (Private scope) and orders.
--   **Sales**: Manage quotes and orders for customers.
--   **Accountant**: View accounting and debt information.
--   **CustomerService**: View all clients, support ticket management.
--   **Guest**: Limited view (Public catalog).
+Hệ thống phân quyền dựa trên vai trò của người dùng:
 
-## 2. Core Modules
+-   **Admin (Quản trị viên)**: Có toàn quyền truy cập hệ thống, quản lý cấu hình, người dùng và danh mục dùng chung.
+-   **Client (Khách hàng)**: Có thể xem lịch sử đơn hàng, báo giá của chính mình và tạo yêu cầu kiểm nghiệm mới.
+-   **Collaborator (Cộng tác viên - CTV)**:
+    -   Quản lý danh sách khách hàng riêng (Private scope).
+    -   Tạo và theo dõi đơn hàng cho các khách hàng được phân công.
+-   **Sales (Nhân viên Kinh doanh)**: Quản lý báo giá, đơn hàng và danh sách khách hàng chung (Public scope).
+-   **Accountant (Kế toán)**: Xem thông tin công nợ, quản lý trạng thái thanh toán của các đơn hàng (Chưa thanh toán/Đã thanh toán).
+-   **CustomerService (Chăm sóc khách hàng)**: Xem toàn bộ khách hàng, hỗ trợ giải đáp thắc mắc (Ticket).
+-   **Guest (Khách vãng lai)**: Quyền hạn chế, chỉ xem được danh mục chỉ tiêu công khai (Public catalog).
 
-### A. Dashboard (`DashboardPage`)
+## 2. Các Module Chính (Core Modules)
 
--   **Overview**: Provides a snapshot of business performance.
--   **Key Metrics**: Total Requests, Completed Orders, Pending Processing, Revenue.
--   **Visuals**:
-    -   _StatCards_: Quick numbers with trend indicators.
-    -   _ActivityItem_: Recent system logs/actions.
-    -   _ParameterBar_: Popular analysis parameters.
--   **Features**: Filter by Date Range (Day/Week/Month).
+### A. Bảng điều khiển (`DashboardPage`)
 
-### G. UX/UI Constraints
+-   **Tổng quan**: Cung cấp cái nhìn nhanh về tình hình hoạt động kinh doanh.
+-   **Chỉ số chính (KPIs)**: Tổng số yêu cầu, Đơn hàng hoàn thành, Đơn hàng đang xử lý, Doanh thu ước tính.
+-   **Biểu đồ & Hiển thị**:
+    -   _StatCards_: Thẻ số liệu với chỉ báo xu hướng tăng/giảm.
+    -   _ActivityItem_: Nhật ký hoạt động gần đây (VD: "Đơn hàng #123 vừa được tạo").
+    -   _ParameterBar_: Biểu đồ thể hiện các chỉ tiêu được yêu cầu nhiều nhất.
+-   **Tính năng**: Bộ lọc thời gian (Ngày/Tuần/Tháng) để xem dữ liệu lịch sử.
 
--   **Popups/Modals**: Must have a fixed minimum width (`min-w`) to prevent layout collapse on empty content.
--   **Notifications**: Flash messages (Toast) must appear for exactly **1 second** and float above all other layers (Z-index Max).
+### B. Quản lý Đơn hàng (`OrdersListPage`, `OrderEditor`)
 
-### B. Order Management (`OrdersListPage`, `OrderCreationPage`)
+-   **Quy trình nghiệp vụ**: Tạo Đơn hàng mới -> Chọn Khách hàng -> Thêm Mẫu -> Chọn Chỉ tiêu phân tích (trên từng mẫu) -> Lưu/In phiếu.
+-   **Cấu trúc dữ liệu**: Đơn hàng (Order) chứa nhiều Mẫu (Sample), mỗi Mẫu chứa nhiều Chỉ tiêu (Analysis) lấy từ Ma trận giá (Matrix).
+-   **Tính năng chi tiết**:
+    -   **Form động**: Cho phép thêm nhiều mẫu cùng lúc, nhân bản mẫu (Duplicate) để nhập liệu nhanh.
+    -   **Chọn chỉ tiêu**: Modal tìm kiếm chỉ tiêu (`AnalysisModalNew`) hỗ trợ chọn đơn lẻ hoặc chọn theo gói (nếu có).
+    -   **Tính giá**: Hệ thống tự động tính Thành tiền = Đơn giá x Số lượng + Thuế (VAT) - Chiết khấu.
+    -   **In ấn**: Tạo file PDF "Phiếu yêu cầu thử nghiệm" khổ A4, có đầy đủ thông tin để khách hàng ký xác nhận (`OrderPrintPreviewModal`).
+-   **Luồng trạng thái**: Chờ xử lý (Pending) -> Đã duyệt (Approved) -> Đang kiểm nghiệm (In Progress) -> Hoàn thành (Completed).
 
--   **Process**: Create Order -> Add Client -> Add Samples -> Select Analyses -> Save/Print.
--   **Data Structure**: Order -> Samples -> Analyses (Parameters).
--   **Features**:
-    -   **Dynamic Form**: Add multiple samples, duplicate samples.
-    -   **Analysis Selection**: Search/Select parameters from modal (`AnalysisModalNew`).
-    -   **Pricing**: Auto-calculate Subtotal, VAT, Discount.
-    -   **Print/Preview**: Generate "Phieu yeu cau thu nghiem" (A4 format) with `OrderPrintPreviewModal`.
--   **Status Flow**: Pending -> Approved -> In Progress -> Completed.
+### C. Quản lý Báo giá (`QuotesListPage`, `QuoteEditor`)
 
-### C. Quote Management (`QuotesListPage`, `QuoteCreationPage`)
+-   **Quy trình**: Tương tự như Đơn hàng nhưng dùng cho giai đoạn trước bán hàng (chào giá).
+-   **Tính năng**:
+    -   Tạo và chỉnh sửa Báo giá.
+    -   **Xuất PDF**: Tạo file Báo giá chuyên nghiệp gửi cho khách hàng (`QuotePrintPreviewModal`).
+    -   **Chuyển đổi**: (Tính năng sắp tới) Chuyển đổi trực tiếp từ Báo giá sang Đơn hàng khi khách đồng ý.
+    -   **Chiết khấu/Hoa hồng**: Hỗ trợ nhập % chiết khấu thương mại hoặc hoa hồng môi giới.
 
--   **Process**: Similar to Orders but for pre-sales.
--   **Features**:
-    -   Create/Edit Quotes.
-    -   **Export**: Generate PDF Quote for customers (`QuotePrintPreviewModal`).
-    -   **Pricing**: Includes discount and commission handling.
-    -   **Conversion**: Can convert Quote -> Order (planned).
+### D. Quản lý Khách hàng (`ClientsPage`)
 
-### D. Client Management (`ClientsPage`)
+-   **Phân loại khách hàng**:
+    -   _Public (Công khai)_: Khách hàng thuộc sở hữu chung của công ty, Sale/CSKH đều thấy.
+    -   _Private (Riêng tư)_: Khách hàng do CTV tự kiếm, chỉ CTV đó và Admin thấy.
+-   **Thông tin lưu trữ**: Tên doanh nghiệp/Cá nhân, Mã số thuế, Địa chỉ, Danh sách người liên hệ, Thông tin xuất hóa đơn.
+-   **Thống kê**: Hiển thị tổng doanh số và số lượng đơn hàng tích lũy ngay trên danh sách.
 
--   **Types**:
-    -   _Public_: Standard clients, visible to Sales/CS.
-    -   _Private_: Managed specifically by Collaborators.
--   **Info**: Basic info, Address, Contact Person, Tax ID.
--   **Stats**: Total orders, total revenue per client.
+### E. Danh mục Chỉ tiêu & Giá (`ParametersPage`)
 
-### E. Parameter/Analysis Catalog (`ParametersPage`)
+-   **Dữ liệu**: Danh sách các chỉ tiêu kiểm nghiệm (VD: pH, COD, BOD5, Salmonella...).
+-   **Ma trận cấu hình (Matrix)**: Một chỉ tiêu có thể có nhiều mức giá và phương pháp khác nhau tùy thuộc vào Nền mẫu (Nước, Đất, Thực phẩm).
+-   **Thông tin hiển thị**: Phương pháp thử (Protocol), Đơn giá chưa thuế, Lĩnh vực (Hóa/Lý/Vi sinh), Thời gian trả kết quả (TAT).
 
--   **Data**: List of test parameters (e.g., pH, COD, BOD5).
--   **Fields**: Method (Protocol), Unit Price, Scientific Field (Hóa/Lý/Sinh), TAT.
--   **Usage**: Used in Orders and Quotes for selection.
+### F. Kế toán & Công nợ (`AccountingPage`)
 
-### F. Accounting (`AccountingPage`)
+-   **Mục tiêu**: Theo dõi dòng tiền và tình trạng thanh toán của các đơn hàng.
+-   **Trang thái thanh toán**: Chưa thanh toán (Unpaid), Thanh toán 1 phần (Partially Paid), Đã thanh toán (Paid).
+-   **Tính năng**: Xem danh sách đơn hàng cần thu tiền, lịch sử thanh toán.
 
--   **Focus**: Tracking financial status of orders.
--   **Statuses**: Unpaid, Partially Paid, Paid.
--   **Features**: Debt tracking, payment history.
+## 3. Thực thể Dữ liệu (Data Entities)
 
-## 3. Data Entities
+### Tổ chức (Organization)
 
-### Organization
+Thông tin cấu hình chung của phòng Lab:
 
--   `organizationName` (text-primary)
--   `address`, `taxId`, `email`, `phone`
--   **Branches**: List of physical office locations.
+-   `organizationName`: Tên phòng thí nghiệm.
+-   `address`, `taxId`, `email`, `phone`, `website`.
+-   **Chi nhánh (Branches)**: Danh sách các địa điểm nhận mẫu.
 
-### Order / Quote
+### Định danh Đơn/Phiếu
 
--   ID Format: `ORD-YYYYMMDD-XX` / `QT-YYYYMMDD-XX`
--   `clientId`: Link to Client.
--   `samples`: Array of samples.
--   `pricing`: `{ subtotal, tax, total }`.
+-   Hệ thống sử dụng **Custom Text ID** để dễ đọc:
+    -   Đơn hàng: `ORD-YYYYMMDD-XX` (VD: `ORD-20240101-01`).
+    -   Báo giá: `QT-YYYYMMDD-XX` (VD: `QT-20240101-01`).
+    -   Khách hàng: `CLI-XXXX` (VD: `CLI-0001`).
 
-## 4. Workflows
+## 4. Quy trình Workflows Quan trọng
 
-### Printing/Exporting
+### Quy trình In/Xuất file (Printing/Exporting)
 
-1. User clicks "Print" or "Export PDF".
-2. System gathers current state data.
-3. Opens _Preview Modal_ with WYSIWYG editor (TinyMCE).
-4. HTML template is rendered with data placeholders.
-5. `html2pdf.js` converts the rendered HTML to PDF for download.
+1.  Người dùng bấm nút "In" hoặc "Xuất PDF".
+2.  Hệ thống thu thập dữ liệu hiện tại của Đơn hàng/Báo giá.
+3.  Mở **Preview Modal** chứa trình soạn thảo WYSIWYG (TinyMCE) hiển thị nội dung mẫu in.
+4.  Template HTML được render với dữ liệu thật (Binding data).
+5.  Sử dụng thư viện `html2pdf.js` để chuyển đổi nội dung HTML đã render thành file PDF và tải xuống máy người dùng.
+6.  Đảm bảo lề trang (margin) chuẩn 1cm và có Header/Footer (Số trang) tự động.
 
-## 5. API Integration
+## 5. Tích hợp API (API Integration)
 
-### A. Standards
+### A. Tiêu chuẩn
 
--   **Endpoint Pattern**: `/v1/<Entity>/<Action>/<Supplement>`
--   **Response Format**: Standardized JSON with `success`, `statusCode`, `data`, `meta`, `error`.
--   **Function Signature**: `({ headers, body, query })` - Single object argument.
+-   **Mô hình URL**: `/v1/<Thực thể>/<Hành động>/<Bổ sung>`.
+    -   VD: `/v1/client/get/list`, `/v1/order/create`.
+-   **Định dạng**: JSON chuẩn có `success`, `data`, `meta`.
+-   **Chữ ký hàm (Frontend)**: Luôn nhận vào một object tham số duy nhất: `({ headers, body, query })`.
 
-### B. Core Entity Maps
+### B. Ánh xạ Thực thể Chính
 
--   **Auth**: `/v1/auth/login`, `/v1/auth/logout`
--   **Clients**:
-    -   List: `GET /v1/client/get/list`
-    -   Detail: `GET /v1/client/get/detail` (ID in query)
-    -   CRUD: `POST /v1/client/create`, `edit`, `delete`
--   **Orders**:
-    -   List: `GET /v1/order/get/list`
-    -   Detail: `GET /v1/order/get/detail` (ID in query)
-    -   CRUD: `POST /v1/order/create`, `edit`, `delete`
--   **Samples**:
-    -   List: `GET /v1/sample/get/list`
-    -   CRUD: `POST /v1/sample/create`, `edit`, `delete`
+-   **Xác thực**: `/v1/auth/login`, `/v1/auth/logout`.
+-   **Khách hàng**:
+    -   Lấy danh sách: `GET /v1/client/get/list`
+    -   Chi tiết: `GET /v1/client/get/detail` (ID trong query)
+    -   Thêm/Sửa/Xóa: `POST /v1/client/create`, `edit`, `delete`.
+-   **Đơn hàng**:
+    -   Lấy danh sách: `GET /v1/order/get/list`
+    -   Chi tiết: `GET /v1/order/get/detail`
+    -   Thêm/Sửa/Xóa: `POST /v1/order/create`, `edit`, `delete`.
+-   **Mẫu & Chỉ tiêu**: Sử dụng các API `/v1/matrix/...` để lấy thông tin cấu hình và giá.
 
-### C. Implementation Rules
+### C. Quy tắc triển khai
 
--   **No Path Params in Function Signatures**: Do not define functions like `getClient(id)`. Use `getClient({ query: { id } })`.
--   **Methods**: Use `GET` for fetching data (List/Detail) and `POST` for all state changes (Create/Edit/Delete).
+-   **Không dùng Path Params trong hàm API**: Tránh định nghĩa hàm dạng `getClient(id)`. Phải dùng `getClient({ query: { id } })`.
+-   **Phương thức HTTP**:
+    -   `GET`: Chỉ dùng để lấy dữ liệu (List/Detail).
+    -   `POST`: Dùng cho mọi thay đổi trạng thái dữ liệu (Create, Edit, Delete) để đảm bảo an toàn và nhất quán.
+
+## 6. Ràng buộc UX/UI (UX/UI Constraints)
+
+-   **Popups/Modals**: Phải có chiều rộng tối thiểu (`min-w`) để tránh vỡ giao diện khi chưa có dữ liệu.
+-   **Thông báo (Notifications)**:
+    -   Dùng Toast message góc màn hình.
+    -   Thời gian hiển thị: **1 giây** (đủ để đọc nhưng không che khuất thao tác).
+    -   Z-index: Phải cao nhất (Max) để nổi trên các modal khác.
+-   **Phản hồi người dùng**:
+    -   Nút bấm phải có trạng thái Loading (disabled + spinner) khi đang gọi API.
+    -   Các hành động nguy hiểm (Xóa) phải có hộp thoại xác nhận (Confirm Dialog).

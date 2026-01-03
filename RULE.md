@@ -1,150 +1,139 @@
-# Project Rules & Architecture
+# Quy tắc & Kiến trúc Dự án (Project Rules & Architecture)
 
-## 1. Project Overview
+## 1. Tổng quan Dự án
 
--   **Name**: Partner CRM (LIMS Extension)
--   **Type**: Frontend SPA (Single Page Application)
--   **Tech Stack**:
-    -   **Core**: React 18 (Vite), TypeScript
-    -   **Styling**: Tailwind CSS (with CSS Variables for Theming)
-    -   **Icons**: Lucide React
-    -   **I18n**: react-i18next (VI/EN)
-    -   **State**: React Context API
-    -   **Data**: Mock Data (currently), Interfaces defined in `src/types`
-    -   **Utils**: date-fns, html2pdf.js, clsx, tailwind-merge
+-   **Tên dự án**: Partner CRM (Phần mở rộng Partner cho LIMS)
+-   **Loại ứng dụng**: Frontend SPA (Single Page Application)
+-   **Công nghệ cốt lõi**:
+    -   **Nền tảng**: React 18 (Vite), JavaScript (Chuyển đổi từ TypeScript nhưng vẫn giữ Type checking cơ bản qua JSDoc/Check JS nếu cần). _Lưu ý: Tài liệu này được cập nhật để phản ánh việc ưu tiên JavaScript trong triển khai nhanh, tuy nhiên code hiện tại vẫn đang dùng TypeScript cho sự an toàn._
+    -   **Styling**: Tailwind CSS (kết hợp CSS Variables cho hệ thống Theme).
+    -   **Icons**: Lucide React.
+    -   **Đa ngôn ngữ**: react-i18next (Tiếng Việt/Tiếng Anh).
+    -   **Quản lý trạng thái**: React Context API.
+    -   **Dữ liệu**: Fetch từ API Backend (trước đây là Mock Data).
+    -   **Tiện ích**: date-fns (xử lý ngày tháng), html2pdf.js (xuất PDF), clsx, tailwind-merge (xử lý class CSS).
 
-## 2. Directory Structure
+## 2. Cấu trúc Thư mục (Directory Structure)
 
 ```
 partner/
-├── public/                 # Static assets
+├── public/                 # Tài nguyên tĩnh (images, fonts, favicon)
 ├── src/
-│   ├── app/                # App entry point
-│   │   ├── App.tsx         # Main Routing
-│   │   └── globals.css     # Global styles & Tailwind directives
-│   ├── components/         # UI Components (Organized by Domain)
-│   │   ├── client/         # Client management (AddClient, ClientSection)
-│   │   ├── common/         # Shared components (Pagination, LanguageSwitcher)
-│   │   ├── order/          # Order logic (SampleCard, PrintTemplate)
-│   │   ├── parameter/      # Analysis/Parameter selection modals
-│   │   ├── quote/          # Quote logic (Pricing, PrintTemplate)
-│   │   ├── statistic/      # Dashboard widgets (StatCard, ActivityItem)
-│   │   ├── Sidebar.tsx     # Main Navigation
-│   │   └── ThemeToggle.tsx # Dark/Light/System mode toggle
-│   ├── config/             # Configurations
-│   │   ├── i18n/           # Localization setup
-│   │   │   └── locales/    # Translation files (vi.ts, en.ts)
-│   │   └── theme/          # Theme system (colors, context)
-│   ├── contexts/           # React Contexts (Auth, Theme)
-│   ├── data/               # Mock Data & seeders
-│   ├── pages/              # Page Views
+│   ├── app/                # Điểm khởi đầu ứng dụng
+│   │   ├── App.tsx         # Routing chính và Layout
+│   │   └── globals.css     # CSS toàn cục & cấu hình Tailwind directives
+│   ├── components/         # Thành phần UI (Tổ chức theo nghiệp vụ)
+│   │   ├── client/         # Quản lý khách hàng (AddClient, ClientSection...)
+│   │   ├── common/         # Component dùng chung (Pagination, LanguageSwitcher...)
+│   │   ├── order/          # Nghiệp vụ Đơn hàng (SampleCard, PrintTemplate...)
+│   │   ├── parameter/      # Modal chọn chỉ tiêu/tham số
+│   │   ├── quote/          # Nghiệp vụ Báo giá (Pricing, PrintTemplate...)
+│   │   ├── statistic/      # Widget thống kê Dashboard (StatCard, ActivityItem)
+│   │   ├── Sidebar.tsx     # Menu điều hướng chính bên trái
+│   │   └── ThemeToggle.tsx # Nút chuyển đổi giao diện Sáng/Tối/Hệ thống
+│   ├── config/             # Các tệp cấu hình
+│   │   ├── i18n/           # Cấu hình đa ngôn ngữ
+│   │   │   └── locales/    # File dịch (vi.ts, en.ts) -> Phải cập nhật đồng thời
+│   │   └── theme/          # Hệ thống giao diện (màu sắc, hook context)
+│   ├── contexts/           # React Contexts (AuthContext, ThemeContext)
+│   ├── data/               # Constants và dữ liệu tĩnh (constants.ts)
+│   ├── api/                # Hàm gọi API (index.ts, client.ts)
+│   ├── pages/              # Các trang màn hình chính (Views)
 │   │   ├── DashboardPage.tsx
 │   │   ├── OrdersListPage.tsx
 │   │   ├── QuoteCreationPage.tsx
 │   │   └── ...
-│   ├── types/              # TypeScript Interfaces
-│   │   ├── organization.ts
+│   ├── types/              # Định nghĩa Interface TypeScript (Quan trọng để đồng bộ với API)
+│   │   ├── client.ts
+│   │   ├── order.ts
+│   │   ├── quote.ts
+│   │   ├── parameter.ts
 │   │   └── ...
-│   └── main.tsx            # Entry point
+│   └── main.tsx            # Entry point để render React vào DOM
 └── ...
 ```
 
-## 3. Core Principles
+## 3. Nguyên tắc Cốt lõi (Core Principles)
 
-### A. Theming System
+### A. Hệ thống Giao diện (Theming System)
 
--   **Strict Rule**: NEVER use hardcoded colors (e.g., `bg-white`, `text-black`, `bg-[#123456]`).
--   **Use Semantic Classes**: Always use Tailwind variables defined in `globals.css` via `theme.config.ts`.
-    -   Backgrounds: `bg-background`, `bg-card`, `bg-muted`
-    -   Text: `text-foreground`, `text-muted-foreground`, `text-primary`
-    -   Borders: `border-border`, `border-input`
--   **Reference**: See `THEME_SYSTEM.md` for the full palette.
+-   **Quy tắc Bất di bất dịch**: KHÔNG BAO GIỜ sử dụng mã màu cứng (hardcoded colors) như `bg-white`, `text-black`, `bg-[#123456]`.
+-   **Sử dụng Class theo Ngữ nghĩa**: Luôn sử dụng các biến Tailwind được định nghĩa trong `globals.css` thông qua `theme.config.ts`.
+    -   Nền: `bg-background`, `bg-card`, `bg-muted`
+    -   Chữ: `text-foreground`, `text-muted-foreground`, `text-primary`
+    -   Viền: `border-border`, `border-input`
+-   **Tham chiếu**: Xem chi tiết trong file `THEME_SYSTEM.md`.
 
-### B. Internationalization (i18n)
+### B. Đa ngôn ngữ (Internationalization - i18n)
 
--   **Strict Rule**: NO hardcoded text in UI components.
--   Use `useTranslation()` hook.
--   Keys must be categorized in `vi.ts` and `en.ts` (e.g., `sidebar.*`, `order.print.*`).
--   Organization info must be pulled from translations (`organization.data.*`).
+-   **Quy tắc**: KHÔNG viết cứng văn bản trong code UI (No hardcoded text).
+-   Sử dụng hook `useTranslation()`.
+-   Từ khóa (Keys) phải được phân nhóm rõ ràng trong `vi.ts` và `en.ts` (VD: `sidebar.*`, `order.print.*`).
+-   Dữ liệu tĩnh từ Server (VD: tên công ty, địa chỉ) nên được lấy từ API hoặc file cấu hình, không hardcode trong file ngôn ngữ nếu nó có thể thay đổi.
 
 ### C. Types & Interfaces
 
--   Define shared interfaces in `src/types/` or at the top of relevant component files if local.
--   Use `interface` over `type` for object definitions where possible.
--   Ensure `Organization` and `Branch` types are consistent.
+-   Định nghĩa Interface dùng chung trong `src/types/`.
+-   Nếu Interface chỉ dùng nội bộ cho một component, có thể định nghĩa ngay đầu file component đó.
+-   Ưu tiên dùng `interface` hơn `type` để định nghĩa Object.
+-   Đảm bảo các type như `Client`, `Order`, `Quote` phải đồng bộ với cấu trúc trả về từ API.
 
-### D. Component Design
+### D. Thiết kế Component
 
--   **Functional Components**: Use `export function ComponentName() {}`.
--   **Props**: Define clear interfaces for component props.
--   **Modularity**: Break down large components (e.g., `QuoteCreationPage` uses `ClientSection`, `SampleCard`, `PricingSummary`).
+-   **Functional Components**: Sử dụng cú pháp `export function ComponentName() {}`.
+-   **Props**: Định nghĩa Interface Props rõ ràng.
+-   **Tính Module hóa**: Chia nhỏ các component lớn. Ví dụ `QuoteCreationPage` nên được chia thành `ClientSection`, `SampleCard`, `PricingSummary`... để dễ bảo trì và tái sử dụng.
 
-## 4. Git & Workflow
+## 4. Quy trình Git & Công việc (Git & Workflow)
 
-1.  **Changes**: Always verify `npm run dev` compiles without error.
-2.  **Linting**: Fix ESLint warnings (unused vars, etc.) before committing.
-3.  **Naming**:
-    -   Files/Components: PascalCase (e.g., `OrderListPage.tsx`)
-    -   Functions/Vars: camelCase (e.g., `handleExport`, `isModalOpen`)
-    -   Constants: UPPER_SNAKE_CASE (if global).
+1.  **Kiểm tra**: Luôn đảm bảo `npm run dev` chạy không lỗi trước khi commit.
+2.  **Linting**: Sửa các cảnh báo ESLint (biến không sử dụng, sai kiểu dữ liệu...) trước khi đẩy code.
+3.  **Đặt tên (Naming Convention)**:
+    -   File/Component: PascalCase (VD: `OrdersListPage.tsx`, `SampleCard.tsx`).
+    -   Biến/Hàm: camelCase (VD: `handleExport`, `isModalOpen`, `fetchData`).
+    -   Hằng số: UPPER_SNAKE_CASE (VD: `DEFAULT_PAGE_SIZE`, `API_BASE_URL`).
 
-## 5. API Standards
+## 5. Tiêu chuẩn API (API Standards)
 
-### A. Response Format
+### A. Định dạng Phản hồi (Response Format)
 
-All API responses must strictly follow this JSON structure:
+Tất cả các API phải trả về JSON theo cấu trúc chuẩn:
 
 ```json
 {
-  "success": true,
-  "statusCode": 200,
-  "data": { ... },     // Business Data
-  "meta": {            // Pagination info (Optional)
+  "success": true,        // true/false
+  "statusCode": 200,      // HTTP Status Code
+  "data": { ... },        // Dữ liệu nghiệp vụ
+  "meta": {               // Metadata (dùng cho phân trang) - Tùy chọn
     "page": 1,
     "total": 100
   },
-  "error": null
+  "error": null           // Chứa object lỗi nếu success = false
 }
 ```
 
-**Error Response**:
+### B. Quy ước URL (URL Convention)
 
-```json
-{
-    "success": false,
-    "statusCode": 404,
-    "error": {
-        "code": "SAMPLE_NOT_FOUND",
-        "message": "User friendly message",
-        "traceId": "req-123456"
-    }
-}
-```
+Endpoint phải tuân theo mẫu: `/v1/<Thực thể>/<Hành động>/<Bổ sung>`
 
-### B. URL Convention
+-   **Thực thể (Entity)**: `client`, `order`, `sample`, `auth`... (Số ít, chữ thường).
+-   **Hành động (Action)**: `get`, `create`, `edit`, `delete`.
+-   **Bổ sung**: `list`, `detail` (cho hành động get), hoặc để trống.
 
-Endpoints must follow the pattern: `/v1/<Entity>/<Action>/<Supplement>`
-
--   **Entity**: `client`, `order`, `sample`, `auth`, etc. (Singular, lowercase)
--   **Action**: `get`, `create`, `edit`, `delete`.
--   **Supplement**: `list`, `detail` (for GET actions), or empty/specific sub-action.
-
-Examples:
+Ví dụ:
 
 -   `GET /v1/client/get/list`
 -   `POST /v1/client/create`
 -   `GET /v1/client/get/detail`
--   `POST /v1/client/edit`
--   `POST /v1/client/delete`
 
-### C. Function Signatures & Implementation
+### C. Chữ ký hàm & Triển khai (Function Signatures)
 
--   All API functions in `src/api` must accept a **single configuration object**:
+-   Tất cả các hàm gọi API trong `src/api` chỉ nhận một tham số là object cấu hình:
     ```typescript
-    export const functionName = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => { ... }
+    export const tenHamApi = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => { ... }
     ```
--   **NO** explicit arguments (like `id`) in the function signature. IDs must be passed via `query` (for GET) or `body` (for POST).
--   **HTTP Methods**:
-    -   `GET`: For retrieving data (List, Detail).
-    -   `POST`: For `create`, `edit`, `delete` actions.
--   **Client Helper**: Use `src/api/client.ts` which handles Axios configuration, Token injection (from Cookies), and standard Error handling (Toast).
+-   **KHÔNG** truyền tham số rời rạc (như `id`) vào chữ ký hàm. ID phải được đặt trong `query` (nếu GET) hoặc `body` (nếu POST).
+-   **Phương thức HTTP**:
+    -   `GET`: Lấy dữ liệu (List, Detail).
+    -   `POST`: Tạo mới, Cập nhật, Xóa (Mọi thay đổi trạng thái đều dùng POST).
+-   **Helper**: Sử dụng `src/api/client.ts` để cấu hình Axios, tự động chèn Token và xử lý lỗi chung (Toast message).
