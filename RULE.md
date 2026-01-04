@@ -10,7 +10,8 @@
     -   **Icons**: Lucide React.
     -   **Đa ngôn ngữ**: react-i18next (Tiếng Việt/Tiếng Anh).
     -   **Quản lý trạng thái**: React Context API.
-    -   **Dữ liệu**: Fetch từ API Backend (trước đây là Mock Data).
+    -   **Dữ liệu**: Fetch từ API Backend.
+    -   **Xác thực**: Session-based authentication với `sessionId` và `authToken`.
     -   **Tiện ích**: date-fns (xử lý ngày tháng), html2pdf.js (xuất PDF), clsx, tailwind-merge (xử lý class CSS).
 
 ## 2. Cấu trúc Thư mục (Directory Structure)
@@ -77,6 +78,7 @@ partner/
 -   Nếu Interface chỉ dùng nội bộ cho một component, có thể định nghĩa ngay đầu file component đó.
 -   Ưu tiên dùng `interface` hơn `type` để định nghĩa Object.
 -   Đảm bảo các type như `Client`, `Order`, `Quote` phải đồng bộ với cấu trúc trả về từ API.
+-   **Tham chiếu**: Khi lưu thông tin tham chiếu đơn giản (như người phụ trách), ưu tiên dùng cặp `xxxId` (FK) và `xxxName` (Text) thay vì lưu JSONB object phức tạp, trừ khi cần snapshot lịch sử.
 
 ### D. Thiết kế Component
 
@@ -136,4 +138,7 @@ Ví dụ:
 -   **Phương thức HTTP**:
     -   `GET`: Lấy dữ liệu (List, Detail).
     -   `POST`: Tạo mới, Cập nhật, Xóa (Mọi thay đổi trạng thái đều dùng POST).
--   **Helper**: Sử dụng `src/api/client.ts` để cấu hình Axios, tự động chèn Token và xử lý lỗi chung (Toast message).
+-   **Xác thực (Authentication)**:
+    -   Sử dụng `/v1/auth/login` để lấy `token` và `sessionId`.
+    -   Gọi `/v1/auth/check-status` khi ứng dụng khởi động để đồng bộ thông tin định danh (`identityId`, `identityName`) và kiểm tra hiệu lực session.
+    -   `sessionId` được lưu trong `localStorage` để duy trì phiên làm việc.

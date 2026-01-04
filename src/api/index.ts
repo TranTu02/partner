@@ -20,6 +20,10 @@ export const logout = async ({ headers, body, query }: ApiInput): Promise<ApiRes
     return api.post("/v1/auth/logout", { headers, body, query });
 };
 
+export const checkSessionStatus = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return api.post("/v1/auth/check-status", { headers, body, query });
+};
+
 // =============================================================================
 // CLIENTS
 // =============================================================================
@@ -140,6 +144,10 @@ export const deleteMatrix = async ({ headers, body, query }: ApiInput): Promise<
     return api.post("/v1/matrix/delete", { headers, body, query });
 };
 
+export const searchMatrices = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return api.get("/v1/matrix/search", { headers, query: query || body });
+};
+
 // =============================================================================
 // SAMPLE TYPES
 // =============================================================================
@@ -174,7 +182,7 @@ const apis = {
     orders: { getOrders, createOrder, getOrderDetail, updateOrder, deleteOrder },
     quotes: { getQuotes, createQuote, getQuoteDetail, updateQuote, deleteQuote },
     parameters: { getParameters, createParameter, getParameterDetail, updateParameter, deleteParameter },
-    matrices: { getMatrices, createMatrix, getMatrixDetail, updateMatrix, deleteMatrix },
+    matrices: { getMatrices, createMatrix, getMatrixDetail, updateMatrix, deleteMatrix, searchMatrices },
     sampleTypes: { getSampleTypes, createSampleType, getSampleTypeDetail, updateSampleType, deleteSampleType },
 };
 

@@ -75,7 +75,7 @@ export function Sidebar({ activeMenu, onMenuClick }: SidebarProps) {
                             user && (
                                 <div className="space-y-1">
                                     <div className="text-xs text-muted-foreground">ID: {user.id}</div>
-                                    <div className="text-sm font-semibold text-foreground">{user.fullName}</div>
+                                    <div className="text-sm font-semibold text-foreground">{user.username}</div>
                                     <div className="text-xs text-muted-foreground">{getRoleLabel(user.role)}</div>
                                 </div>
                             )

@@ -5,6 +5,7 @@ import type { Matrix } from "@/types/parameter";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { getMatrices, deleteMatrix } from "@/api/index";
 import { toast } from "sonner";
+import { Pagination } from "@/components/common/Pagination";
 import { scientificFields } from "@/data/constants"; // Keep scientificFields for filter if it's static, or fetch if dynamic. Let's assume static for now or just defined locally.
 
 interface ParametersPageProps {
@@ -19,12 +20,21 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
     const [selectedField, setSelectedField] = useState<string>("all");
     const [isLoading, setIsLoading] = useState(false);
 
+    // Pagination State
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
+    const [totalItems, setTotalItems] = useState(0);
+    const [itemsPerPage, setItemsPerPage] = useState(20);
+
     const fetchMatrices = useCallback(async () => {
         setIsLoading(true);
         try {
             // Mapping UI filter to API query
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const query: any = {
                 search: searchQuery || undefined,
+                page,
+                itemsPerPage,
             };
             if (selectedField !== "all") {
                 query.scientificField = selectedField;
@@ -33,6 +43,10 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
             const response = await getMatrices({ query });
             if (response.success && response.data) {
                 setMatrices(response.data as Matrix[]);
+                if (response.meta) {
+                    setTotalPages(response.meta.totalPages || 0);
+                    setTotalItems(response.meta.total || 0);
+                }
             } else {
                 toast.error("Failed to fetch parameters"); // "Parameter" in UI vs "Matrix" in API
             }
@@ -42,7 +56,7 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
         } finally {
             setIsLoading(false);
         }
-    }, [searchQuery, selectedField]);
+    }, [searchQuery, selectedField, page, itemsPerPage]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -62,7 +76,7 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
             } else {
                 toast.error(response.error?.message || "Failed to delete parameter");
             }
-        } catch (error) {
+        } catch {
             toast.error("Error deleting parameter");
         }
     };
@@ -120,58 +134,72 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
                 </div>
 
                 {/* Table */}
-                <div className="bg-card rounded-lg border border-border overflow-auto">
-                    <table className="w-full">
-                        <thead className="bg-muted/50 sticky top-0 z-10 shadow-sm">
-                            <tr>
-                                <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-large">{t("parameter.name")}</th>
-                                <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("parameter.field")}</th>
-                                <th className="px-6 py-4 text-right text-sm font-semibold text-foreground min-w-size-medium">{t("parameter.unitPrice")}</th>
-                                <th className="px-6 py-4 text-center text-sm font-semibold text-foreground min-w-size-small">{t("parameter.tax")}</th>
-                                <th className="px-6 py-4 text-center text-sm font-semibold text-foreground min-w-size-small">{t("common.action")}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {isLoading ? (
+                <div className="bg-card rounded-lg border border-border overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-muted/50 sticky top-0 z-10 shadow-sm">
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground text-sm">
-                                        Loading...
-                                    </td>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-large">{t("parameter.name")}</th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("order.sampleMatrix")}</th>
+                                    <th className="px-6 py-4 text-right text-sm font-semibold text-foreground min-w-size-medium">{t("parameter.unitPrice")}</th>
+                                    <th className="px-6 py-4 text-center text-sm font-semibold text-foreground min-w-size-small">{t("parameter.tax")}</th>
+                                    <th className="px-6 py-4 text-center text-sm font-semibold text-foreground min-w-size-small">{t("common.action")}</th>
                                 </tr>
-                            ) : matrices.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground text-sm">
-                                        {t("analysis.noParametersFound")}
-                                    </td>
-                                </tr>
-                            ) : (
-                                matrices.map((matrix) => (
-                                    <tr key={matrix.matrixId} className="border-t border-border hover:bg-muted">
-                                        <td className="px-6 py-4 text-sm font-medium text-foreground">{matrix.parameterName}</td>
-                                        <td className="px-6 py-4 text-sm">
-                                            <span className="px-2 py-1 bg-muted rounded text-foreground">{matrix.scientificField ? t(`analysis.fields.${matrix.scientificField}`) : ""}</span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right text-sm font-medium text-foreground">{matrix.feeBeforeTax?.toLocaleString("vi-VN")} đ</td>
-                                        <td className="px-6 py-4 text-center text-sm text-foreground">{matrix.taxRate}%</td>
-                                        <td className="px-6 py-4 text-center">
-                                            <div className="flex items-center justify-center gap-2">
-                                                <button className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" title={t("common.edit")}>
-                                                    <Pencil className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(matrix.matrixId)}
-                                                    className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
-                                                    title={t("common.delete")}
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
+                            </thead>
+                            <tbody>
+                                {isLoading ? (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground text-sm">
+                                            Loading...
                                         </td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                ) : matrices.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground text-sm">
+                                            {t("analysis.noParametersFound")}
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    matrices.map((matrix) => (
+                                        <tr key={matrix.matrixId} className="border-t border-border hover:bg-muted">
+                                            <td className="px-6 py-4 text-sm font-medium text-foreground">{matrix.parameterName}</td>
+                                            <td className="px-6 py-4 text-sm text-foreground">{matrix.sampleTypeName}</td>
+                                            <td className="px-6 py-4 text-right text-sm font-medium text-foreground">{matrix.feeBeforeTax?.toLocaleString("vi-VN")} đ</td>
+                                            <td className="px-6 py-4 text-center text-sm text-foreground">{matrix.taxRate}%</td>
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <button className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" title={t("common.edit")}>
+                                                        <Pencil className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(matrix.matrixId)}
+                                                        className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                                                        title={t("common.delete")}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {!isLoading && matrices.length > 0 && (
+                        <Pagination
+                            currentPage={page}
+                            totalPages={totalPages}
+                            totalItems={totalItems}
+                            itemsPerPage={itemsPerPage}
+                            onPageChange={(p) => setPage(p)}
+                            onItemsPerPageChange={(items) => {
+                                setItemsPerPage(items);
+                                setPage(1);
+                            }}
+                        />
+                    )}
                 </div>
             </div>
         </MainLayout>

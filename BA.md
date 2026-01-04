@@ -51,7 +51,7 @@ Hệ thống phân quyền dựa trên vai trò của người dùng:
 -   **Phân loại khách hàng**:
     -   _Public (Công khai)_: Khách hàng thuộc sở hữu chung của công ty, Sale/CSKH đều thấy.
     -   _Private (Riêng tư)_: Khách hàng do CTV tự kiếm, chỉ CTV đó và Admin thấy.
--   **Thông tin lưu trữ**: Tên doanh nghiệp/Cá nhân, Mã số thuế, Địa chỉ, Danh sách người liên hệ, Thông tin xuất hóa đơn.
+-   **Thông tin lưu trữ**: Tên doanh nghiệp/Cá nhân, Mã số thuế, Địa chỉ, Danh sách người liên hệ, Thông tin xuất hóa đơn, Nhân viên Sale phụ trách.
 -   **Thống kê**: Hiển thị tổng doanh số và số lượng đơn hàng tích lũy ngay trên danh sách.
 
 ### E. Danh mục Chỉ tiêu & Giá (`ParametersPage`)
@@ -105,7 +105,7 @@ Thông tin cấu hình chung của phòng Lab:
 
 ### B. Ánh xạ Thực thể Chính
 
--   **Xác thực**: `/v1/auth/login`, `/v1/auth/logout`.
+-   **Xác thực**: `/v1/auth/login`, `/v1/auth/logout`, `/v1/auth/check-status` (Kiểm tra session).
 -   **Khách hàng**:
     -   Lấy danh sách: `GET /v1/client/get/list`
     -   Chi tiết: `GET /v1/client/get/detail` (ID trong query)

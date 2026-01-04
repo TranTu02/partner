@@ -1,6 +1,7 @@
 import { X, Trash2, Copy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Matrix } from "@/types/parameter";
+import { SampleTypeSearch } from "@/components/common/SampleTypeSearch";
 
 // Extended interfaces to support both view and create modes
 interface AnalysisWithQuantity extends Omit<Matrix, "createdAt" | "createdById" | "modifiedAt" | "modifiedById"> {
@@ -64,11 +65,9 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
                         <label className="block mb-2 text-sm font-medium text-foreground">
                             {t("order.sampleMatrix")} <span className="text-destructive">*</span>
                         </label>
-                        <input
-                            type="text"
-                            className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        <SampleTypeSearch
                             value={sample.sampleMatrix}
-                            onChange={(e) => onUpdateSample({ sampleMatrix: e.target.value })}
+                            onChange={(val) => onUpdateSample({ sampleMatrix: val })}
                             placeholder={t("order.sampleMatrixPlaceholder")}
                             disabled={isReadOnly}
                         />

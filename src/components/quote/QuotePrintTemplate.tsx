@@ -4,11 +4,21 @@ import { useTranslation } from "react-i18next";
 export interface QuotePrintData {
     quoteId: string;
     client: Client | null;
+
+    // Contact Info Snapshot
     contactPerson: string;
     contactPhone: string;
     contactIdentity: string;
+    contactEmail?: string;
+    contactPosition?: string;
+    contactAddress?: string;
     reportEmail: string;
+
+    // Address & Invoice Info Snapshot
     clientAddress: string;
+    taxName?: string;
+    taxCode?: string;
+    taxAddress?: string;
     samples: {
         sampleName: string;
         sampleMatrix: string;

@@ -1,13 +1,14 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Plus, Eye, FileDown, Pencil, Trash2, Search, Save, ArrowLeft } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft } from "lucide-react";
 import type { OrderEditorRef } from "@/components/order/OrderEditor";
 import { OrderEditor } from "@/components/order/OrderEditor";
-import { useAuth } from "../contexts/AuthContext";
+
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { getOrders } from "@/api/index";
 import type { Order } from "@/types/order";
 import { toast } from "sonner";
+import { Pagination } from "@/components/common/Pagination";
 
 import { MainLayout } from "@/components/layout/MainLayout";
 
@@ -18,16 +19,22 @@ interface OrdersListPageProps {
 
 export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps) {
     const { t } = useTranslation();
-    const { user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams] = useSearchParams();
     const editorRef = useRef<OrderEditorRef>(null);
 
+    // State
     const [orders, setOrders] = useState<Order[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
+    const [totalItems, setTotalItems] = useState(0);
+    const [itemsPerPage, setItemsPerPage] = useState(20);
 
     // Determine current view from URL
     const isCreate = location.pathname.endsWith("/create");
@@ -44,10 +51,16 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
         try {
             const query: any = {
                 search: searchQuery || undefined,
+                page: currentPage,
+                itemsPerPage,
             };
             const response = await getOrders({ query });
             if (response.success && response.data) {
                 setOrders(response.data as Order[]);
+                if (response.meta) {
+                    setTotalPages(response.meta.totalPages || 0);
+                    setTotalItems(response.meta.total || 0);
+                }
             } else {
                 if (response.error) {
                     console.error("Fetch orders error", response.error);
@@ -59,7 +72,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
         } finally {
             setIsLoading(false);
         }
-    }, [searchQuery]);
+    }, [searchQuery, currentPage, itemsPerPage]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -256,6 +269,20 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                             </tbody>
                         </table>
                     </div>
+
+                    {!isLoading && orders.length > 0 && (
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            totalItems={totalItems}
+                            itemsPerPage={itemsPerPage}
+                            onPageChange={(page) => setCurrentPage(page)}
+                            onItemsPerPageChange={(items) => {
+                                setItemsPerPage(items);
+                                setCurrentPage(1);
+                            }}
+                        />
+                    )}
                 </div>
             </div>
         </MainLayout>

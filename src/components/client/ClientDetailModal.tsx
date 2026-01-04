@@ -65,11 +65,21 @@ export function ClientDetailModal({ isOpen, onClose, client }: ClientDetailModal
                                     <Mail className="w-3 h-3 inline-block mr-1" />
                                     {t("client.invoiceEmail")}
                                 </div>
-                                <div style={{ fontSize: "14px", color: "#1890FF" }}>{client.invoiceEmail}</div>
+                                <div style={{ fontSize: "14px", color: "#1890FF" }}>{client.invoiceEmail || client.clientEmail}</div>
                             </div>
-                            <div>
-                                <div style={{ fontSize: "12px", color: "rgba(0, 0, 0, 0.45)", marginBottom: "4px" }}>{t("client.invoiceDetails")}</div>
-                                <div style={{ fontSize: "14px" }}>{client.invoiceInfo}</div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <div style={{ fontSize: "12px", color: "rgba(0, 0, 0, 0.45)", marginBottom: "4px" }}>{t("client.taxName")}</div>
+                                    <div style={{ fontSize: "14px" }}>{client.invoiceInfo?.taxName || "-"}</div>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: "12px", color: "rgba(0, 0, 0, 0.45)", marginBottom: "4px" }}>{t("client.taxCode")}</div>
+                                    <div style={{ fontSize: "14px" }}>{client.invoiceInfo?.taxCode || "-"}</div>
+                                </div>
+                                <div className="col-span-2">
+                                    <div style={{ fontSize: "12px", color: "rgba(0, 0, 0, 0.45)", marginBottom: "4px" }}>{t("client.taxAddress")}</div>
+                                    <div style={{ fontSize: "14px" }}>{client.invoiceInfo?.taxAddress || "-"}</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -93,9 +103,9 @@ export function ClientDetailModal({ isOpen, onClose, client }: ClientDetailModal
                         <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200">
                             <div className="flex items-center gap-2 mb-2">
                                 {client.clientSaleScope === "public" ? <Globe className="w-4 h-4 text-orange-600" /> : <Lock className="w-4 h-4 text-orange-600" />}
-                                <div style={{ fontSize: "12px", color: "#FA8C16" }}>{t("client.scope")}</div>
+                                <div style={{ fontSize: "12px", color: "#FA8C16" }}>{t("client.accessScope")}</div>
                             </div>
-                            <div style={{ fontSize: "16px", fontWeight: 600, color: "#FA8C16" }}>{client.clientSaleScope === "public" ? t("client.public") : t("client.private")}</div>
+                            <div style={{ fontSize: "16px", fontWeight: 600, color: "#FA8C16" }}>{client.clientSaleScope === "public" ? t("client.scope.public") : t("client.scope.private")}</div>
                         </div>
                     </div>
 
@@ -120,21 +130,22 @@ export function ClientDetailModal({ isOpen, onClose, client }: ClientDetailModal
                     {/* Contacts */}
                     <div>
                         <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px" }}>
-                            {t("client.contacts")} ({client.contacts.length})
+                            {t("client.contacts")} ({client.clientContacts?.length || 0})
                         </h3>
-                        {client.contacts.length === 0 ? (
+                        {!client.clientContacts || client.clientContacts.length === 0 ? (
                             <div className="text-center py-8 text-gray-400" style={{ fontSize: "14px" }}>
                                 {t("client.noContacts")}
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {client.contacts.map((contact, index: number) => (
+                                {client.clientContacts.map((contact, index: number) => (
                                     <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                                        <div style={{ fontSize: "14px", fontWeight: 600, marginBottom: "4px" }}>{contact.name}</div>
-                                        {contact.email && (
+                                        <div style={{ fontSize: "14px", fontWeight: 600, marginBottom: "4px" }}>{contact.contactName}</div>
+                                        {contact.contactPhone && <div style={{ fontSize: "13px", color: "#666", marginBottom: "2px" }}>{contact.contactPhone}</div>}
+                                        {contact.contactEmail && (
                                             <div style={{ fontSize: "14px", color: "#1890FF" }}>
                                                 <Mail className="w-3 h-3 inline-block mr-1" />
-                                                {contact.email}
+                                                {contact.contactEmail}
                                             </div>
                                         )}
                                     </div>

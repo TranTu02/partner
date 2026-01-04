@@ -5,7 +5,8 @@ export interface Quote {
     quoteCode: string;
     clientId: string; // FK
     client: Client; // jsonb snapshot
-    salePerson: { identityId: string; identityName: string }; // jsonb
+    salePerson?: string; // text (name)
+    salePersonId?: string; // text (FK)
     samples: any[]; // jsonb[]
     totalFeeBeforeTax: number;
     taxRate: number;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { LogIn, UserCircle } from "lucide-react";
-import { useAuth, mockUsers } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 import LogoFull from "@/assets/LOGO-FULL.png";
 
 export function LoginPage() {
@@ -8,9 +8,9 @@ export function LoginPage() {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
-    const [showUserList, setShowUserList] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
 
@@ -19,20 +19,21 @@ export function LoginPage() {
             return;
         }
 
-        const success = login(username, password);
-        if (!success) {
-            setError("Tên đăng nhập hoặc mật khẩu không đúng");
+        setIsLoading(true);
+        try {
+            const success = await login(username, password);
+            if (!success) {
+                setError("Tên đăng nhập hoặc mật khẩu không đúng, hoặc đã xảy ra lỗi.");
+            }
+        } catch (err) {
+            setError("Đã xảy ra lỗi kết nối.");
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const handleSkip = () => {
         loginAsGuest();
-    };
-
-    const handleQuickLogin = (username: string, password: string) => {
-        setUsername(username);
-        setPassword(password);
-        login(username, password);
     };
 
     return (
@@ -56,6 +57,7 @@ export function LoginPage() {
                                 onChange={(e) => setUsername(e.target.value)}
                                 className="w-full px-4 py-2 border border-border rounded focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-input text-foreground text-sm"
                                 placeholder="Nhập tên đăng nhập"
+                                disabled={isLoading}
                             />
                         </div>
 
@@ -67,6 +69,7 @@ export function LoginPage() {
                                 onChange={(e) => setPassword(e.target.value)}
                                 className="w-full px-4 py-2 border border-border rounded focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-input text-foreground text-sm"
                                 placeholder="Nhập mật khẩu"
+                                disabled={isLoading}
                             />
                         </div>
 
@@ -74,46 +77,23 @@ export function LoginPage() {
 
                         <button
                             type="submit"
-                            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded flex items-center justify-center gap-2 transition-colors text-sm font-semibold"
+                            disabled={isLoading}
+                            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded flex items-center justify-center gap-2 transition-colors text-sm font-semibold disabled:opacity-50"
                         >
                             <LogIn className="w-4 h-4" />
-                            Đăng nhập
+                            {isLoading ? "Đang xử lý..." : "Đăng nhập"}
                         </button>
 
                         <button
                             type="button"
                             onClick={handleSkip}
+                            disabled={isLoading}
                             className="w-full bg-card hover:bg-muted/50 text-foreground py-2.5 rounded border border-border flex items-center justify-center gap-2 transition-colors text-sm font-semibold"
                         >
                             <UserCircle className="w-4 h-4" />
                             Tiếp tục với tư cách khách
                         </button>
                     </form>
-
-                    {/* Test Accounts Toggle */}
-                    <div className="mt-6 pt-6 border-t border-border">
-                        <button onClick={() => setShowUserList(!showUserList)} className="text-primary hover:underline mx-auto block text-sm">
-                            {showUserList ? "Ẩn tài khoản test" : "Xem tài khoản test"}
-                        </button>
-
-                        {showUserList && (
-                            <div className="mt-4 space-y-2 fixed -translate-y-[100%] translate-x-[100%] w-[30%]">
-                                <p className="text-xs text-muted-foreground mb-3">Click để đăng nhập nhanh (tất cả mật khẩu: 123456)</p>
-                                {mockUsers.map((user) => (
-                                    <button
-                                        key={user.id}
-                                        onClick={() => handleQuickLogin(user.username, user.password)}
-                                        className="w-full text-left px-4 py-3 border border-border rounded hover:border-primary hover:bg-primary/10 transition-colors bg-card"
-                                    >
-                                        <div className="text-sm font-semibold mb-0.5 text-foreground">{user.fullName}</div>
-                                        <div className="text-xs text-muted-foreground">
-                                            {user.username} • {getRoleLabel(user.role)}
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
                 </div>
 
                 {/* Footer Info */}
@@ -123,14 +103,4 @@ export function LoginPage() {
             </div>
         </div>
     );
-}
-
-function getRoleLabel(role: string): string {
-    const labels: Record<string, string> = {
-        Collaborator: "CTV",
-        CustomerService: "CSKH/KD",
-        Accountant: "Kế toán",
-        Client: "Khách hàng",
-    };
-    return labels[role] || role;
 }

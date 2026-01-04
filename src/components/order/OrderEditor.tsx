@@ -7,15 +7,6 @@ import { AnalysisModalNew } from "@/components/parameter/AnalysisModalNew";
 import { AddClientModal } from "@/components/client/AddClientModal";
 import type { Client } from "@/types/client";
 import type { Matrix } from "@/types/parameter";
-// Assuming Order definition is needed, we can import it or define interface locally if unrelated to full type
-// import type { Order } from "@/types/order";
-// Using basic types or 'any' for Order to match usage if type definition is partial in files
-// For now, let's substitute Order with any or a minimal interface to avoid conflict if types/order.ts is not fully aligned.
-// Actually, let's check input 'initialData?: Order'.
-// I'll define Order locally or import if available. I'll use 'any' for now for Order to facilitate refactor without type hell.
-// import { useAuth } from "../../contexts/AuthContext";
-// @ts-ignore
-import { createRoot } from "react-dom/client";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import { OrderPrintPreviewModal } from "@/components/order/OrderPrintPreviewModal";
 import { SampleRequestPrintPreviewModal } from "@/components/order/SampleRequestPrintPreviewModal";
@@ -62,7 +53,6 @@ export interface OrderEditorRef {
 
 export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode, initialData, onSaveSuccess }, ref) => {
     const { t } = useTranslation();
-    // const { user } = useAuth();
     const isReadOnly = mode === "view";
 
     const [clients, setClients] = useState<Client[]>([]);
@@ -83,11 +73,27 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
     // Form State
     const [selectedClient, setSelectedClient] = useState<Client | null>(initialData?.client || null);
+
+    // Basic Info
+    const [clientAddress, setClientAddress] = useState(initialData?.client?.clientAddress || "");
+    const [clientPhone, setClientPhone] = useState(initialData?.client?.clientPhone || "");
+    const [clientEmail, setClientEmail] = useState(initialData?.client?.clientEmail || "");
+
+    // Contact Info
     const [contactPerson, setContactPerson] = useState("");
     const [contactPhone, setContactPhone] = useState("");
     const [contactIdentity, setContactIdentity] = useState("");
+    const [contactEmail, setContactEmail] = useState("");
+    const [contactPosition, setContactPosition] = useState("");
+    const [contactAddress, setContactAddress] = useState("");
     const [reportEmail, setReportEmail] = useState("");
-    const [clientAddress, setClientAddress] = useState(initialData?.client?.clientAddress || "");
+
+    // Invoice Info
+    const [taxName, setTaxName] = useState("");
+    const [taxCode, setTaxCode] = useState("");
+    const [taxAddress, setTaxAddress] = useState("");
+    const [taxEmail, setTaxEmail] = useState("");
+
     const [quoteId, setQuoteId] = useState(initialData?.quoteId || "");
     const [samples, setSamples] = useState<SampleWithQuantity[]>([]);
     const [discount, setDiscount] = useState(0);
@@ -98,14 +104,30 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         if (initialData) {
             setSelectedClient(initialData.client || null);
             setClientAddress(initialData.client?.clientAddress || "");
-            if (initialData.client?.contacts?.[0]) {
-                setContactPerson(initialData.client.contacts[0].name);
-                setContactPhone(initialData.client.contacts[0].phone || "");
-                setContactIdentity(initialData.client.contacts[0].identityId || "");
-                setReportEmail(initialData.client.contacts[0].email || "");
+            setClientPhone(initialData.client?.clientPhone || "");
+            setClientEmail(initialData.client?.clientEmail || "");
+
+            // Populate Invoice Info from Snapshot
+            if (initialData.client?.invoiceInfo) {
+                setTaxName(initialData.client.invoiceInfo.taxName || "");
+                setTaxCode(initialData.client.invoiceInfo.taxCode || "");
+                setTaxAddress(initialData.client.invoiceInfo.taxAddress || "");
+                setTaxEmail(initialData.client.invoiceInfo.taxEmail || "");
             }
+
+            // Populate Contact from Snapshot
+            if (initialData.client?.clientContacts?.[0]) {
+                const contact = initialData.client.clientContacts[0];
+                setContactPerson(contact.contactName || (contact as any).name || "");
+                setContactPhone(contact.contactPhone || (contact as any).phone || "");
+                setContactIdentity(contact.identityId || "");
+                setContactEmail(contact.contactEmail || (contact as any).email || "");
+                setContactPosition(contact.contactPosition || (contact as any).position || "");
+                setContactAddress(contact.contactAddress || "");
+                setReportEmail(contact.contactEmail || (contact as any).email || "");
+            }
+
             if (initialData.samples && initialData.samples.length > 0) {
-                // Determine if samples need mapping
                 setSamples(initialData.samples);
             }
         }
@@ -138,11 +160,60 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         }
     }, [selectedClient, contactPerson, samples, isReadOnly]);
 
+    // Update form when Client is selected (outside of initial load)
     useEffect(() => {
         if (selectedClient && !initialData) {
             setClientAddress(selectedClient.clientAddress);
+            setClientPhone(selectedClient.clientPhone || "");
+            setClientEmail(selectedClient.clientEmail || "");
+
+            // Invoice
+            setTaxName(selectedClient.invoiceInfo?.taxName || selectedClient.clientName);
+            setTaxCode(selectedClient.invoiceInfo?.taxCode || selectedClient.legalId);
+            setTaxAddress(selectedClient.invoiceInfo?.taxAddress || selectedClient.clientAddress);
+            setTaxEmail(selectedClient.invoiceInfo?.taxEmail || "");
+
+            // Contact
+            if (selectedClient.clientContacts?.[0]) {
+                const contact = selectedClient.clientContacts[0];
+                setContactPerson(contact.contactName || (contact as any).name || "");
+                setContactPhone(contact.contactPhone || (contact as any).phone || "");
+                setContactIdentity(contact.identityId || "");
+                setContactEmail(contact.contactEmail || (contact as any).email || "");
+                setContactPosition(contact.contactPosition || (contact as any).position || "");
+                setContactAddress(contact.contactAddress || "");
+                setReportEmail(contact.contactEmail || (contact as any).email || "");
+            } else {
+                // Clear contact fields if no contact
+                setContactPerson("");
+                setContactPhone("");
+                setContactIdentity("");
+                setContactEmail("");
+                setContactPosition("");
+                setContactAddress("");
+                setReportEmail("");
+            }
         } else if (selectedClient && initialData && selectedClient.clientId !== initialData.client?.clientId) {
+            // If user changes client while editing an order, overwrite fields
             setClientAddress(selectedClient.clientAddress);
+            setClientPhone(selectedClient.clientPhone || "");
+            setClientEmail(selectedClient.clientEmail || "");
+
+            setTaxName(selectedClient.invoiceInfo?.taxName || selectedClient.clientName);
+            setTaxCode(selectedClient.invoiceInfo?.taxCode || selectedClient.legalId);
+            setTaxAddress(selectedClient.invoiceInfo?.taxAddress || selectedClient.clientAddress);
+            setTaxEmail(selectedClient.invoiceInfo?.taxEmail || "");
+
+            if (selectedClient.clientContacts?.[0]) {
+                const contact = selectedClient.clientContacts[0];
+                setContactPerson(contact.contactName || (contact as any).name || "");
+                setContactPhone(contact.contactPhone || (contact as any).phone || "");
+                setContactIdentity(contact.identityId || "");
+                setContactEmail(contact.contactEmail || (contact as any).email || "");
+                setContactPosition(contact.contactPosition || (contact as any).position || "");
+                setContactAddress(contact.contactAddress || "");
+                setReportEmail(contact.contactEmail || (contact as any).email || "");
+            }
         }
     }, [selectedClient, initialData]);
 
@@ -154,29 +225,39 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         }
 
         try {
-            // Try fetching by ID first (if valid UUID), then search?
-            // Or just search by code.
             const response = await getQuotes({ query: { search: quoteId } });
 
             let foundQuote: any = null;
             if (response.success && response.data && (response.data as any[]).length > 0) {
-                // Assume first match or exact match on quoteId/Code
                 foundQuote = (response.data as any[]).find((q) => q.quoteId === quoteId || q.paramCode === quoteId);
                 if (!foundQuote) foundQuote = (response.data as any[])[0];
             }
 
             if (foundQuote) {
-                // Fetch detailed quote if needed, or use list data if sufficient.
-                // Ideally getQuoteDetail(foundQuote.id)
-
                 setSelectedClient(foundQuote.client);
-                if (foundQuote.client.contacts?.[0]) {
-                    setContactPerson(foundQuote.client.contacts[0].name);
-                    setContactPhone(foundQuote.client.contacts[0].phone || "");
-                    setContactIdentity(foundQuote.client.contacts[0].identityId || "");
-                    setReportEmail(foundQuote.client.contacts[0].email || "");
+                // Map quote client data to form state (similar to selectedClient)
+                const qClient = foundQuote.client;
+
+                setClientAddress(qClient.clientAddress);
+                setClientPhone(qClient.clientPhone || "");
+                setClientEmail(qClient.clientEmail || "");
+
+                setTaxName(qClient.invoiceInfo?.taxName || qClient.clientName);
+                setTaxCode(qClient.invoiceInfo?.taxCode || qClient.legalId);
+                setTaxAddress(qClient.invoiceInfo?.taxAddress || qClient.clientAddress);
+                setTaxEmail(qClient.invoiceInfo?.taxEmail || "");
+
+                if (qClient.clientContacts?.[0]) {
+                    const contact = qClient.clientContacts[0];
+                    setContactPerson(contact.contactName || (contact as any).name || "");
+                    setContactPhone(contact.contactPhone || (contact as any).phone || "");
+                    setContactIdentity(contact.identityId || "");
+                    setContactEmail(contact.contactEmail || (contact as any).email || "");
+                    setContactPosition(contact.contactPosition || (contact as any).position || "");
+                    setContactAddress(contact.contactAddress || "");
+                    setReportEmail(contact.contactEmail || (contact as any).email || "");
                 }
-                setClientAddress(foundQuote.client.clientAddress);
+
                 setDiscount(foundQuote.discount);
 
                 const convertedSamples: SampleWithQuantity[] = (foundQuote.samples || []).map((s: any) => ({
@@ -190,7 +271,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         id: a.id || crypto.randomUUID(),
                         unitPrice: a.feeBeforeTax || 0,
                         quantity: 1,
-                        // Ensure other Matrix fields are present if available or default them
                         matrixId: a.matrixId || "UNKNOWN",
                         parameterId: a.parameterId || "",
                         protocolId: a.protocolId || "",
@@ -238,14 +318,52 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     const pricing = calculatePricing();
 
     const handleExport = () => {
+        // Construct a client snapshot with updated fields
+        const clientSnapshot = selectedClient
+            ? {
+                  ...selectedClient,
+                  clientAddress,
+                  clientPhone,
+                  clientEmail,
+                  invoiceInfo: {
+                      taxName,
+                      taxCode,
+                      taxAddress,
+                      taxEmail,
+                  },
+                  clientContacts: selectedClient.clientContacts
+                      ? [
+                            {
+                                ...(selectedClient.clientContacts[0] || {}),
+                                contactName: contactPerson,
+                                contactPhone: contactPhone,
+                                contactEmail: contactEmail,
+                                contactPosition: contactPosition,
+                                contactAddress: contactAddress,
+                                identityId: contactIdentity,
+                            },
+                        ]
+                      : [],
+              }
+            : null;
+
         const data: OrderPrintData = {
             orderId,
-            client: selectedClient,
+            client: clientSnapshot,
+
             contactPerson,
             contactPhone,
             contactIdentity,
             reportEmail,
+            contactEmail,
+            contactPosition,
+            contactAddress,
+
             clientAddress,
+            taxName,
+            taxCode,
+            taxAddress,
+
             samples: samples.map((s) => ({
                 sampleName: s.sampleName || "",
                 sampleMatrix: s.sampleMatrix || "",
@@ -265,36 +383,19 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     };
 
     const handleExportSampleRequest = () => {
-        const data: OrderPrintData = {
-            orderId,
-            client: selectedClient,
-            contactPerson,
-            contactPhone,
-            contactIdentity,
-            reportEmail,
-            clientAddress,
-            samples: samples.map((s) => ({
-                sampleName: s.sampleName || "",
-                sampleMatrix: s.sampleMatrix || "",
-                sampleNote: s.sampleNote || "",
-                analyses: s.analyses.map((a) => ({
-                    parameterName: a.parameterName,
-                    protocolCode: a.protocolCode || "",
-                    unitPrice: a.unitPrice || 0,
-                    quantity: a.quantity || 1,
-                })),
-            })),
-            pricing,
-            discount,
-        };
-        setPreviewData(data);
+        // Similar to handleExport
+        handleExport(); // Reuse logic or copy if slightly different
+        // Reusing handleExport for preview data construction, just toggling different modal
+        // Using the same setPreviewData logic
+        // But need to open the other modal
+        // The handleExport sets isPreviewOpen=true.
+        setIsPreviewOpen(false); // Close the other one if it opened
         setIsSampleRequestPreviewOpen(true);
     };
 
     // Replacing handleAddClient with API version
     const handleAddClientAPI = async (newClientData: any) => {
         try {
-            // We need to import createClient
             const { createClient } = await import("@/api/index");
             const response = await createClient({ body: newClientData });
             if (response.success && response.data) {
@@ -306,7 +407,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             } else {
                 toast.error("Failed to create client");
             }
-        } catch (e) {
+        } catch {
             toast.error("Error creating client");
         }
     };
@@ -449,17 +550,35 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         <ClientSectionNew
                             clients={clients}
                             selectedClient={selectedClient}
+                            address={clientAddress}
+                            clientPhone={clientPhone}
+                            clientEmail={clientEmail}
                             contactPerson={contactPerson}
                             contactPhone={contactPhone}
                             contactIdentity={contactIdentity}
+                            contactEmail={contactEmail}
+                            contactPosition={contactPosition}
+                            contactAddress={contactAddress}
                             reportEmail={reportEmail}
-                            address={clientAddress}
+                            taxName={taxName}
+                            taxCode={taxCode}
+                            taxAddress={taxAddress}
+                            taxEmail={taxEmail}
                             onClientChange={setSelectedClient}
+                            onAddressChange={setClientAddress}
                             onContactPersonChange={setContactPerson}
                             onContactPhoneChange={setContactPhone}
                             onContactIdentityChange={setContactIdentity}
                             onReportEmailChange={setReportEmail}
-                            onAddressChange={setClientAddress}
+                            onContactEmailChange={setContactEmail}
+                            onContactPositionChange={setContactPosition}
+                            onContactAddressChange={setContactAddress}
+                            onClientPhoneChange={setClientPhone}
+                            onClientEmailChange={setClientEmail}
+                            onTaxNameChange={setTaxName}
+                            onTaxCodeChange={setTaxCode}
+                            onTaxAddressChange={setTaxAddress}
+                            onTaxEmailChange={setTaxEmail}
                             onAddNewClient={() => setIsClientModalOpen(true)}
                             isReadOnly={isReadOnly}
                         />

@@ -8,6 +8,7 @@ import { ClientDetailModal } from "@/components/client/ClientDetailModal";
 import { EditClientModal } from "@/components/client/EditClientModal";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { toast } from "sonner";
+import { Pagination } from "@/components/common/Pagination";
 
 interface ClientsPageProps {
     activeMenu: string;
@@ -20,6 +21,8 @@ export function ClientsPage({ activeMenu, onMenuClick }: ClientsPageProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const [itemsPerPage, setItemsPerPage] = useState(20);
     const [isLoading, setIsLoading] = useState(false);
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -33,7 +36,7 @@ export function ClientsPage({ activeMenu, onMenuClick }: ClientsPageProps) {
             const response = await getClients({
                 query: {
                     page,
-                    itemsPerPage: 10,
+                    itemsPerPage,
                     search: searchQuery || undefined,
                 },
             });
@@ -41,6 +44,7 @@ export function ClientsPage({ activeMenu, onMenuClick }: ClientsPageProps) {
                 setClients(response.data as Client[]);
                 if (response.meta) {
                     setTotalPages(response.meta.totalPages || 1);
+                    setTotalItems(response.meta.total || 0);
                 }
             } else {
                 toast.error("Failed to fetch clients");
@@ -51,7 +55,7 @@ export function ClientsPage({ activeMenu, onMenuClick }: ClientsPageProps) {
         } finally {
             setIsLoading(false);
         }
-    }, [page, searchQuery]);
+    }, [page, searchQuery, itemsPerPage]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -230,6 +234,20 @@ export function ClientsPage({ activeMenu, onMenuClick }: ClientsPageProps) {
                         </tbody>
                     </table>
                 </div>
+
+                {!isLoading && clients.length > 0 && (
+                    <Pagination 
+                        currentPage={page} 
+                        totalPages={totalPages} 
+                        totalItems={totalItems} 
+                        itemsPerPage={itemsPerPage} 
+                        onPageChange={(p) => setPage(p)}
+                        onItemsPerPageChange={(items) => {
+                            setItemsPerPage(items);
+                            setPage(1);
+                        }}
+                    />
+                )}
             </div>
 
             <AddClientModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onConfirm={handleAddClient} />

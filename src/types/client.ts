@@ -1,9 +1,19 @@
-export interface Contact {
-    name: string;
-    phone?: string;
-    email?: string;
-    position?: string;
+export interface ClientContact {
+    contactId?: string;
+    contactName: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    contactPosition?: string;
+    contactAddress?: string;
+    // Legacy support if needed, or mapped
     identityId?: string;
+}
+
+export interface InvoiceInfo {
+    taxName?: string;
+    taxCode?: string;
+    taxAddress?: string;
+    taxEmail?: string;
 }
 
 export interface Client {
@@ -11,11 +21,16 @@ export interface Client {
     clientName: string;
     legalId: string; // Tax ID / CMND
     clientAddress: string;
+    clientPhone?: string;
+    clientEmail?: string;
+    salePerson?: string; // name
+    salePersonId?: string; // FK identity
     clientSaleScope: "public" | "private";
     availableByIds: string[]; // List of Identity IDs (text[])
-    contacts: Contact[]; // jsonb[]
+    availableByName?: string[]; // List of names
+    clientContacts: ClientContact[]; // jsonb[]
     invoiceEmail: string;
-    invoiceInfo: string; // jsonb - simplified as object for frontend
+    invoiceInfo: InvoiceInfo; // jsonb structure
     totalOrderAmount: number;
 
     // Audit columns

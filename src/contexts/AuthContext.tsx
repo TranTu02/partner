@@ -1,148 +1,171 @@
-import { createContext, useContext, useState } from 'react';
-import type { ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect } from "react";
+import type { ReactNode } from "react";
+import Cookies from "js-cookie";
+import { login as apiLogin, checkSessionStatus } from "@/api";
 
-export type UserRole = 'Collaborator' | 'CustomerService' | 'Accountant' | 'Client' | 'Guest';
+export type UserRole = "Collaborator" | "CustomerService" | "Accountant" | "Client" | "Guest" | "Admin";
 
 export interface User {
-  id: string;
-  username: string;
-  password: string;
-  fullName: string;
-  role: UserRole;
-  email: string;
-  clientId?: string; // For Client role - ID của khách hàng trong hệ thống
+    id: string; // identityId
+    username: string; // identityName
+    fullName: string; // alias
+    roles: Record<string, boolean>; // API returns object
+    role: UserRole; // Derived primary role for frontend logic
+    email?: string;
+    clientId?: string;
 }
 
 interface AuthContextType {
-  user: User | null;
-  isGuest: boolean;
-  login: (username: string, password: string) => boolean;
-  loginAsGuest: () => void;
-  logout: () => void;
-  hasAccess: (page: string) => boolean;
+    user: User | null;
+    isGuest: boolean;
+    login: (username: string, password: string) => Promise<boolean>;
+    loginAsGuest: () => void;
+    logout: () => void;
+    hasAccess: (page: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users data for testing all roles
-export const mockUsers: User[] = [
-  {
-    id: '1',
-    username: 'ctv001',
-    password: '123456',
-    fullName: 'Nguyễn Văn A',
-    role: 'Collaborator',
-    email: 'ctv001@lims.vn'
-  },
-  {
-    id: '2',
-    username: 'kd001',
-    password: '123456',
-    fullName: 'Trần Thị B',
-    role: 'CustomerService',
-    email: 'kd001@lims.vn'
-  },
-  {
-    id: '3',
-    username: 'kt001',
-    password: '123456',
-    fullName: 'Lê Văn C',
-    role: 'Accountant',
-    email: 'kt001@lims.vn'
-  },
-  {
-    id: '4',
-    username: 'client001',
-    password: '123456',
-    fullName: 'Phạm Thị D',
-    role: 'Client',
-    email: 'client001@example.com',
-    clientId: '1001'
-  },
-  {
-    id: '5',
-    username: 'ctv002',
-    password: '123456',
-    fullName: 'Hoàng Văn E',
-    role: 'Collaborator',
-    email: 'ctv002@lims.vn'
-  },
-  {
-    id: '6',
-    username: 'kd002',
-    password: '123456',
-    fullName: 'Vũ Thị F',
-    role: 'CustomerService',
-    email: 'kd002@lims.vn'
-  },
-  {
-    id: '7',
-    username: 'client002',
-    password: '123456',
-    fullName: 'Đặng Văn G',
-    role: 'Client',
-    email: 'client002@example.com',
-    clientId: '1002'
-  }
-];
-
-// Role-based access control matrix
-const accessMatrix: Record<UserRole, string[]> = {
-  Collaborator: ['dashboard', 'clients', 'quotes', 'quotes-create', 'orders', 'orders-create', 'parameters'],
-  CustomerService: ['dashboard', 'clients', 'quotes', 'quotes-create', 'orders', 'orders-create', 'parameters', 'accounting'],
-  Accountant: ['dashboard', 'clients', 'parameters', 'orders', 'accounting'],
-  Client: ['parameters', 'quotes', 'quotes-create', 'orders', 'orders-create'],
-  Guest: ['parameters', 'quotes']
+// Role-based access control matrix (Simplified/Updated)
+const accessMatrix: Record<string, string[]> = {
+    Admin: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters", "accounting", "admin"],
+    Collaborator: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters"],
+    CustomerService: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters", "accounting"],
+    Accountant: ["dashboard", "clients", "parameters", "orders", "accounting"],
+    Client: ["parameters", "quotes", "quotes-create", "orders", "orders-create"],
+    Guest: ["parameters", "quotes"],
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isGuest, setIsGuest] = useState(false);
+    const [user, setUser] = useState<User | null>(() => {
+        // Hydrate from localStorage/Cookies if needed
+        const savedUser = localStorage.getItem("user");
+        return savedUser ? JSON.parse(savedUser) : null;
+    });
+    const [sessionId, setSessionId] = useState<string | null>(() => localStorage.getItem("sessionId"));
+    const [isGuest, setIsGuest] = useState(false);
 
-  const login = (username: string, password: string): boolean => {
-    const foundUser = mockUsers.find(
-      u => u.username === username && u.password === password
-    );
-    
-    if (foundUser) {
-      setUser(foundUser);
-      setIsGuest(false);
-      return true;
-    }
-    return false;
-  };
+    // Check session status on mount
+    useEffect(() => {
+        const verifySession = async () => {
+            if (!sessionId) return;
 
-  const loginAsGuest = () => {
-    setUser(null);
-    setIsGuest(true);
-  };
+            try {
+                const response = await checkSessionStatus({ body: { sessionId } });
+                if (!response.success || response.data?.sessionStatus !== "active") {
+                    console.log("Session invalid or expired, logging out...");
+                    logout();
+                } else {
+                    console.log("Session verified:", response.data);
+                    const identity = response.data.identity;
+                    if (identity) {
+                        setUser((prev) => {
+                            if (!prev) return null;
+                            const updatedUser = {
+                                ...prev,
+                                id: identity.identityId,
+                                username: identity.identityName || identity.username,
+                            };
+                            localStorage.setItem("user", JSON.stringify(updatedUser));
+                            return updatedUser;
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error("Session check failed:", error);
+                logout();
+            }
+        };
 
-  const logout = () => {
-    setUser(null);
-    setIsGuest(false);
-  };
+        verifySession();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sessionId]); // Depend on sessionId to re-verify if it changes
 
-  const hasAccess = (page: string): boolean => {
-    if (isGuest) {
-      return accessMatrix.Guest.includes(page);
-    }
-    if (!user) {
-      return false;
-    }
-    return accessMatrix[user.role].includes(page);
-  };
+    const login = async (username: string, password: string): Promise<boolean> => {
+        try {
+            const response = await apiLogin({ body: { username, password } });
+            if (response.success && response.data) {
+                const apiUser = response.data.user;
+                const token = response.data.token;
+                const newSessionId = response.data.sessionId;
 
-  return (
-    <AuthContext.Provider value={{ user, isGuest, login, loginAsGuest, logout, hasAccess }}>
-      {children}
-    </AuthContext.Provider>
-  );
+                // Save Token
+                Cookies.set("authToken", token, { expires: 7 });
+
+                // Save Session ID if available
+                if (newSessionId) {
+                    setSessionId(newSessionId);
+                    localStorage.setItem("sessionId", newSessionId);
+                }
+
+                // Map API User to Context User
+                // Determine primary role
+                let primaryRole: UserRole = "Collaborator";
+                if (apiUser.roles) {
+                    if (apiUser.roles.admin) primaryRole = "Admin";
+                    else if (apiUser.roles.accountant) primaryRole = "Accountant";
+                    else if (apiUser.roles.sale || apiUser.roles.customerService) primaryRole = "CustomerService";
+                    else if (apiUser.roles.client) primaryRole = "Client";
+                }
+
+                const mappedUser: User = {
+                    id: apiUser.identityId,
+                    username: apiUser.identityName,
+                    fullName: apiUser.alias,
+                    roles: apiUser.roles,
+                    role: primaryRole,
+                    email: apiUser.email || "", // Assuming API might return email or we default empty
+                };
+
+                setUser(mappedUser);
+                setIsGuest(false);
+                localStorage.setItem("user", JSON.stringify(mappedUser));
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error("Login failed:", error);
+            return false;
+        }
+    };
+
+    const loginAsGuest = () => {
+        setUser(null);
+        setSessionId(null);
+        setIsGuest(true);
+        localStorage.removeItem("user");
+        localStorage.removeItem("sessionId");
+        Cookies.remove("authToken");
+    };
+
+    const logout = () => {
+        setUser(null);
+        setSessionId(null);
+        setIsGuest(false);
+        localStorage.removeItem("user");
+        localStorage.removeItem("sessionId");
+        Cookies.remove("authToken");
+    };
+
+    const hasAccess = (page: string): boolean => {
+        if (isGuest) {
+            return accessMatrix.Guest.includes(page);
+        }
+        if (!user) {
+            return false;
+        }
+        // Fallback if role doesn't match matrix key
+        const allowedPages = accessMatrix[user.role] || [];
+        return allowedPages.includes(page);
+    };
+
+    return <AuthContext.Provider value={{ user, isGuest, login, loginAsGuest, logout, hasAccess }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+    const context = useContext(AuthContext);
+    if (context === undefined) {
+        throw new Error("useAuth must be used within an AuthProvider");
+    }
+    return context;
 }

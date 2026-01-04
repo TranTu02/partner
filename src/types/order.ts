@@ -5,13 +5,14 @@ export interface Order {
     quoteId?: string; // FK
     clientId: string; // FK
     client: Client; // jsonb snapshot
-    salePerson: { identityId: string; identityName: string }; // jsonb
+    salePerson?: string; // text (name)
+    salePersonId?: string; // text (FK)
     samples: any[]; // jsonb[]
     totalAmount: number;
     orderStatus: "Pending" | "Processing" | "Completed" | "Cancelled";
     paymentStatus: "Unpaid" | "Partial" | "Paid" | "Debt";
     transactions?: any[]; // jsonb[]
-    contactPerson: { identityId: string; identityName: string }; // jsonb
+    contactPerson?: any; // jsonb (Contact Snapshot)
     // Audit columns
     createdAt: string;
     createdById: string;

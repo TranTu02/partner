@@ -9,8 +9,6 @@ import { QuotePrintPreviewModal } from "@/components/quote/QuotePrintPreviewModa
 import type { QuotePrintData } from "@/components/quote/QuotePrintTemplate";
 import type { Client } from "@/types/client";
 import type { Matrix } from "@/types/parameter";
-// import type { Quote } from "@/types/quote"; // Assuming existence or replacing with any
-// import { useAuth } from "../../contexts/AuthContext";
 import { useTranslation } from "react-i18next";
 import type { EditorMode, SampleWithQuantity, AnalysisWithQuantity } from "../order/OrderEditor";
 import { getClients, createClient } from "@/api/index";
@@ -31,7 +29,6 @@ export interface QuoteEditorRef {
 
 export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode, initialData, onSaveSuccess }, ref) => {
     const { t } = useTranslation();
-    // const { user } = useAuth();
     const isReadOnly = mode === "view";
 
     const [clients, setClients] = useState<Client[]>([]);
@@ -51,11 +48,27 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
     }, []);
 
     const [selectedClient, setSelectedClient] = useState<Client | null>(initialData?.client || null);
+
+    // Basic Info
+    const [clientAddress, setClientAddress] = useState(initialData?.client?.clientAddress || "");
+    const [clientPhone, setClientPhone] = useState(initialData?.client?.clientPhone || "");
+    const [clientEmail, setClientEmail] = useState(initialData?.client?.clientEmail || "");
+
+    // Contact Info
     const [contactPerson, setContactPerson] = useState("");
     const [contactPhone, setContactPhone] = useState("");
     const [contactIdentity, setContactIdentity] = useState("");
+    const [contactEmail, setContactEmail] = useState("");
+    const [contactPosition, setContactPosition] = useState("");
+    const [contactAddress, setContactAddress] = useState("");
     const [reportEmail, setReportEmail] = useState("");
-    const [clientAddress, setClientAddress] = useState(initialData?.client?.clientAddress || "");
+
+    // Invoice Info
+    const [taxName, setTaxName] = useState("");
+    const [taxCode, setTaxCode] = useState("");
+    const [taxAddress, setTaxAddress] = useState("");
+    const [taxEmail, setTaxEmail] = useState("");
+
     const [samples, setSamples] = useState<SampleWithQuantity[]>([]);
     const [discount, setDiscount] = useState(initialData?.discount || 0);
     const [commission, setCommission] = useState(0);
@@ -73,11 +86,28 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
     // Populate From Initial Data
     useEffect(() => {
         if (initialData) {
-            if (initialData.client?.contacts?.[0]) {
-                setContactPerson(initialData.client.contacts[0].name);
-                setContactPhone(initialData.client.contacts[0].phone || "");
-                setContactIdentity(initialData.client.contacts[0].identityId || "");
-                setReportEmail(initialData.client.contacts[0].email || "");
+            setSelectedClient(initialData.client || null);
+            setClientAddress(initialData.client?.clientAddress || "");
+            setClientPhone(initialData.client?.clientPhone || "");
+            setClientEmail(initialData.client?.clientEmail || "");
+
+            // Populate Invoice Info from Snapshot
+            if (initialData.client?.invoiceInfo) {
+                setTaxName(initialData.client.invoiceInfo.taxName || "");
+                setTaxCode(initialData.client.invoiceInfo.taxCode || "");
+                setTaxAddress(initialData.client.invoiceInfo.taxAddress || "");
+                setTaxEmail(initialData.client.invoiceInfo.taxEmail || "");
+            }
+
+            if (initialData.client?.clientContacts?.[0]) {
+                const contact = initialData.client.clientContacts[0];
+                setContactPerson(contact.contactName || (contact as any).name || "");
+                setContactPhone(contact.contactPhone || (contact as any).phone || "");
+                setContactIdentity(contact.identityId || "");
+                setContactEmail(contact.contactEmail || (contact as any).email || "");
+                setContactPosition(contact.contactPosition || (contact as any).position || "");
+                setContactAddress(contact.contactAddress || "");
+                setReportEmail(contact.contactEmail || (contact as any).email || "");
             }
             if (initialData.samples && initialData.samples.length > 0) {
                 setSamples(initialData.samples);
@@ -105,8 +135,55 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
     useEffect(() => {
         if (selectedClient && !initialData) {
             setClientAddress(selectedClient.clientAddress);
+            setClientPhone(selectedClient.clientPhone || "");
+            setClientEmail(selectedClient.clientEmail || "");
+
+            // Invoice
+            setTaxName(selectedClient.invoiceInfo?.taxName || selectedClient.clientName);
+            setTaxCode(selectedClient.invoiceInfo?.taxCode || selectedClient.legalId);
+            setTaxAddress(selectedClient.invoiceInfo?.taxAddress || selectedClient.clientAddress);
+            setTaxEmail(selectedClient.invoiceInfo?.taxEmail || "");
+
+            // Contact
+            if (selectedClient.clientContacts?.[0]) {
+                const contact = selectedClient.clientContacts[0];
+                setContactPerson(contact.contactName || (contact as any).name || "");
+                setContactPhone(contact.contactPhone || (contact as any).phone || "");
+                setContactIdentity(contact.identityId || "");
+                setContactEmail(contact.contactEmail || (contact as any).email || "");
+                setContactPosition(contact.contactPosition || (contact as any).position || "");
+                setContactAddress(contact.contactAddress || "");
+                setReportEmail(contact.contactEmail || (contact as any).email || "");
+            } else {
+                setContactPerson("");
+                setContactPhone("");
+                setContactIdentity("");
+                setContactEmail("");
+                setContactPosition("");
+                setContactAddress("");
+                setReportEmail("");
+            }
         } else if (selectedClient && initialData && selectedClient.clientId !== initialData.client?.clientId) {
+            // Overwrite on client change
             setClientAddress(selectedClient.clientAddress);
+            setClientPhone(selectedClient.clientPhone || "");
+            setClientEmail(selectedClient.clientEmail || "");
+
+            setTaxName(selectedClient.invoiceInfo?.taxName || selectedClient.clientName);
+            setTaxCode(selectedClient.invoiceInfo?.taxCode || selectedClient.legalId);
+            setTaxAddress(selectedClient.invoiceInfo?.taxAddress || selectedClient.clientAddress);
+            setTaxEmail(selectedClient.invoiceInfo?.taxEmail || "");
+
+            if (selectedClient.clientContacts?.[0]) {
+                const contact = selectedClient.clientContacts[0];
+                setContactPerson(contact.contactName || (contact as any).name || "");
+                setContactPhone(contact.contactPhone || (contact as any).phone || "");
+                setContactIdentity(contact.identityId || "");
+                setContactEmail(contact.contactEmail || (contact as any).email || "");
+                setContactPosition(contact.contactPosition || (contact as any).position || "");
+                setContactAddress(contact.contactAddress || "");
+                setReportEmail(contact.contactEmail || (contact as any).email || "");
+            }
         }
     }, [selectedClient, initialData]);
 
@@ -180,11 +257,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             id: `A${timestamp}_${index}_${matrixItem.matrixId}`,
             unitPrice: matrixItem.feeBeforeTax || 0,
             quantity: 1,
-            // Add missing properties expected by AnalysisWithQuantity
-            // AnalysisWithQuantity in OrderEditor now extends Matrix, so we should be good if we spread matrixItem
-            // but we need to ensure all required fields are present if Matrix could have optionals that AnalysisWithQuantity requires?
-            // Matrix has feeBeforeTax as number (required), taxRate as number (required).
-            // AnalysisWithQuantity requires id, unitPrice, quantity.
         }));
 
         const updatedSample: SampleWithQuantity = {
@@ -248,14 +320,52 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
     };
 
     const handleExport = () => {
+        // Construct a client snapshot with updated fields for print
+        const clientSnapshot = selectedClient
+            ? {
+                  ...selectedClient,
+                  clientAddress,
+                  clientPhone,
+                  clientEmail,
+                  invoiceInfo: {
+                      taxName,
+                      taxCode,
+                      taxAddress,
+                      taxEmail,
+                  },
+                  clientContacts: selectedClient.clientContacts
+                      ? [
+                            {
+                                ...selectedClient.clientContacts[0],
+                                contactName: contactPerson,
+                                contactPhone: contactPhone,
+                                contactEmail: contactEmail,
+                                contactPosition: contactPosition,
+                                contactAddress: contactAddress,
+                                identityId: contactIdentity,
+                            },
+                        ]
+                      : [],
+              }
+            : null;
+
         const data: QuotePrintData = {
             quoteId,
-            client: selectedClient,
+            client: clientSnapshot,
+
             contactPerson,
             contactPhone,
             contactIdentity,
             reportEmail,
+            contactEmail,
+            contactPosition,
+            contactAddress,
+
             clientAddress,
+            taxName,
+            taxCode,
+            taxAddress,
+
             samples: samples.map((s) => ({
                 sampleName: s.sampleName || "",
                 sampleMatrix: s.sampleMatrix || "",
@@ -289,17 +399,35 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                         <ClientSectionNew
                             clients={clients}
                             selectedClient={selectedClient}
+                            address={clientAddress}
+                            clientPhone={clientPhone}
+                            clientEmail={clientEmail}
                             contactPerson={contactPerson}
                             contactPhone={contactPhone}
                             contactIdentity={contactIdentity}
+                            contactEmail={contactEmail}
+                            contactPosition={contactPosition}
+                            contactAddress={contactAddress}
                             reportEmail={reportEmail}
-                            address={clientAddress}
+                            taxName={taxName}
+                            taxCode={taxCode}
+                            taxAddress={taxAddress}
+                            taxEmail={taxEmail}
                             onClientChange={setSelectedClient}
+                            onAddressChange={setClientAddress}
                             onContactPersonChange={setContactPerson}
                             onContactPhoneChange={setContactPhone}
                             onContactIdentityChange={setContactIdentity}
                             onReportEmailChange={setReportEmail}
-                            onAddressChange={setClientAddress}
+                            onContactEmailChange={setContactEmail}
+                            onContactPositionChange={setContactPosition}
+                            onContactAddressChange={setContactAddress}
+                            onClientPhoneChange={setClientPhone}
+                            onClientEmailChange={setClientEmail}
+                            onTaxNameChange={setTaxName}
+                            onTaxCodeChange={setTaxCode}
+                            onTaxAddressChange={setTaxAddress}
+                            onTaxEmailChange={setTaxEmail}
                             onAddNewClient={() => setIsClientModalOpen(true)}
                             isReadOnly={isReadOnly}
                         />

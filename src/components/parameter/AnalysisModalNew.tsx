@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Search, Trash2 } from "lucide-react";
 import type { Matrix } from "@/types/parameter";
 import { useTranslation } from "react-i18next";
-import { getMatrices } from "@/api/index";
+import { getMatrices, searchMatrices } from "@/api/index";
 import { scientificFields } from "@/data/constants";
 
 interface AnalysisModalNewProps {
@@ -29,14 +29,25 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
             setIsSearching(true);
             try {
                 // Mapping UI filter to API query
-                const query: any = {
-                    search: searchQuery || undefined,
-                };
+                interface SearchQuery {
+                    search?: string;
+                    scientificField?: string;
+                }
+                const query: SearchQuery = {};
+                if (searchQuery) {
+                    query.search = searchQuery;
+                }
                 if (selectedField !== "all") {
                     query.scientificField = selectedField;
                 }
 
-                const response = await getMatrices({ query });
+                let response;
+                if (searchQuery) {
+                    response = await searchMatrices({ query });
+                } else {
+                    response = await getMatrices({ query });
+                }
+
                 if (response.success && response.data) {
                     setDisplayedMatrix(response.data as Matrix[]);
                 } else {
@@ -78,7 +89,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
     const searchMatrixAPI = async (keyword: string): Promise<Matrix[]> => {
         if (!keyword.trim()) return [];
         try {
-            const response = await getMatrices({ query: { search: keyword.trim() } });
+            const response = await searchMatrices({ query: { search: keyword.trim() } });
             if (response.success && response.data) {
                 return response.data as Matrix[];
             }
@@ -136,9 +147,8 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
     // Update itemsMap whenever displayedMatrix changes
     useEffect(() => {
         const newMap = new Map(itemsMap);
-        displayedMatrix.forEach((m) => newMap.set(m.matrixId, m));
         setItemsMap(newMap);
-    }, [displayedMatrix]);
+    }, [displayedMatrix, itemsMap]);
 
     const handleConfirm = () => {
         if (mode === "select") {

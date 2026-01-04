@@ -52,8 +52,10 @@
 
 ## 5. Coding Patterns
 
--   **Hooks**: Use `useAuth` for user context, `useTheme` for theme switching.
+-   **Hooks**: Use `useAuth` for user context (handles `checkSessionStatus` internally), `useTheme` for theme switching.
 -   **Pagination**: Use the shared `Pagination` component in `src/components/common/`.
+    -   Must implement `itemsPerPage` selector (default **20**).
+    -   Pass `onItemsPerPageChange` handler to reset page to 1.
 -   **Tables**:
     -   Use sticky headers: `<thead className="bg-card sticky top-0 z-10 shadow-sm">`.
     -   Handle scrolling properly (wrap inner div with `flex-1 overflow-auto`).
