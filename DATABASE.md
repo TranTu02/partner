@@ -85,7 +85,7 @@ Bảng trung gian quan trọng nhất, kết hợp 3 bảng trên để tạo ra
 | `protocolAccreditation` | `jsonb`   |        | Phạm vi được công nhận của phương pháp.                |
 | `parameterName`         | `text`    |        | Tham chiếu `parameters`.                               |
 | `sampleTypeName`        | `text`    |        | Tham chiếu `sampleTypes`.                              |
-| `feeBeforeTax`          | `numeric` |        | Đơn giá niêm yết.                                      |
+| `feeAfterTax`           | `numeric` |        | Đơn giá niêm yết.                                      |
 | `taxRate`               | `numeric` |        | Thuế suất (8, 10...).                                  |
 | `LOD`                   | `text`    |        | Giới hạn phát hiện (Limit of Detection).               |
 | `LOQ`                   | `text`    |        | Giới hạn định lượng (Limit of Quantitation).           |
@@ -146,60 +146,72 @@ Bảng trung gian quan trọng nhất, kết hợp 3 bảng trên để tạo ra
 
 #### 1. Bảng `clients` (Danh sách Khách hàng)
 
-| Column Name        | Type      | Key    | Description                                                                                |
-| :----------------- | :-------- | :----- | :----------------------------------------------------------------------------------------- |
-| `clientId`         | `text`    | **PK** | Custom Text ID.                                                                            |
-| `clientName`       | `text`    |        | Tên công ty / Cá nhân.                                                                     |
-| `legalId`          | `text`    |        | Mã số thuế / CMND.                                                                         |
-| `clientAddress`    | `text`    |        | Địa chỉ trụ sở.                                                                            |
-| `clientPhone`      | `text`    |        | SĐT trụ sở.                                                                                |
-| `clientEmail`      | `text`    |        | Email trụ sở.                                                                              |
-| `clientSaleScope`  | `text`    |        | Phạm vi quyền: `'public'` (Toàn cty), `'private'` (Riêng sale).                            |
-| `availableByIds`   | `text[]`  |        | Danh sách ID Sale/CTV được phép truy cập (nếu private).                                    |
-| `availableByName`  | `text[]`  |        | Danh sách tên Sale/CTV được phép truy cập (nếu private).                                   |
-| `clientContacts`   | `jsonb[]` |        | [{ contactName, contactPhone, contactEmail, contactPosition, contactAddress, contactId }]. |
-| `invoiceInfo`      | `jsonb`   |        | Thông tin xuất hóa đơn {taxAddress, taxCode, taxName}.                                     |
-| `totalOrderAmount` | `numeric` |        | Tổng doanh số tích lũy (Cached).                                                           |
-| _Audit Cols_       | ...       |        |                                                                                            |
+| Column Name        | Type      | Key    | Description                                                                                                                                 |
+| :----------------- | :-------- | :----- | :------------------------------------------------------------------------------------------------------------------------------------------ |
+| `clientId`         | `text`    | **PK** | Custom Text ID.                                                                                                                             |
+| `clientName`       | `text`    |        | Tên công ty / Cá nhân.                                                                                                                      |
+| `legalId`          | `text`    |        | Mã số thuế / CMND.                                                                                                                          |
+| `clientAddress`    | `text`    |        | Địa chỉ trụ sở.                                                                                                                             |
+| `clientPhone`      | `text`    |        | SĐT trụ sở.                                                                                                                                 |
+| `clientEmail`      | `text`    |        | Email trụ sở.                                                                                                                               |
+| `clientSaleScope`  | `text`    |        | Phạm vi quyền: `'public'` (Toàn cty), `'private'` (Riêng sale).                                                                             |
+| `availableByIds`   | `text[]`  |        | Danh sách ID Sale/CTV được phép truy cập (nếu private).                                                                                     |
+| `availableByName`  | `text[]`  |        | Danh sách tên Sale/CTV được phép truy cập (nếu private).                                                                                    |
+| `clientContacts`   | `jsonb[]` |        | [{ contactName, contactPhone, contactEmail, contactPosition, contactAddress, contactId }]. **Note**: Frontend có thể dùng alias `contacts`. |
+| `invoiceInfo`      | `jsonb`   |        | Thông tin xuất hóa đơn {taxAddress, taxCode, taxName, taxEmail }.                                                                           |
+| `totalOrderAmount` | `numeric` |        | Tổng doanh số tích lũy (Cached).                                                                                                            |
+| _Audit Cols_       | ...       |        |                                                                                                                                             |
 
 #### 2. Bảng `quotes` (Báo giá)
 
 Bảng này cập nhật logic sử dụng `matrixId` để tham chiếu giá và phương pháp.
 
-| Column Name         | Type      | Key    | Description                                         |
-| :------------------ | :-------- | :----- | :-------------------------------------------------- |
-| `quoteId`           | `text`    | **PK** | Custom Text ID.                                     |
-| `quoteCode`         | `text`    |        | Mã báo giá (Readable).                              |
-| `clientId`          | `text`    | **FK** |                                                     |
-| `client`            | `jsonb`   |        | Snapshot thông tin khách khi báo giá.               |
-| `salePersonId`      | `text`    |        |                                                     |
-| `salePerson`        | `jsonb`   |        | Thông tin Sale phụ trách: `{ id, name }`.           |
-| `contactPerson`     | `jsonb`   |        | Thông tin người liên hệ.                            |
-| `samples`           | `jsonb[]` |        | Danh sách mẫu & chỉ tiêu. Chi tiết dùng `matrixId`. |
-| `totalFeeBeforeTax` | `numeric` |        | Tổng chưa thuế.                                     |
-| `taxRate`           | `numeric` |        | Thuế suất áp dụng chung.                            |
-| `discount`          | `numeric` |        | Số tiền/Phần trăm chiết khấu.                       |
-| `totalAmount`       | `numeric` |        | Tổng tiền cuối cùng.                                |
-| `quoteStatus`       | `text`    |        | `Draft`, `Sent`, `Approved`, `Expired`.             |
-| _Audit Cols_        | ...       |        |                                                     |
+| Column Name                    | Type      | Key    | Description                                         |
+| :----------------------------- | :-------- | :----- | :-------------------------------------------------- |
+| `quoteId`                      | `text`    | **PK** | Custom Text ID.                                     |
+| `quoteCode`                    | `text`    |        | Mã báo giá (Readable).                              |
+| `clientId`                     | `text`    | **FK** |                                                     |
+| `client`                       | `jsonb`   |        | Snapshot thông tin khách khi báo giá.               |
+| `salePersonId`                 | `text`    |        |                                                     |
+| `salePerson`                   | `jsonb`   |        | Thông tin Sale phụ trách: `{ id, name }`.           |
+| `contactPerson`                | `jsonb`   |        | Thông tin người liên hệ.                            |
+| `samples`                      | `jsonb[]` |        | Danh sách mẫu & chỉ tiêu. Chi tiết dùng `matrixId`. |
+| `totalFeeBeforeTax`            | `numeric` |        | Tổng chưa thuế.                                     |
+| `totalFeeBeforeTax`            | `numeric` |        | Giá trị đơn hàng trước thuế (đã áp giảm giá)        |
+| `totalFeeBeforeTaxAndDiscount` | `numeric` |        | Giá trị đơn hàng trước thuế và giảm giá             |
+| `totalTaxValue`                | `numeric` |        | Giá trị thuế                                        |
+| `totalDiscountValue`           | `numeric` |        | Giá trị giảm giá                                    |
+| `taxRate`                      | `numeric` |        | Thuế suất áp dụng chung.                            |
+| `discount`                     | `numeric` |        | Số tiền/Phần trăm chiết khấu.                       |
+| `totalAmount`                  | `numeric` |        | Tổng tiền cuối cùng.                                |
+| `quoteStatus`                  | `text`    |        | `Draft`, `Sent`, `Approved`, `Expired`.             |
+| _Audit Cols_                   | ...       |        |                                                     |
 
 #### 3. Bảng `orders` (Đơn hàng)
 
-| Column Name     | Type      | Key    | Description                                                          |
-| :-------------- | :-------- | :----- | :------------------------------------------------------------------- |
-| `orderId`       | `text`    | **PK** | Custom Text ID.                                                      |
-| `quoteId`       | `text`    | **FK** | Tham chiếu báo giá nguồn (nếu có).                                   |
-| `clientId`      | `text`    | **FK** |                                                                      |
-| `client`        | `jsonb`   |        | Snapshot khách hàng.                                                 |
-| `contactPerson` | `jsonb`   |        | Thông tin người liên hệ.                                             |
-| `salePersonId`  | `text`    |        |                                                                      |
-| `salePerson`    | `text`    |        |                                                                      |
-| `samples`       | `jsonb[]` |        | Chi tiết yêu cầu: `[{ sampleName, analyses: [{ matrixId, ... }] }]`. |
-| `totalAmount`   | `numeric` |        | Giá trị hợp đồng.                                                    |
-| `orderStatus`   | `text`    |        | `Pending`, `Processing`, `Completed`, `Cancelled`.                   |
-| `paymentStatus` | `text`    |        | `Unpaid`, `Partial`, `Paid`, `Debt`.                                 |
-| `transactions`  | `jsonb[]` |        | Lịch sử thanh toán: `[{ amount, date, method, note }]`.              |
-| _Audit Cols_    | ...       |        |                                                                      |
+| Column Name             | Type      | Key    | Description                                                                                                                                                                                            |
+| :---------------------- | :-------- | :----- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `orderId`               | `text`    | **PK** | Custom Text ID.                                                                                                                                                                                        |
+| `quoteId`               | `text`    | **FK** | Tham chiếu báo giá nguồn (nếu có).                                                                                                                                                                     |
+| `clientId`              | `text`    | **FK** |                                                                                                                                                                                                        |
+| `client`                | `jsonb`   |        | Snapshot khách hàng.                                                                                                                                                                                   |
+| `contactPerson`         | `jsonb`   |        | Thông tin người liên hệ.                                                                                                                                                                               |
+| `salePersonId`          | `text`    |        |                                                                                                                                                                                                        |
+| `salePerson`            | `text`    |        |                                                                                                                                                                                                        |
+| `saleCommissionPercent` | `numeric` |        | % doanh số cho salePerson.                                                                                                                                                                             |
+| `samples`               | `jsonb[]` |        | Chi tiết yêu cầu: `[{ sampleName, sampleTypeName ,analyses: [{parameterName ,parameterId, feeBeforeTax, taxRate, feeAfterTax }]`. Note: `feeBeforeTax` có thể null và cần tính ngược từ `feeAfterTax`. |
+
+| `totalAmount` | `numeric` | | Giá trị hợp đồng. |
+| `totalFeeBeforeTax` | `numeric` | | Giá trị đơn hàng trước thuế (đã áp giảm giá) |
+| `totalFeeBeforeTaxAndDiscount` | `numeric` | | Giá trị đơn hàng trước thuế và giảm giá |
+| `totalTaxValue` | `numeric` | | Giá trị thuế |
+| `totalDiscountValue` | `numeric` | | Giá trị giảm giá |
+| `orderStatus` | `text` | | `Pending`, `Processing`, `Completed`, `Cancelled`. |
+| `taxRate` | `numeric` | | Thuế suất áp dụng chung. |
+| `discount` | `numeric` | | Số tiền/Phần trăm chiết khấu. |
+| `paymentStatus` | `text` | | `Unpaid`, `Partial`, `Paid`, `Debt`. |
+| `transactions` | `jsonb[]` | | Lịch sử thanh toán: `[{ amount, date, method, note }]`. |
+| _Audit Cols_ | ... | | |
 
 ---
 
@@ -334,8 +346,9 @@ interface OrderSample {
     sampleTypeId: string; // Thay cho sampleMatrix dạng text cũ
     analyses: {
         matrixId: string; // Link đến bảng Matrix
-        price: number; // Snapshot giá tại thời điểm chốt
-        discount?: number;
+        feeBeforeTax: number; // Giá trị trước thuế
+        taxRate: number;
+        feeAfterTax: number; // Giá trị sau thuế
     }[];
 }
 ```
@@ -366,7 +379,7 @@ interface ClientSnapshot {
 -   **Column Name**: `camelCase` (VD: `isDeleted`, `totalAmount`).
 -   **Foreign Key**: `tableName` (số ít) + `Id` (VD: `sampleId`, `receiptId`).
 
-### 2. Chiến lược Indexing
+### 2. Chiến \ `lược Indexing
 
 -   **Bắt buộc**: Index cho tất cả các cột Foreign Key.
 -   **Bắt buộc**: Index cho cột `deletedAt` (vì hầu hết các query đều filter `deletedAt IS NULL`).

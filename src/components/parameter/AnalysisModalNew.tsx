@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Search, Trash2 } from "lucide-react";
 import type { Matrix } from "@/types/parameter";
 import { useTranslation } from "react-i18next";
-import { getMatrices, searchMatrices } from "@/api/index";
+import { getMatrices } from "@/api/index";
 import { scientificFields } from "@/data/constants";
 
 interface AnalysisModalNewProps {
@@ -41,12 +41,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
                     query.scientificField = selectedField;
                 }
 
-                let response;
-                if (searchQuery) {
-                    response = await searchMatrices({ query });
-                } else {
-                    response = await getMatrices({ query });
-                }
+                const response = await getMatrices({ query });
 
                 if (response.success && response.data) {
                     setDisplayedMatrix(response.data as Matrix[]);
@@ -89,7 +84,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
     const searchMatrixAPI = async (keyword: string): Promise<Matrix[]> => {
         if (!keyword.trim()) return [];
         try {
-            const response = await searchMatrices({ query: { search: keyword.trim() } });
+            const response = await getMatrices({ query: { search: keyword.trim() } });
             if (response.success && response.data) {
                 return response.data as Matrix[];
             }
@@ -145,10 +140,22 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
     const [itemsMap, setItemsMap] = useState<Map<string, Matrix>>(new Map());
 
     // Update itemsMap whenever displayedMatrix changes
+    // Update itemsMap whenever displayedMatrix changes
     useEffect(() => {
-        const newMap = new Map(itemsMap);
-        setItemsMap(newMap);
-    }, [displayedMatrix, itemsMap]);
+        if (displayedMatrix.length === 0) return;
+
+        setItemsMap((prev) => {
+            const next = new Map(prev);
+            let hasChanges = false;
+            displayedMatrix.forEach((m) => {
+                if (!next.has(m.matrixId)) {
+                    next.set(m.matrixId, m);
+                    hasChanges = true;
+                }
+            });
+            return hasChanges ? next : prev;
+        });
+    }, [displayedMatrix]);
 
     const handleConfirm = () => {
         if (mode === "select") {
@@ -293,7 +300,8 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
                                                             ) : (
                                                                 row.results.map((m) => (
                                                                     <option key={m.matrixId} value={m.matrixId}>
-                                                                        {m.parameterName} - {m.protocolCode} ({m.feeBeforeTax?.toLocaleString()} đ)
+                                                                        {m.parameterName} - {m.protocolCode} (
+                                                                        {(m.feeBeforeTax ?? Number((m as any).feeAfterTax || 0) / (1 + Number(m.taxRate || 0) / 100)).toLocaleString("vi-VN")} đ)
                                                                     </option>
                                                                 ))
                                                             )}
@@ -405,9 +413,9 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
                                             />
                                         </th>
                                         <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.print.parameter")}</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("parameter.field")}</th>
-                                        <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("parameter.method")}</th>
-                                        <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">{t("order.print.unitPrice")}</th>
+                                        <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.sampleMatrix")}</th>
+                                        <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">{t("parameter.tax")}</th>
+                                        <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">{t("order.lineTotal")}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -436,9 +444,11 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
                                                     />
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-foreground">{item.parameterName}</td>
-                                                <td className="px-4 py-3 text-sm text-foreground">{scientificFields.find((f) => f.value === item.scientificField)?.label}</td>
-                                                <td className="px-4 py-3 text-sm text-foreground">{item.protocolCode}</td>
-                                                <td className="px-4 py-3 text-right text-sm text-foreground">{item.feeBeforeTax?.toLocaleString("vi-VN")} đ</td>
+                                                <td className="px-4 py-3 text-sm text-foreground">{item.sampleTypeName}</td>
+                                                <td className="px-4 py-3 text-center text-sm text-foreground">{item.taxRate}%</td>
+                                                <td className="px-4 py-3 text-right text-sm text-foreground">
+                                                    {(item.feeAfterTax ?? (item.feeBeforeTax || 0) * (1 + (item.taxRate || 0) / 100)).toLocaleString("vi-VN")} đ
+                                                </td>
                                             </tr>
                                         ))
                                     )}

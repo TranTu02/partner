@@ -25,13 +25,15 @@ export interface QuotePrintData {
         sampleNote: string;
         analyses: {
             parameterName: string;
-            protocolCode: string;
-            unitPrice: number;
-            quantity: number;
+            feeBeforeTax: number;
+            taxRate: number;
+            feeAfterTax: number;
         }[];
     }[];
     pricing: {
         subtotal: number;
+        discountAmount?: number;
+        feeBeforeTax?: number;
         tax: number;
         total: number;
     };
@@ -99,8 +101,13 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                                     <tr key={i}>
                                         <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center", width: "50px" }}>{i + 1}</td>
                                         <td style={{ border: "1px solid #ccc", padding: "8px" }}>{analysis.parameterName}</td>
-                                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right" }}>{analysis.unitPrice.toLocaleString("vi-VN")}</td>
-                                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center", width: "50px" }}>{analysis.quantity}</td>
+                                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right" }}>
+                                            {analysis.feeBeforeTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                                        </td>
+                                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center", width: "50px" }}>{analysis.taxRate}%</td>
+                                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right" }}>
+                                            {analysis.feeAfterTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -115,23 +122,37 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                     <tbody>
                         <tr>
                             <td style={{ textAlign: "right", paddingRight: "20px" }}>{t("order.print.subtotal")}:</td>
-                            <td style={{ width: "150px", textAlign: "right", fontWeight: "bold" }}>{data.pricing.subtotal.toLocaleString("vi-VN")} đ</td>
+                            <td style={{ width: "150px", textAlign: "right", fontWeight: "bold" }}>
+                                {data.pricing.subtotal.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                            </td>
                         </tr>
                         {data.discount > 0 && (
                             <tr>
                                 <td style={{ textAlign: "right", paddingRight: "20px" }}>
                                     {t("order.print.discount")} ({data.discount}%):
                                 </td>
-                                <td style={{ textAlign: "right", color: "red" }}>- {((data.pricing.subtotal * data.discount) / 100).toLocaleString("vi-VN")} đ</td>
+                                <td style={{ textAlign: "right", color: "red" }}>
+                                    - {(data.pricing.discountAmount || (data.pricing.subtotal * data.discount) / 100).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                                </td>
+                            </tr>
+                        )}
+                        {data.pricing.feeBeforeTax !== undefined && (
+                            <tr>
+                                <td style={{ textAlign: "right", paddingRight: "20px" }}>{t("order.pricing.feeBeforeTax")}:</td>
+                                <td style={{ textAlign: "right", fontWeight: "bold" }}>
+                                    {data.pricing.feeBeforeTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                                </td>
                             </tr>
                         )}
                         <tr>
                             <td style={{ textAlign: "right", paddingRight: "20px" }}>{t("order.print.vat")}:</td>
-                            <td style={{ textAlign: "right" }}>{data.pricing.tax.toLocaleString("vi-VN")} đ</td>
+                            <td style={{ textAlign: "right" }}>{data.pricing.tax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ</td>
                         </tr>
                         <tr style={{ fontSize: "16px" }}>
                             <td style={{ textAlign: "right", paddingRight: "20px", fontWeight: "bold" }}>{t("order.print.grandTotal")}:</td>
-                            <td style={{ textAlign: "right", fontWeight: "bold", color: "#1890FF" }}>{data.pricing.total.toLocaleString("vi-VN")} đ</td>
+                            <td style={{ textAlign: "right", fontWeight: "bold", color: "#1890FF" }}>
+                                {data.pricing.total.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                            </td>
                         </tr>
                     </tbody>
                 </table>

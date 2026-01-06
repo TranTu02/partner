@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft } from "lucide-react";
+import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft, FileText } from "lucide-react";
 import type { OrderEditorRef } from "@/components/order/OrderEditor";
 import { OrderEditor } from "@/components/order/OrderEditor";
 
@@ -43,7 +43,16 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
     const orderId = searchParams.get("orderId");
 
     const isEditorActive = isCreate || isDetail || isEdit;
-    const viewMode = isCreate ? "create" : isEdit ? "edit" : "view";
+    const initialViewMode = isCreate ? "create" : isEdit ? "edit" : "view";
+    const [localViewMode, setLocalViewMode] = useState(initialViewMode);
+
+    useEffect(() => {
+        setLocalViewMode(initialViewMode);
+    }, [initialViewMode]);
+
+    const toggleLocalMode = () => {
+        setLocalViewMode((prev: any) => (prev === "view" ? "edit" : "view"));
+    };
 
     // API-based Fetch
     const fetchOrders = useCallback(async () => {
@@ -146,10 +155,44 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                         <button onClick={handleBack} className="p-2 hover:bg-accent rounded-full text-muted-foreground transition-colors">
                             <ArrowLeft className="w-5 h-5" />
                         </button>
-                        <h1 className="text-lg font-semibold text-foreground">{isCreate ? t("order.create") : isEdit ? t("order.edit") : t("order.detail")}</h1>
+                        <div className="flex flex-col">
+                            <h1 className="text-lg font-semibold text-foreground">
+                                {isCreate
+                                    ? t("order.create")
+                                    : initialViewMode === "edit"
+                                    ? `${t("order.edit")} ${selectedOrder?.orderId ? `- ${selectedOrder.orderId}` : ""}`
+                                    : `${t("order.detail")} ${selectedOrder?.orderId ? `- ${selectedOrder.orderId}` : ""}`}
+                            </h1>
+                        </div>
                     </div>
                     <div className="flex gap-2">
-                        {viewMode !== "view" && (
+                        {/* Always show Toggle button if not creating */}
+                        {!isCreate && (
+                            <button onClick={toggleLocalMode} className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
+                                {localViewMode === "view" ? <Pencil className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                <span className="hidden sm:inline">{localViewMode === "view" ? t("common.edit") : t("common.view")}</span>
+                            </button>
+                        )}
+
+                        {localViewMode === "view" && (
+                            <>
+                                <button
+                                    onClick={() => editorRef.current?.export()}
+                                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+                                >
+                                    <FileDown className="w-4 h-4" />
+                                    <span className="hidden sm:inline">{t("order.print.quote", "Báo giá")}</span>
+                                </button>
+                                <button
+                                    onClick={() => editorRef.current?.exportSampleRequest()}
+                                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+                                >
+                                    <FileText className="w-4 h-4" />
+                                    <span className="hidden sm:inline">{t("order.print.sampleRequest", "Phiếu gửi mẫu")}</span>
+                                </button>
+                            </>
+                        )}
+                        {localViewMode !== "view" && (
                             <button
                                 onClick={handleSaveTrigger}
                                 className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
@@ -163,29 +206,29 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
 
                 {/* Editor Content */}
                 <div className="flex-1 overflow-hidden">
-                    <OrderEditor ref={editorRef} mode={viewMode} initialData={selectedOrder || undefined} onBack={handleBack} onSaveSuccess={handleSaveSuccess} />
+                    {/* Use key to force remount if needed, but localViewMode prop update should suffice */}
+                    <OrderEditor ref={editorRef} mode={localViewMode as any} initialData={selectedOrder || undefined} onBack={handleBack} onSaveSuccess={handleSaveSuccess} />
                 </div>
             </div>
         );
     }
 
-    return (
-        <MainLayout activeMenu={activeMenu} onMenuClick={onMenuClick}>
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-foreground">{t("order.management")}</h1>
-                        <p className="text-sm text-muted-foreground">{t("order.subtitle")}</p>
-                    </div>
-                    <button
-                        onClick={handleCreate}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-                    >
-                        <Plus className="w-4 h-4" />
-                        {t("order.create")}
-                    </button>
-                </div>
+    const headerContent = (
+        <div className="flex items-center justify-between w-full">
+            <div>
+                <h1 className="text-lg font-semibold text-foreground">{t("order.management")}</h1>
+                <p className="text-xs text-muted-foreground hidden sm:block">{t("order.subtitle")}</p>
+            </div>
+            <button onClick={handleCreate} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium">
+                <Plus className="w-4 h-4" />
+                {t("order.create")}
+            </button>
+        </div>
+    );
 
+    return (
+        <MainLayout activeMenu={activeMenu} onMenuClick={onMenuClick} headerContent={headerContent}>
+            <div className="space-y-4">
                 {/* Filters */}
                 <div className="bg-card rounded-lg border border-border p-4">
                     <div className="relative">
@@ -208,42 +251,68 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.code")}</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.client")}</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.salePerson")}</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.total")}</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.createdDate")}</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.status")}</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("common.actions")}</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.paymentStatus")}</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("common.actions")}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
                                 {isLoading ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-4 text-center text-sm text-muted-foreground">
-                                            Loading...
+                                        <td colSpan={8} className="px-6 py-4 text-center text-sm text-muted-foreground">
+                                            {t("common.loading")}
                                         </td>
                                     </tr>
                                 ) : orders.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-4 text-center text-sm text-muted-foreground">
+                                        <td colSpan={8} className="px-6 py-4 text-center text-sm text-muted-foreground">
                                             {t("common.noData")}
                                         </td>
                                     </tr>
                                 ) : (
                                     orders.map((order) => (
                                         <tr key={order.orderId} className="hover:bg-muted/50 transition-colors">
-                                            <td className="px-6 py-4 text-sm font-medium text-primary cursor-pointer" onClick={() => handleViewDetail(order)}>
+                                            <td className="px-6 py-4 text-sm font-medium text-primary cursor-pointer align-top" onClick={() => handleViewDetail(order)}>
                                                 {order.orderId}
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-foreground">
-                                                <div>{order.client?.clientName || "Unknown Client"}</div>
-                                                <div className="text-xs text-muted-foreground">{order.contactPerson?.identityName || "N/A"}</div>
+                                            <td className="px-6 py-4 text-sm text-foreground align-top">
+                                                <div className="font-medium text-primary cursor-pointer hover:underline" onClick={() => navigate(`/clients`)}>
+                                                    {order.client?.clientName || "Unknown Client"}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground mt-0.5">{order.contactPerson?.identityName || "N/A"}</div>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-muted-foreground">{order.createdAt ? new Date(order.createdAt).toLocaleDateString("vi-VN") : "N/A"}</td>
-                                            <td className="px-6 py-4">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${(statusConfig as any)[order.orderStatus]?.color || "bg-gray-100 text-gray-800"}`}>
+                                            <td className="px-6 py-4 text-sm text-foreground align-top">{order.salePerson || "-"}</td>
+                                            <td className="px-6 py-4 text-right text-sm font-medium text-foreground align-top">{(order.totalAmount || 0).toLocaleString("vi-VN")} đ</td>
+                                            <td className="px-6 py-4 text-sm text-muted-foreground align-top">{order.createdAt ? new Date(order.createdAt).toLocaleDateString("vi-VN") : "N/A"}</td>
+                                            <td className="px-6 py-4 align-top">
+                                                <span
+                                                    className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                                                        (statusConfig as any)[order.orderStatus]?.color || "bg-gray-100 text-gray-800"
+                                                    }`}
+                                                >
                                                     {(statusConfig as any)[order.orderStatus]?.label || order.orderStatus}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
+                                            <td className="px-6 py-4 align-top text-center">
+                                                <span
+                                                    className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                                                        order.paymentStatus === "Paid"
+                                                            ? "bg-success/10 text-success"
+                                                            : order.paymentStatus === "Debt"
+                                                            ? "bg-destructive/10 text-destructive"
+                                                            : order.paymentStatus === "Partial"
+                                                            ? "bg-warning/10 text-warning"
+                                                            : "bg-gray-100 text-gray-800"
+                                                    }`}
+                                                >
+                                                    {t(`order.paymentStatuses.${(order.paymentStatus || "awaiting").toLowerCase()}`)}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 align-top">
+                                                <div className="flex items-center justify-center gap-2">
                                                     <button
                                                         onClick={() => handleViewDetail(order)}
                                                         className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors"

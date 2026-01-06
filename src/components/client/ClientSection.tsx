@@ -91,9 +91,9 @@ export function ClientSection({ clients, selectedClient, selectedContactId, repo
                             disabled={!selectedClient}
                         >
                             <option value="">{t("client.selectContact")}...</option>
-                            {selectedClient?.contacts.map((contact, index: number) => (
-                                <option key={index} value={contact.name}>
-                                    {contact.name}
+                            {((selectedClient as any)?.contacts || (selectedClient as any)?.clientContacts || []).map((contact: any, index: number) => (
+                                <option key={index} value={contact.name || contact.contactName}>
+                                    {contact.name || contact.contactName}
                                 </option>
                             ))}
                         </select>

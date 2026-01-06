@@ -4,17 +4,16 @@ import type { Matrix } from "@/types/parameter";
 import { SampleTypeSearch } from "@/components/common/SampleTypeSearch";
 
 // Extended interfaces to support both view and create modes
-interface AnalysisWithQuantity extends Omit<Matrix, "createdAt" | "createdById" | "modifiedAt" | "modifiedById"> {
+export interface AnalysisWithQuantity extends Omit<Matrix, "createdAt" | "createdById" | "modifiedAt" | "modifiedById" | "feeAfterTax" | "taxRate"> {
     id: string;
     unitPrice: number;
     quantity: number;
     userQuantity?: number;
-
-    // Ensure compatibility with previous specific fields if needed,
-    // but Matrix has feeBeforeTax, taxRate, parameterName, etc.
+    feeAfterTax?: number; // Renamed from totalFeeBeforeTax, represents the line total (Thành tiền)
+    taxRate?: number; // Ensure taxRate is also consistently typed as number
 }
 
-interface SampleWithQuantity {
+export interface SampleWithQuantity {
     id: string;
     sampleId?: string;
     sampleName: string;
@@ -37,10 +36,79 @@ interface SampleCardProps {
 export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSample, onUpdateSample, onAddAnalysis, onRemoveAnalysis, isReadOnly = false }: SampleCardProps) {
     const { t } = useTranslation();
 
-    const calculateLineTotal = (analysis: AnalysisWithQuantity) => {
-        const subtotal = analysis.unitPrice * analysis.quantity;
-        const tax = subtotal * (analysis.taxRate / 100);
+    // Calculates the fee after tax for a line item.
+    // If feeAfterTax is explicitly set, use it. Otherwise, calculate from unitPrice, quantity, and taxRate.
+    const calculateFeeAfterTax = (analysis: AnalysisWithQuantity) => {
+        if (analysis.feeAfterTax !== undefined) {
+            return analysis.feeAfterTax;
+        }
+        const subtotal = (analysis.unitPrice || 0) * (analysis.quantity || 1);
+        const tax = subtotal * ((analysis.taxRate || 0) / 100);
         return subtotal + tax;
+    };
+
+    const handleAnalysisChange = (analysisIndex: number, field: keyof AnalysisWithQuantity, value: any) => {
+        const newAnalyses = [...sample.analyses];
+        const updatedAnalysis = { ...newAnalyses[analysisIndex] };
+
+        if (field === "parameterName") {
+            updatedAnalysis.parameterName = value;
+        } else if (field === "feeAfterTax") {
+            const newFeeAfterTax = Number(value);
+            updatedAnalysis.feeAfterTax = newFeeAfterTax;
+
+            // Recalculate unitPrice based on the new feeAfterTax
+            // Formula: unitPrice * quantity * (1 + taxRate/100) = feeAfterTax
+            // So: unitPrice = feeAfterTax / quantity / (1 + taxRate/100)
+            const quantity = updatedAnalysis.quantity || 1;
+            const taxRate = updatedAnalysis.taxRate || 0;
+            updatedAnalysis.unitPrice = newFeeAfterTax / quantity / (1 + taxRate / 100);
+        } else if (field === "taxRate") {
+            const newTaxRate = Number(value);
+            updatedAnalysis.taxRate = newTaxRate;
+
+            // Recalculate unitPrice to keep the feeAfterTax constant
+            // User's requirement: "đơn giá sẽ điều chỉnh để đơn giá * ( 1+ thuế / 100) = thành tiền"
+            // Ensure we have a feeAfterTax value to work with. If not explicitly set, calculate it.
+            const currentFeeAfterTax = updatedAnalysis.feeAfterTax ?? calculateFeeAfterTax(updatedAnalysis);
+            updatedAnalysis.feeAfterTax = currentFeeAfterTax; // Ensure feeAfterTax is explicitly set in state
+
+            const quantity = updatedAnalysis.quantity || 1;
+            updatedAnalysis.unitPrice = currentFeeAfterTax / quantity / (1 + newTaxRate / 100);
+        }
+        // unitPrice is now read-only and calculated, so no direct input change for it.
+
+        newAnalyses[analysisIndex] = updatedAnalysis;
+        onUpdateSample({ analyses: newAnalyses });
+    };
+
+    const handleAddEmptyAnalysis = () => {
+        const newAnalysis: AnalysisWithQuantity = {
+            id: `manual-${Date.now()}`,
+            parameterName: "",
+            method: "",
+            unitPrice: 0,
+            quantity: 1,
+            taxRate: 8,
+            feeAfterTax: 0, // Initialize feeAfterTax
+            analysisType: "Manual",
+            matrix: sample.sampleMatrix,
+            feeBeforeTax: 0,
+            description: "",
+            priceListId: "",
+            parameterId: "",
+            dicUnitId: "",
+            dicUnit: {},
+            category: {},
+            categoryId: "",
+            protocolSource: "",
+            protocolCode: "",
+            testTime: "",
+            vi: { name: "" },
+            en: { name: "" },
+        } as any;
+
+        onUpdateSample({ analyses: [...sample.analyses, newAnalysis] });
     };
 
     return (
@@ -54,7 +122,7 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
                         </label>
                         <input
                             type="text"
-                            className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full px-3 py-2  border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             value={sample.sampleName}
                             onChange={(e) => onUpdateSample({ sampleName: e.target.value })}
                             placeholder={t("order.sampleNamePlaceholder")}
@@ -117,10 +185,50 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
                             sample.analyses.map((analysis, index) => (
                                 <tr key={analysis.id} className="border-t border-border hover:bg-muted">
                                     <td className="px-4 py-3 text-sm text-foreground">{index + 1}</td>
-                                    <td className="px-4 py-3 text-sm text-foreground">{analysis.parameterName}</td>
-                                    <td className="px-4 py-3 text-right text-sm text-foreground">{analysis.unitPrice.toLocaleString("vi-VN")} đ</td>
-                                    <td className="px-4 py-3 text-center text-sm text-foreground">{analysis.taxRate}%</td>
-                                    <td className="px-4 py-3 text-right text-sm font-medium text-foreground">{calculateLineTotal(analysis).toLocaleString("vi-VN")} đ</td>
+                                    <td className="px-4 py-3 text-sm text-foreground">
+                                        {isReadOnly ? (
+                                            analysis.parameterName
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent"
+                                                value={analysis.parameterName}
+                                                onChange={(e) => handleAnalysisChange(index, "parameterName", e.target.value)}
+                                                placeholder={t("order.print.parameter")}
+                                            />
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-sm text-foreground">
+                                        {/* Unit Price is now read-only and calculated */}
+                                        {(analysis.unitPrice || 0).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                                    </td>
+                                    <td className="px-4 py-3 text-center text-sm text-foreground">
+                                        {isReadOnly ? (
+                                            analysis.taxRate + "%"
+                                        ) : (
+                                            <div className="flex items-center justify-center">
+                                                <input
+                                                    type="number"
+                                                    className="w-16 px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent text-center"
+                                                    value={analysis.taxRate}
+                                                    onChange={(e) => handleAnalysisChange(index, "taxRate", e.target.value)}
+                                                />
+                                                <span className="ml-1">%</span>
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-sm font-medium text-foreground">
+                                        {isReadOnly ? (
+                                            calculateFeeAfterTax(analysis).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " đ"
+                                        ) : (
+                                            <input
+                                                type="number"
+                                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent text-right"
+                                                value={analysis.feeAfterTax ?? calculateFeeAfterTax(analysis)} // Display feeAfterTax, calculate if not set
+                                                onChange={(e) => handleAnalysisChange(index, "feeAfterTax", e.target.value)}
+                                            />
+                                        )}
+                                    </td>
                                     {!isReadOnly && (
                                         <td className="px-4 py-3 text-center">
                                             <button onClick={() => onRemoveAnalysis(analysis.id)} className="p-1 text-muted-foreground hover:text-destructive transition-colors">
@@ -137,9 +245,14 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
 
             {/* Add Analysis Button */}
             {!isReadOnly && (
-                <button onClick={onAddAnalysis} className="mt-4 px-4 py-2 text-primary border border-primary rounded-lg hover:bg-primary/10 transition-colors text-sm font-medium">
-                    + {t("order.addAnalysis")}
-                </button>
+                <div className="mt-4 flex gap-2">
+                    <button onClick={onAddAnalysis} className="px-4 py-2 text-primary border border-primary rounded-lg hover:bg-primary/10 transition-colors text-sm font-medium">
+                        + {t("order.addAnalysis")}
+                    </button>
+                    <button onClick={handleAddEmptyAnalysis} className="px-4 py-2 text-foreground border border-border rounded-lg hover:bg-muted transition-colors text-sm font-medium">
+                        + {t("order.addManualAnalysis", "Thêm chỉ tiêu")}
+                    </button>
+                </div>
             )}
         </div>
     );

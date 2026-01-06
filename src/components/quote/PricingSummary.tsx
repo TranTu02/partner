@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 interface PricingSummaryProps {
     subtotal: number;
     discount: number;
+    discountAmount: number;
+    feeBeforeTax: number;
     tax: number;
     total: number;
     commission: number;
@@ -11,7 +13,7 @@ interface PricingSummaryProps {
     isReadOnly?: boolean;
 }
 
-export function PricingSummary({ subtotal, discount, tax, total, commission, onDiscountChange, onCommissionChange, isReadOnly = false }: PricingSummaryProps) {
+export function PricingSummary({ subtotal, discount, discountAmount, feeBeforeTax, tax, total, commission, onDiscountChange, onCommissionChange, isReadOnly = false }: PricingSummaryProps) {
     const { t } = useTranslation();
 
     return (
@@ -21,7 +23,7 @@ export function PricingSummary({ subtotal, discount, tax, total, commission, onD
             <div className="space-y-3">
                 <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">{t("order.print.subtotal")}:</span>
-                    <span className="text-sm font-medium">{subtotal.toLocaleString("vi-VN")} đ</span>
+                    <span className="text-sm font-medium">{subtotal.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ</span>
                 </div>
 
                 <div className="flex justify-between items-center gap-4">
@@ -40,18 +42,23 @@ export function PricingSummary({ subtotal, discount, tax, total, commission, onD
 
                 <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">{t("order.pricing.discountAmount")}:</span>
-                    <span className="text-sm font-medium text-success">-{((subtotal * discount) / 100).toLocaleString("vi-VN")} đ</span>
+                    <span className="text-sm font-medium text-success">-{discountAmount.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ</span>
+                </div>
+
+                <div className="flex justify-between items-center border-t border-border pt-2 mt-2">
+                    <span className="text-sm font-medium">{t("order.pricing.feeBeforeTax")}:</span>
+                    <span className="text-sm font-bold">{feeBeforeTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ</span>
                 </div>
 
                 <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">{t("order.vat")}:</span>
-                    <span className="text-sm font-medium">{tax.toLocaleString("vi-VN")} đ</span>
+                    <span className="text-sm font-medium">{tax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ</span>
                 </div>
 
                 <div className="border-t border-border pt-3">
                     <div className="flex justify-between items-center">
                         <span className="text-base font-semibold">{t("order.print.grandTotal")}:</span>
-                        <span className="text-xl font-bold text-primary">{total.toLocaleString("vi-VN")} đ</span>
+                        <span className="text-xl font-bold text-primary">{total.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ</span>
                     </div>
                 </div>
 
@@ -72,7 +79,7 @@ export function PricingSummary({ subtotal, discount, tax, total, commission, onD
                     {commission > 0 && (
                         <div className="flex justify-between items-center mt-2">
                             <span className="text-sm text-muted-foreground">{t("order.pricing.commissionAmount")}:</span>
-                            <span className="text-sm font-medium text-primary">{((total * commission) / 100).toLocaleString("vi-VN")} đ</span>
+                            <span className="text-sm font-medium text-primary">{((total * commission) / 100).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ</span>
                         </div>
                     )}
                 </div>

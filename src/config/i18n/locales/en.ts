@@ -271,9 +271,7 @@ export default {
                 final: "Finalized",
                 expired: "Expired",
             },
-            detail: {
-                title: "Quote Details",
-            },
+            detail: "Quote Details",
             print: {
                 title: "QUOTE",
                 previewTitle: "Quote Preview",

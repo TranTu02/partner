@@ -44,6 +44,7 @@ export interface Matrix {
 
     // Pricing & Limits
     feeBeforeTax: number;
+    feeAfterTax: number;
     taxRate: number;
     LOD?: string;
     LOQ?: string;

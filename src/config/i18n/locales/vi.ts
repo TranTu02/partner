@@ -176,20 +176,22 @@ export default {
             createdDate: "Ngày tạo",
             statuses: {
                 pending: "Chờ xử lý",
+                processing: "Đang xử lý", // Fallback or additional state
                 approved: "Đã duyệt",
                 cancelled: "Hủy bỏ",
                 completed: "Hoàn thành",
             },
+            salePerson: "Chăm sóc khách hàng",
+
             paymentStatuses: {
                 awaiting: "Chờ thanh toán",
                 mismatch: "Thanh toán không khớp",
                 debt: "Công Nợ",
                 paid: "Đã thanh toán",
             },
-            detail: {
-                title: "Chi tiết đơn hàng",
-                totalValue: "Tổng giá trị đơn hàng",
-            },
+            detail: "Chi tiết đơn hàng",
+            detailTitle: "Chi tiết đơn hàng",
+            detailTotalValue: "Tổng giá trị đơn hàng",
 
             sampleName: "Tên mẫu",
             sampleMatrix: "Nền mẫu",
@@ -208,6 +210,7 @@ export default {
                 discountAmount: "Tiền giảm",
                 commission: "Hoa hồng Sale",
                 commissionAmount: "Tiền hoa hồng",
+                feeBeforeTax: "Tổng tiền sau giảm giá",
             },
             information: "Thông tin đơn hàng",
             quoteCodePlaceholder: "Nhập mã báo giá (ví dụ: QT-20241230-01)",
@@ -268,9 +271,7 @@ export default {
                 final: "Chốt",
                 expired: "Hết hạn",
             },
-            detail: {
-                title: "Chi tiết báo giá",
-            },
+            detail: "Chi tiết báo giá",
             print: {
                 title: "BÁO GIÁ / QUOTE",
                 previewTitle: "Xem trước Báo giá",
@@ -288,9 +289,12 @@ export default {
             },
             table: {
                 orderCode: "Mã đơn hàng",
+                orderId: "Mã đơn hàng",
                 client: "Khách hàng",
                 taxCode: "Mã số thuế",
                 total: "Tổng tiền",
+                commission: "Hoa hồng (%)",
+                date: "Ngày tạo",
                 completedDate: "Ngày hoàn thành",
             },
             createInvoice: "Tạo hóa đơn",

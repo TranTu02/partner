@@ -72,6 +72,10 @@ export const deleteOrder = async ({ headers, body, query }: ApiInput): Promise<A
     return api.post("/v1/order/delete", { headers, body, query });
 };
 
+export const getOrderStats = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return api.get("/v1/order/stats/accounting", { headers, query: query || body });
+};
+
 // =============================================================================
 // QUOTES
 // =============================================================================
@@ -179,7 +183,7 @@ export const deleteSampleType = async ({ headers, body, query }: ApiInput): Prom
 const apis = {
     auth: { login, logout },
     clients: { getClients, createClient, getClientDetail, updateClient, deleteClient },
-    orders: { getOrders, createOrder, getOrderDetail, updateOrder, deleteOrder },
+    orders: { getOrders, createOrder, getOrderDetail, updateOrder, deleteOrder, getOrderStats },
     quotes: { getQuotes, createQuote, getQuoteDetail, updateQuote, deleteQuote },
     parameters: { getParameters, createParameter, getParameterDetail, updateParameter, deleteParameter },
     matrices: { getMatrices, createMatrix, getMatrixDetail, updateMatrix, deleteMatrix, searchMatrices },

@@ -35,6 +35,10 @@ Hệ thống phân quyền dựa trên vai trò của người dùng:
     -   **Chọn chỉ tiêu**: Modal tìm kiếm chỉ tiêu (`AnalysisModalNew`) hỗ trợ chọn đơn lẻ hoặc chọn theo gói (nếu có).
     -   **Tính giá**: Hệ thống tự động tính Thành tiền = Đơn giá x Số lượng + Thuế (VAT) - Chiết khấu.
     -   **In ấn**: Tạo file PDF "Phiếu yêu cầu thử nghiệm" khổ A4, có đầy đủ thông tin để khách hàng ký xác nhận (`OrderPrintPreviewModal`).
+-   **Chế độ Xem/Sửa (View/Edit Mode)**:
+    -   Mặc định khi mở đơn hàng cũ là **View Mode** (Chỉ xem) để tránh sai sót.
+    -   Nút "Edit" chuyển sang **Edit Mode** để chỉnh sửa.
+    -   Hệ thống cảnh báo nếu có thay đổi chưa lưu khi thoát.
 -   **Luồng trạng thái**: Chờ xử lý (Pending) -> Đã duyệt (Approved) -> Đang kiểm nghiệm (In Progress) -> Hoàn thành (Completed).
 
 ### C. Quản lý Báo giá (`QuotesListPage`, `QuoteEditor`)
@@ -93,6 +97,10 @@ Thông tin cấu hình chung của phòng Lab:
 4.  Template HTML được render với dữ liệu thật (Binding data).
 5.  Sử dụng thư viện `html2pdf.js` để chuyển đổi nội dung HTML đã render thành file PDF và tải xuống máy người dùng.
 6.  Đảm bảo lề trang (margin) chuẩn 1cm và có Header/Footer (Số trang) tự động.
+7.  **Định dạng số**: Tất cả các giá trị tiền tệ trong mẫu in và xem trước phải được làm tròn tối đa 2 chữ số thập phân (`maximumFractionDigits: 2`).
+8.  **Xử lý dữ liệu cũ (Pricing Fallback)**:
+    -   Trong trường hợp đơn hàng cũ thiếu thông tin đơn giá trước thuế (`feeBeforeTax`), hệ thống phải tự động tính ngược từ giá sau thuế (`feeAfterTax`) theo công thức: `feeBeforeTax = feeAfterTax / (1 + taxRate/100)`.
+    -   Điều này đảm bảo hiển thị đúng giá trị khi in ấn hoặc tính toán lại tổng tiền.
 
 ## 5. Tích hợp API (API Integration)
 

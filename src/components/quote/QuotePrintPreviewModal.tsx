@@ -26,12 +26,14 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                 <div style="background-color: #f0f0f0; padding: 5px 10px; font-weight: bold; margin-bottom: 5px;">
                     ${t("order.print.sample")} ${index + 1}: ${sample.sampleName}
                 </div>
-                <table style="width: 100%; border-collapse: collapse;">
+                <table class="data-table" style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr style="background-color: #e6e6e6;">
                             <th style="border: 1px solid black; padding: 3px; text-align: center; width: 50px;">${t("order.print.stt")}</th>
                             <th style="border: 1px solid black; padding: 3px; text-align: left;">${t("order.print.parameter")}</th>
-                            <th style="border: 1px solid black; padding: 3px; text-align: right;">${t("order.print.unitPrice")}</th>
+                            <th style="border: 1px solid black; padding: 3px; text-align: right;">${t("order.print.amount")}</th>
+                            <th style="border: 1px solid black; padding: 3px; text-align: center; width: 80px;">${t("order.print.tax", "Thuế")} (%)</th>
+                            <th style="border: 1px solid black; padding: 3px; text-align: right;">${t("order.print.total")}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -41,7 +43,15 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                             <tr>
                                 <td style="border: 1px solid black; padding: 3px; text-align: center;">${i + 1}</td>
                                 <td style="border: 1px solid black; padding: 3px;">${analysis.parameterName}</td>
-                                <td style="border: 1px solid black; padding: 3px; text-align: right;">${analysis.unitPrice.toLocaleString("vi-VN")} đ</td>
+                                <td style="border: 1px solid black; padding: 3px; text-align: right;">${(analysis.feeBeforeTax || 0).toLocaleString("vi-VN", {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 2,
+                                })}</td>
+                                <td style="border: 1px solid black; padding: 3px; text-align: center;">${analysis.taxRate || 0}%</td>
+                                <td style="border: 1px solid black; padding: 3px; text-align: right;">${analysis.feeAfterTax.toLocaleString("vi-VN", {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 2,
+                                })} đ</td>
                             </tr>
                         `,
                             )
@@ -53,16 +63,6 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
             )
             .join("");
 
-        const discountRow =
-            data.discount > 0
-                ? `
-            <tr>
-                <td style="text-align: right; padding-right: 20px;">${t("order.print.discount")} (${data.discount}%):</td>
-                <td style="text-align: right; color: red;">- ${((data.pricing.subtotal * data.discount) / 100).toLocaleString("vi-VN")} đ</td>
-            </tr>
-        `
-                : "";
-
         return `
             <div style="text-align: center; margin-bottom: 20px;">
                 <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 5px;">${t("quote.print.title")}</h1>
@@ -71,7 +71,7 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
 
             <div style="margin-bottom: 20px;">
                 <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid black; padding-bottom: 5px; margin-bottom: 10px;">1. ${t("order.print.provider")}</h3>
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+                <table class="info-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
                      <tbody>
                         <tr>
                             <td style="font-weight: bold; width: 150px; border: none !important;">${t("order.print.unit")}:</td>
@@ -95,7 +95,7 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
 
             <div style="margin-bottom: 20px;">
                 <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid black; padding-bottom: 5px; margin-bottom: 10px;">2. ${t("order.print.client")}</h3>
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+                <table class="info-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
                     <tbody>
                         <tr>
                             <td style="width: 150px; font-weight: bold; border: none !important;">${t("order.print.customer")}:</td>
@@ -136,20 +136,42 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
 
              <div style="margin-top: 20px; page-break-inside: avoid;">
                 <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid black; padding-bottom: 5px; margin-bottom: 10px;">4. ${t("order.print.total")}</h3>
-                 <table style="width: 100%; margin-top: 10px;">
+                 <table class="total-table" style="width: 100%; margin-top: 10px;">
                     <tbody>
                         <tr>
                             <td style="text-align: right; padding-right: 20px; border: none !important;">${t("order.print.subtotal")}:</td>
-                            <td style="width: 150px; text-align: right; font-weight: bold; border: none !important;">${data.pricing.subtotal.toLocaleString("vi-VN")} đ</td>
+                            <td style="width: 150px; text-align: right; font-weight: bold; border: none !important;">${data.pricing.subtotal.toLocaleString("vi-VN", {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 2,
+                            })} đ</td>
                         </tr>
-                        ${discountRow}
+                        <tr>
+                            <td style="text-align: right; padding-right: 20px; border: none !important;">${t("order.discount")} (${data.discount}%):</td>
+                            <td style="text-align: right; border: none !important;">${(data.pricing.discountAmount || 0) > 0 ? "-" : ""}${(data.pricing.discountAmount || 0).toLocaleString("vi-VN", {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+        })} đ</td>
+                        </tr>
+                         <tr>
+                            <td style="text-align: right; padding-right: 20px; border: none !important;">${t("order.pricing.feeBeforeTax")}:</td>
+                            <td style="text-align: right; font-weight: bold; border: none !important;">${(data.pricing.feeBeforeTax || 0).toLocaleString("vi-VN", {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 2,
+                            })} đ</td>
+                        </tr>
                         <tr>
                             <td style="text-align: right; padding-right: 20px; border: none !important;">${t("order.print.vat")}:</td>
-                            <td style="text-align: right; border: none !important;">${data.pricing.tax.toLocaleString("vi-VN")} đ</td>
+                            <td style="text-align: right; border: none !important;">${data.pricing.tax.toLocaleString("vi-VN", {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 2,
+                            })} đ</td>
                         </tr>
                          <tr style="font-size: 16px;">
                             <td style="text-align: right; padding-right: 20px; font-weight: bold; border: none !important;">${t("order.print.grandTotal")}:</td>
-                            <td style="text-align: right; font-weight: bold; color: #1890FF; border: none !important;">${data.pricing.total.toLocaleString("vi-VN")} đ</td>
+                            <td style="text-align: right; font-weight: bold; color: #1890FF; border: none !important;">${data.pricing.total.toLocaleString("vi-VN", {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 2,
+                            })} đ</td>
                         </tr>
                     </tbody>
                  </table>
@@ -195,11 +217,16 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
             }
             tr { page-break-inside: avoid; page-break-after: auto; }
             th, td { 
-                border: 1px solid #000 !important; 
-                padding: 8px 4px !important; 
+                padding: 4px !important; 
                 word-break: break-word; 
                 vertical-align: middle !important;
                 font-family: "Times New Roman", Times, serif;
+            }
+            .data-table th, .data-table td {
+                border: 1px solid #000 !important;
+            }
+            .info-table td, .total-table td {
+                border: none !important;
             }
             h1 { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
             h3 { font-size: 16px; font-weight: bold; }

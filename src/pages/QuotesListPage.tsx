@@ -130,9 +130,26 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                         <button onClick={handleBack} className="p-2 hover:bg-accent rounded-full text-muted-foreground transition-colors">
                             <ArrowLeft className="w-5 h-5" />
                         </button>
-                        <h1 className="text-lg font-semibold text-foreground">{isCreate ? t("quote.create") : isEdit ? t("quote.edit") : t("quote.detail")}</h1>
+                        <div className="flex flex-col">
+                            <h1 className="text-lg font-semibold text-foreground">
+                                {isCreate
+                                    ? t("quote.create")
+                                    : viewMode === "edit"
+                                    ? `${t("quote.edit")} ${selectedQuote?.quoteId ? `- ${selectedQuote.quoteId}` : ""}`
+                                    : `${t("quote.detail")} ${selectedQuote?.quoteId ? `- ${selectedQuote.quoteId}` : ""}`}
+                            </h1>
+                        </div>
                     </div>
                     <div className="flex gap-2">
+                        {viewMode === "view" && (
+                            <button
+                                onClick={() => editorRef.current?.export()}
+                                className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+                            >
+                                <FileDown className="w-4 h-4" />
+                                <span className="hidden sm:inline">{t("quote.print", "In Báo giá")}</span>
+                            </button>
+                        )}
                         {viewMode !== "view" && (
                             <button
                                 onClick={handleSaveTrigger}
@@ -142,7 +159,6 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                                 {t("common.save")}
                             </button>
                         )}
-                        {/* Export/Print buttons could be here */}
                     </div>
                 </div>
 
@@ -154,23 +170,22 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
         );
     }
 
-    return (
-        <MainLayout activeMenu={activeMenu} onMenuClick={onMenuClick}>
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-foreground">{t("quote.management")}</h1>
-                        <p className="text-sm text-muted-foreground">{t("quote.subtitle")}</p>
-                    </div>
-                    <button
-                        onClick={handleCreate}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-                    >
-                        <Plus className="w-4 h-4" />
-                        {t("quote.create")}
-                    </button>
-                </div>
+    const headerContent = (
+        <div className="flex items-center justify-between w-full">
+            <div>
+                <h1 className="text-lg font-semibold text-foreground">{t("quote.management")}</h1>
+                <p className="text-xs text-muted-foreground hidden sm:block">{t("quote.subtitle")}</p>
+            </div>
+            <button onClick={handleCreate} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium">
+                <Plus className="w-4 h-4" />
+                {t("quote.create")}
+            </button>
+        </div>
+    );
 
+    return (
+        <MainLayout activeMenu={activeMenu} onMenuClick={onMenuClick} headerContent={headerContent}>
+            <div className="space-y-4">
                 {/* Filters */}
                 <div className="bg-card rounded-lg border border-border p-4">
                     <div className="relative">

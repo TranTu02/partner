@@ -16,26 +16,7 @@ import { toast } from "sonner";
 
 export type EditorMode = "view" | "edit" | "create";
 
-// Omit strict audit fields from Matrix for the UI editor to avoid conflicts with child components
-export interface AnalysisWithQuantity extends Omit<Matrix, "createdAt" | "createdById" | "modifiedAt" | "modifiedById"> {
-    id: string; // analysisId or temp ID for frontend key
-    unitPrice: number;
-    quantity: number;
-    userQuantity?: number;
-
-    // Optional audit fields if needed
-    createdAt?: string;
-    createdById?: string;
-}
-
-export interface SampleWithQuantity {
-    id: string;
-    sampleId?: string;
-    sampleName: string;
-    sampleMatrix: string;
-    sampleNote?: string;
-    analyses: AnalysisWithQuantity[];
-}
+import type { SampleWithQuantity, AnalysisWithQuantity } from "@/components/order/SampleCard";
 
 interface OrderEditorProps {
     mode: EditorMode;
@@ -53,7 +34,12 @@ export interface OrderEditorRef {
 
 export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode, initialData, onSaveSuccess }, ref) => {
     const { t } = useTranslation();
-    const isReadOnly = mode === "view";
+    const [internalMode, setInternalMode] = useState<EditorMode>(mode);
+    const isReadOnly = internalMode === "view";
+
+    useEffect(() => {
+        setInternalMode(mode);
+    }, [mode]);
 
     const [clients, setClients] = useState<Client[]>([]);
 
@@ -128,7 +114,45 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             }
 
             if (initialData.samples && initialData.samples.length > 0) {
-                setSamples(initialData.samples);
+                // Map API data keys to internal Editor keys if they differ
+                const mappedSamples = initialData.samples.map((s: any) => ({
+                    ...s,
+                    analyses: (s.analyses || []).map((a: any) => {
+                        const quantity = a.quantity || 1;
+                        const taxRate = a.taxRate !== undefined ? a.taxRate : parseFloat(a.parameterTaxRate || "0");
+
+                        // Try to get existing unitPrice. If 0/missing, recover it from feeAfterTax or feeBeforeTax
+                        let unitPrice = a.unitPrice !== undefined ? Number(a.unitPrice) : Number(a.parameterPrice) || 0;
+
+                        // If unitPrice is 0, try to calculate from feeAfterTax (most reliable usually)
+                        if (!unitPrice && a.feeAfterTax) {
+                            unitPrice = Number(a.feeAfterTax) / quantity / (1 + taxRate / 100);
+                        }
+                        // Fallback: If still 0, try feeBeforeTax. Note: feeBeforeTax might be string "100.000 đ" or number
+                        if (!unitPrice && a.feeBeforeTax) {
+                            // If it's a simple number
+                            if (typeof a.feeBeforeTax === "number") {
+                                unitPrice = a.feeBeforeTax / quantity;
+                            } else if (typeof a.feeBeforeTax === "string") {
+                                // Try to parse if it looks like a number
+                                const parsed = parseFloat(a.feeBeforeTax.replace(/[^0-9.-]+/g, ""));
+                                if (!isNaN(parsed)) {
+                                    unitPrice = parsed / quantity;
+                                }
+                            }
+                        }
+
+                        return {
+                            ...a,
+                            unitPrice: unitPrice,
+                            feeBeforeTax: unitPrice * quantity, // Ensure this is consistent
+                            feeAfterTax: a.feeAfterTax || unitPrice * quantity * (1 + taxRate / 100),
+                            taxRate: taxRate,
+                            quantity: quantity,
+                        };
+                    }),
+                }));
+                setSamples(mappedSamples);
             }
         }
     }, [initialData]);
@@ -225,15 +249,24 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         }
 
         try {
-            const response = await getQuotes({ query: { search: quoteId } });
+            // User specified query "quoteId=<value>" returns a single object
+            const response = await getQuotes({ query: { quoteId: quoteId } });
 
             let foundQuote: any = null;
-            if (response.success && response.data && (response.data as any[]).length > 0) {
-                foundQuote = (response.data as any[]).find((q) => q.quoteId === quoteId || q.paramCode === quoteId);
-                if (!foundQuote) foundQuote = (response.data as any[])[0];
+            if (response.success && response.data) {
+                if (Array.isArray(response.data)) {
+                    // unexpected but handle list
+                    foundQuote = response.data[0];
+                } else if ((response.data as any).data && Array.isArray((response.data as any).data)) {
+                    // unexpected pagination
+                    foundQuote = (response.data as any).data[0];
+                } else {
+                    // Expected single object
+                    foundQuote = response.data;
+                }
             }
 
-            if (foundQuote) {
+            if (foundQuote && foundQuote.client) {
                 setSelectedClient(foundQuote.client);
                 // Map quote client data to form state (similar to selectedClient)
                 const qClient = foundQuote.client;
@@ -258,7 +291,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     setReportEmail(contact.contactEmail || (contact as any).email || "");
                 }
 
-                setDiscount(foundQuote.discount);
+                setDiscount(foundQuote.discount || 0);
 
                 const convertedSamples: SampleWithQuantity[] = (foundQuote.samples || []).map((s: any) => ({
                     id: s.sampleId || crypto.randomUUID(),
@@ -269,16 +302,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     analyses: (s.analyses || []).map((a: any) => ({
                         ...a,
                         id: a.id || crypto.randomUUID(),
-                        unitPrice: a.feeBeforeTax || 0,
-                        quantity: 1,
-                        matrixId: a.matrixId || "UNKNOWN",
-                        parameterId: a.parameterId || "",
-                        protocolId: a.protocolId || "",
-                        sampleTypeId: a.sampleTypeId || "",
-                        parameterName: a.parameterName || "",
-                        protocolCode: a.protocolCode || "",
-                        sampleTypeName: a.sampleTypeName || "",
-                        feeBeforeTax: a.feeBeforeTax || 0,
+                        unitPrice: a.unitPrice || a.feeBeforeTax || 0, // Quote might use feeBeforeTax or unitPrice
+                        quantity: a.quantity || 1,
                         taxRate: a.taxRate || 0,
                     })),
                 }));
@@ -295,24 +320,69 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     };
 
     const calculatePricing = () => {
+        // If in view mode and we have initial data, prefer stored totals to avoid rounding diffs or recalculation issues
+        // BUT only if we don't have unsaved changes. If we have changes, we want to see the live calc.
+        if (isReadOnly && !hasUnsavedChanges && initialData?.totalAmount !== undefined) {
+            // Retrieve stored values or fallback to 0
+            // Note: totalFeeBeforeTax usually means Sum of Item Prices (Subtotal) in this codebase context?
+            // Or does it mean Net?
+            // Looking at types: totalFeeBeforeTax, totalFeeBeforeTaxAndDiscount.
+
+            // If the backend stores:
+            // totalFeeBeforeTax (Gross)
+            // totalDiscountValue
+            // totalFeeBeforeTaxAndDiscount (Net)
+            // totalTaxValue
+            // totalAmount
+
+            // We should map them:
+            const storedSubtotal = Number(initialData.totalFeeBeforeTax) || 0;
+            const storedDiscount = Number(initialData.totalDiscountValue) || 0;
+            const storedNet = Number(initialData.totalFeeBeforeTaxAndDiscount) || storedSubtotal - storedDiscount;
+            const storedTotal = Number(initialData.totalAmount) || 0;
+
+            // "khi view thì giá trị thuế lấy theo (totalAmount - totalFeeBeforeTax) / totalFeeBeforeTax"
+            // The user likely meant: Tax Value = Total Amount - Net Fee.
+            // (The formula in prompt was division, usually implication of Rate, but context says "giá trị thuế" -> Value).
+            // Let's assume they want Tax Value = storedTotal - storedNet.
+            const storedTax = storedTotal - storedNet;
+
+            return {
+                subtotal: storedSubtotal,
+                discountAmount: storedDiscount,
+                feeBeforeTax: storedNet,
+                tax: storedTax,
+                total: storedTotal,
+            };
+        }
+
         let subtotal = 0;
-        samples.forEach((sample) => {
-            sample.analyses.forEach((analysis) => {
-                subtotal += (analysis.unitPrice || 0) * (analysis.quantity || 1);
-            });
-        });
-        const discountAmount = (subtotal * discount) / 100;
-        const subtotalAfterDiscount = subtotal - discountAmount;
         let totalTax = 0;
+
         samples.forEach((sample) => {
             sample.analyses.forEach((analysis) => {
                 const lineSubtotal = (analysis.unitPrice || 0) * (analysis.quantity || 1);
+                subtotal += lineSubtotal;
                 totalTax += lineSubtotal * ((analysis.taxRate || 0) / 100);
             });
         });
+
+        const discountAmount = (subtotal * discount) / 100;
+        const subtotalAfterDiscount = subtotal - discountAmount;
+
+        // "taxRate ... tính bằng Tổng tiền thuế tất cả chỉ tiêu / tổng giá trị trước thuế toàn bộ chỉ tiêu * 100"
+        // This implies effective tax calculation might be needed if we were saving a single rate.
+        // But for display of 'Tax Value', we typically just sum the tax.
+        // However, if the Tax is also discounted?:
+        // Previous logic: const taxAfterDiscount = totalTax * (1 - discount / 100);
+        // If the user wants specific logic, we stick to standard: Tax is usually calculated on the discounted base if the discount is "pre-tax".
+        // Let's assume standard behavior unless the user's formula implies otherwise.
+        // The user says "Total Tax Value ... (after discount)".
+
         const taxAfterDiscount = totalTax * (1 - discount / 100);
         const total = subtotalAfterDiscount + taxAfterDiscount;
-        return { subtotal, tax: taxAfterDiscount, total };
+
+        return { subtotal, discountAmount, feeBeforeTax: subtotalAfterDiscount, tax: taxAfterDiscount, total };
     };
 
     const pricing = calculatePricing();
@@ -368,13 +438,18 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 sampleName: s.sampleName || "",
                 sampleMatrix: s.sampleMatrix || "",
                 sampleNote: s.sampleNote || "",
-                analyses: s.analyses.map((a) => ({
-                    parameterName: a.parameterName,
-                    protocolCode: a.protocolCode || "",
-                    unitPrice: a.unitPrice || 0,
-                    quantity: a.quantity || 1,
-                })),
+                analyses: s.analyses.map((a) => {
+                    const feeAfter = a.feeAfterTax || (a.unitPrice || 0) * (a.quantity || 1) * (1 + (a.taxRate || 0) / 100);
+                    const feeBefore = a.feeBeforeTax || (a.unitPrice || 0) * (a.quantity || 1) || feeAfter / (1 + (a.taxRate || 0) / 100);
+                    return {
+                        parameterName: a.parameterName,
+                        feeBeforeTax: feeBefore,
+                        taxRate: a.taxRate || 0,
+                        feeAfterTax: feeAfter,
+                    };
+                }),
             })),
+
             pricing,
             discount,
         };
@@ -414,10 +489,10 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
     const handleAddSample = () => {
         if (isReadOnly) return;
-        const timestamp = Date.now();
+        const newId = crypto.randomUUID();
         const newSample: SampleWithQuantity = {
-            id: `S${timestamp}`,
-            sampleId: `S${timestamp}`,
+            id: newId,
+            sampleId: newId,
             sampleName: "",
             sampleMatrix: "",
             sampleNote: "",
@@ -431,12 +506,12 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         const sampleToDuplicate = samples.find((s) => s.id === sampleId);
         if (!sampleToDuplicate) return;
 
-        const timestamp = Date.now();
+        const newSampleId = crypto.randomUUID();
         const duplicatedSample: SampleWithQuantity = {
             ...sampleToDuplicate,
-            id: `S${timestamp}`,
-            sampleId: `S${timestamp}`,
-            analyses: sampleToDuplicate.analyses.map((a, idx) => ({ ...a, id: `${a.parameterId}_copy_${timestamp}_${idx}` })),
+            id: newSampleId,
+            sampleId: newSampleId,
+            analyses: sampleToDuplicate.analyses.map((a) => ({ ...a, id: crypto.randomUUID() })),
         };
         setSamples([...samples, duplicatedSample]);
     };
@@ -460,14 +535,26 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     const handleAddAnalyses = (selectedMatrixItems: Matrix[]) => {
         if (currentSampleIndex === null) return;
         const sample = samples[currentSampleIndex];
-        const timestamp = Date.now();
-        const newAnalyses: AnalysisWithQuantity[] = selectedMatrixItems.map((matrixItem, index) => ({
-            ...matrixItem,
-            id: `A${timestamp}_${index}_${matrixItem.matrixId}`,
-            unitPrice: matrixItem.feeBeforeTax || 0,
-            quantity: 1,
-            // Audit fields if needed can be skipped or added here
-        }));
+        const newAnalyses: AnalysisWithQuantity[] = selectedMatrixItems.map((matrixItem) => {
+            const taxRate = Number(matrixItem.taxRate || 0);
+            const feeAfterTax = Number((matrixItem as any).feeAfterTax || 0);
+            let unitPrice = Number(matrixItem.feeBeforeTax || (matrixItem as any).unitPrice || (matrixItem as any).price || 0);
+
+            // Calculate unitPrice from feeAfterTax if not present
+            if (!unitPrice && feeAfterTax) {
+                unitPrice = feeAfterTax / (1 + taxRate / 100);
+            }
+
+            return {
+                ...matrixItem,
+                id: crypto.randomUUID(),
+                unitPrice: unitPrice,
+                feeBeforeTax: unitPrice,
+                taxRate: taxRate,
+                feeAfterTax: feeAfterTax || unitPrice * (1 + taxRate / 100),
+                quantity: 1,
+            };
+        });
 
         const updatedSample: SampleWithQuantity = {
             ...sample,
@@ -493,13 +580,97 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         );
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (isReadOnly) return;
-        // In real app, call API to save order here.
-        alert(t("order.saveSuccess"));
-        setHasUnsavedChanges(false);
-        if (onSaveSuccess) {
-            onSaveSuccess();
+
+        if (!selectedClient) {
+            toast.error(t("order.errorClientRequired") || "Client is required");
+            return;
+        }
+
+        if (samples.length === 0) {
+            toast.error(t("order.errorSamplesRequired") || "At least one sample is required");
+            return;
+        }
+
+        try {
+            const { createOrder, updateOrder } = await import("@/api/index");
+
+            // Construct client snapshot
+            const clientSnapshot = {
+                ...selectedClient,
+                clientAddress,
+                clientPhone,
+                clientEmail,
+                invoiceInfo: {
+                    taxName,
+                    taxCode,
+                    taxAddress,
+                    taxEmail,
+                },
+                clientContacts: selectedClient.clientContacts
+                    ? [
+                          {
+                              ...(selectedClient.clientContacts[0] || {}),
+                              contactName: contactPerson,
+                              contactPhone: contactPhone,
+                              contactEmail: contactEmail,
+                              contactPosition: contactPosition,
+                              contactAddress: contactAddress,
+                              identityId: contactIdentity,
+                          },
+                      ]
+                    : [],
+            };
+
+            const orderData = {
+                ...(initialData || {}), // Keep existing fields if edit, but overwrite with new
+                // orderId: mode === "create" ? undefined : initialData?.orderId, // Exclude orderId on create
+                ...(mode === "create" ? {} : { orderId: initialData?.orderId }), // Only include if edit
+                clientId: selectedClient.clientId || selectedClient.clientId,
+                client: clientSnapshot,
+                quoteId,
+
+                samples: samples.map((s) => ({
+                    ...s,
+                    analyses: s.analyses.map((a) => ({
+                        parameterName: a.parameterName,
+                        unitPrice: Number(a.unitPrice) || 0, // Ensure unitPrice is saved
+                        feeBeforeTax: (a.unitPrice || 0) * (a.quantity || 1),
+                        taxRate: a.taxRate || 0,
+                        feeAfterTax: (a.unitPrice || 0) * (a.quantity || 1) * (1 + (a.taxRate || 0) / 100),
+                    })),
+                })),
+
+                discount,
+                commission,
+
+                totalFeeBeforeTax: pricing.subtotal,
+                totalDiscountValue: pricing.discountAmount,
+                totalFeeBeforeTaxAndDiscount: pricing.feeBeforeTax,
+                totalTaxValue: pricing.tax,
+                totalAmount: pricing.total,
+            };
+
+            let response;
+            if (mode === "create") {
+                response = await createOrder({ body: orderData });
+            } else {
+                response = await updateOrder({ body: orderData });
+            }
+
+            if (response.success) {
+                toast.success(t("order.saveSuccess"));
+                setHasUnsavedChanges(false);
+                if (onSaveSuccess) {
+                    onSaveSuccess();
+                }
+            } else {
+                toast.error((response.error as any)?.message || "Failed to save order");
+            }
+        } catch (err) {
+            console.error("Save Order Error", err);
+            toast.error("An error occurred while saving");
         }
     };
 
@@ -546,43 +717,41 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         </div>
                     )}
 
-                    <div>
-                        <ClientSectionNew
-                            clients={clients}
-                            selectedClient={selectedClient}
-                            address={clientAddress}
-                            clientPhone={clientPhone}
-                            clientEmail={clientEmail}
-                            contactPerson={contactPerson}
-                            contactPhone={contactPhone}
-                            contactIdentity={contactIdentity}
-                            contactEmail={contactEmail}
-                            contactPosition={contactPosition}
-                            contactAddress={contactAddress}
-                            reportEmail={reportEmail}
-                            taxName={taxName}
-                            taxCode={taxCode}
-                            taxAddress={taxAddress}
-                            taxEmail={taxEmail}
-                            onClientChange={setSelectedClient}
-                            onAddressChange={setClientAddress}
-                            onContactPersonChange={setContactPerson}
-                            onContactPhoneChange={setContactPhone}
-                            onContactIdentityChange={setContactIdentity}
-                            onReportEmailChange={setReportEmail}
-                            onContactEmailChange={setContactEmail}
-                            onContactPositionChange={setContactPosition}
-                            onContactAddressChange={setContactAddress}
-                            onClientPhoneChange={setClientPhone}
-                            onClientEmailChange={setClientEmail}
-                            onTaxNameChange={setTaxName}
-                            onTaxCodeChange={setTaxCode}
-                            onTaxAddressChange={setTaxAddress}
-                            onTaxEmailChange={setTaxEmail}
-                            onAddNewClient={() => setIsClientModalOpen(true)}
-                            isReadOnly={isReadOnly}
-                        />
-                    </div>
+                    <ClientSectionNew
+                        clients={clients}
+                        selectedClient={selectedClient}
+                        address={clientAddress}
+                        clientPhone={clientPhone}
+                        clientEmail={clientEmail}
+                        contactPerson={contactPerson}
+                        contactPhone={contactPhone}
+                        contactIdentity={contactIdentity}
+                        contactEmail={contactEmail}
+                        contactPosition={contactPosition}
+                        contactAddress={contactAddress}
+                        reportEmail={reportEmail}
+                        taxName={taxName}
+                        taxCode={taxCode}
+                        taxAddress={taxAddress}
+                        taxEmail={taxEmail}
+                        onClientChange={setSelectedClient}
+                        onAddressChange={setClientAddress}
+                        onContactPersonChange={setContactPerson}
+                        onContactPhoneChange={setContactPhone}
+                        onContactIdentityChange={setContactIdentity}
+                        onReportEmailChange={setReportEmail}
+                        onContactEmailChange={setContactEmail}
+                        onContactPositionChange={setContactPosition}
+                        onContactAddressChange={setContactAddress}
+                        onClientPhoneChange={setClientPhone}
+                        onClientEmailChange={setClientEmail}
+                        onTaxNameChange={setTaxName}
+                        onTaxCodeChange={setTaxCode}
+                        onTaxAddressChange={setTaxAddress}
+                        onTaxEmailChange={setTaxEmail}
+                        onAddNewClient={() => setIsClientModalOpen(true)}
+                        isReadOnly={isReadOnly}
+                    />
 
                     <div className="space-y-4">
                         <h3 className="text-base font-semibold text-foreground">{t("order.samples")}</h3>
@@ -619,6 +788,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                 <PricingSummary
                                     subtotal={pricing.subtotal}
                                     discount={discount}
+                                    discountAmount={pricing.discountAmount}
+                                    feeBeforeTax={pricing.feeBeforeTax}
                                     tax={pricing.tax}
                                     total={pricing.total}
                                     commission={commission}

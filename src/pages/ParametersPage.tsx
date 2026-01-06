@@ -141,8 +141,8 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
                                 <tr>
                                     <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-large">{t("parameter.name")}</th>
                                     <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("order.sampleMatrix")}</th>
-                                    <th className="px-6 py-4 text-right text-sm font-semibold text-foreground min-w-size-medium">{t("parameter.unitPrice")}</th>
                                     <th className="px-6 py-4 text-center text-sm font-semibold text-foreground min-w-size-small">{t("parameter.tax")}</th>
+                                    <th className="px-6 py-4 text-right text-sm font-semibold text-foreground min-w-size-medium">{t("parameter.unitPrice")}</th>
                                     <th className="px-6 py-4 text-center text-sm font-semibold text-foreground min-w-size-small">{t("common.action")}</th>
                                 </tr>
                             </thead>
@@ -164,8 +164,13 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
                                         <tr key={matrix.matrixId} className="border-t border-border hover:bg-muted">
                                             <td className="px-6 py-4 text-sm font-medium text-foreground">{matrix.parameterName}</td>
                                             <td className="px-6 py-4 text-sm text-foreground">{matrix.sampleTypeName}</td>
-                                            <td className="px-6 py-4 text-right text-sm font-medium text-foreground">{matrix.feeBeforeTax?.toLocaleString("vi-VN")} đ</td>
                                             <td className="px-6 py-4 text-center text-sm text-foreground">{matrix.taxRate}%</td>
+                                            <td className="px-6 py-4 text-right text-sm font-medium text-foreground">
+                                                {((matrix as any).feeAfterTax ? Number((matrix as any).feeAfterTax) : (matrix.feeBeforeTax || 0) * (1 + (matrix.taxRate || 0) / 100)).toLocaleString(
+                                                    "vi-VN",
+                                                )}{" "}
+                                                đ
+                                            </td>
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex items-center justify-center gap-2">
                                                     <button className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" title={t("common.edit")}>

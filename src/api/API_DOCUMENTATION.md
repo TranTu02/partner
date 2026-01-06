@@ -51,11 +51,26 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
     "statusCode": 200,
     "data": {
         "token": "eyJhbGciOiJIUzI1...",
-        "user": {
-            "id": "USR-001",
-            "username": "admin",
-            "fullName": "System Administrator",
-            "role": "ADMIN"
+        "identity": {
+            "identityId": "USR-001",
+            "identityName": "admin",
+            "alias": "System Administrator",
+            "roles": {
+                "admin": true,
+                "customerService": false,
+                "technician": false,
+                "collaborator": false,
+                "administrative": false,
+                "accountant": false,
+                "sampleManager": false,
+                "superAdmin": true,
+                "dispatchClerk": false,
+                "documentManagementSpecialist": false,
+                "bot": false,
+                "IT": false,
+                "marketingCommunications": false,
+                "qualityControl": false
+            }
         }
     },
     "meta": null,
@@ -99,7 +114,24 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
         "sessionExpiry": "...",
         "identity": {
             "identityId": "...",
-            "username": "..."
+            "identityName": "...",
+            "alias": "...",
+            "roles":{
+                "admin": true/false,
+                "customerService": true/false,
+                "technician": true/false,
+                "collaborator": true/false,
+                "administrative": true/false,
+                "accountant": true/false,
+                "sampleManager": true/false,
+                "superAdmin": true/false,
+                "dispatchClerk": true/false,
+                "documentManagementSpecialist": true/false,
+                "bot":true/false,
+                "IT": true/false,
+                "marketingCommunications": true/false,
+                "qualityControl": true/false,
+            }
         }
     },
     "error": null
@@ -313,6 +345,25 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 -   **Description**: Update order (e.g., status change).
 -   **Input**: `{ "orderId": "ORD-...", "orderStatus": "Processing" }`
 -   **Output**: Updated Order object.
+
+#### **GET /v1/order/stats/accounting**
+
+-   **Description**: Get order statistics for accounting (Pending, Paid, Revenue).
+-   **Input**: `?` (query params for filtering if needed)
+-   **Output**:
+
+```json
+{
+    "success": true,
+    "statusCode": 200,
+    "data": {
+        "pendingCount": 15,
+        "paidCount": 100,
+        "totalPendingValue": 56000000
+    },
+    "error": null
+}
+```
 
 ---
 

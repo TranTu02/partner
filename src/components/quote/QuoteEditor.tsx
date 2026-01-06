@@ -10,7 +10,8 @@ import type { QuotePrintData } from "@/components/quote/QuotePrintTemplate";
 import type { Client } from "@/types/client";
 import type { Matrix } from "@/types/parameter";
 import { useTranslation } from "react-i18next";
-import type { EditorMode, SampleWithQuantity, AnalysisWithQuantity } from "../order/OrderEditor";
+import type { EditorMode } from "../order/OrderEditor";
+import type { SampleWithQuantity, AnalysisWithQuantity } from "@/components/order/SampleCard";
 import { getClients, createClient } from "@/api/index";
 import { toast } from "sonner";
 
@@ -29,7 +30,12 @@ export interface QuoteEditorRef {
 
 export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode, initialData, onSaveSuccess }, ref) => {
     const { t } = useTranslation();
-    const isReadOnly = mode === "view";
+    const [internalMode, setInternalMode] = useState<EditorMode>(mode);
+    const isReadOnly = internalMode === "view";
+
+    useEffect(() => {
+        setInternalMode(mode);
+    }, [mode]);
 
     const [clients, setClients] = useState<Client[]>([]);
 
@@ -252,12 +258,26 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
         if (currentSampleIndex === null) return;
         const sample = samples[currentSampleIndex];
         const timestamp = Date.now();
-        const newAnalyses: AnalysisWithQuantity[] = selectedMatrixItems.map((matrixItem, index) => ({
-            ...matrixItem,
-            id: `A${timestamp}_${index}_${matrixItem.matrixId}`,
-            unitPrice: matrixItem.feeBeforeTax || 0,
-            quantity: 1,
-        }));
+        const newAnalyses: AnalysisWithQuantity[] = selectedMatrixItems.map((matrixItem, index) => {
+            const feeAfterTax = Number((matrixItem as any).feeAfterTax || 0);
+            const taxRate = Number(matrixItem.taxRate || 0); // usage of taxRate from matrix if available
+
+            // Calculate unitPrice from feeAfterTax if available
+            // unitPrice = feeAfterTax / (1 + taxRate/100)
+            let unitPrice = matrixItem.feeBeforeTax || 0;
+            if (feeAfterTax) {
+                unitPrice = feeAfterTax / (1 + taxRate / 100);
+            }
+
+            return {
+                ...matrixItem,
+                id: `A${timestamp}_${index}_${matrixItem.matrixId}`,
+                unitPrice: unitPrice,
+                taxRate: taxRate,
+                feeAfterTax: feeAfterTax,
+                quantity: 1,
+            };
+        });
 
         const updatedSample: SampleWithQuantity = {
             ...sample,
@@ -284,38 +304,131 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
     };
 
     const calculatePricing = () => {
+        if (isReadOnly && !hasUnsavedChanges && initialData?.totalAmount !== undefined) {
+            const storedSubtotal = Number(initialData.totalFeeBeforeTax) || 0;
+            const storedDiscount = Number(initialData.totalDiscountValue) || 0;
+            const storedNet = Number(initialData.totalFeeBeforeTaxAndDiscount) || storedSubtotal - storedDiscount;
+            const storedTotal = Number(initialData.totalAmount) || 0;
+            const storedTax = storedTotal - storedNet;
+
+            return {
+                subtotal: storedSubtotal,
+                discountAmount: storedDiscount,
+                feeBeforeTax: storedNet,
+                tax: storedTax,
+                total: storedTotal,
+            };
+        }
+
         let subtotal = 0;
+        let totalTax = 0;
+
         samples.forEach((sample) => {
             sample.analyses.forEach((analysis) => {
-                subtotal += (analysis.unitPrice || 0) * (analysis.quantity || 1);
+                const lineSubtotal = (analysis.unitPrice || 0) * (analysis.quantity || 1);
+                subtotal += lineSubtotal;
+                totalTax += lineSubtotal * ((analysis.taxRate || 0) / 100);
             });
         });
 
         const discountAmount = (subtotal * discount) / 100;
         const subtotalAfterDiscount = subtotal - discountAmount;
 
-        let totalTax = 0;
-        samples.forEach((sample) => {
-            sample.analyses.forEach((analysis) => {
-                const lineSubtotal = (analysis.unitPrice || 0) * (analysis.quantity || 1);
-                totalTax += lineSubtotal * ((analysis.taxRate || 0) / 100);
-            });
-        });
-
         const taxAfterDiscount = totalTax * (1 - discount / 100);
         const total = subtotalAfterDiscount + taxAfterDiscount;
 
-        return { subtotal, tax: taxAfterDiscount, total };
+        return { subtotal, discountAmount, feeBeforeTax: subtotalAfterDiscount, tax: taxAfterDiscount, total };
     };
 
     const pricing = calculatePricing();
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (isReadOnly) return;
-        alert(t("order.saveSuccess"));
-        setHasUnsavedChanges(false);
-        if (onSaveSuccess) {
-            onSaveSuccess();
+        if (!selectedClient) {
+            toast.error(t("order.errorClientRequired") || "Client is required");
+            return;
+        }
+
+        if (samples.length === 0) {
+            toast.error(t("order.errorSamplesRequired") || "At least one sample is required");
+            return;
+        }
+
+        try {
+            const { createQuote, updateQuote } = await import("@/api/index");
+
+            const clientSnapshot = {
+                ...selectedClient,
+                clientAddress,
+                clientPhone,
+                clientEmail,
+                invoiceInfo: {
+                    taxName,
+                    taxCode,
+                    taxAddress,
+                    taxEmail,
+                },
+                clientContacts: selectedClient.clientContacts
+                    ? [
+                          {
+                              ...(selectedClient.clientContacts[0] || {}),
+                              contactName: contactPerson,
+                              contactPhone: contactPhone,
+                              contactEmail: contactEmail,
+                              contactPosition: contactPosition,
+                              contactAddress: contactAddress,
+                              identityId: contactIdentity,
+                          },
+                      ]
+                    : [],
+            };
+
+            const quoteData = {
+                ...(initialData || {}),
+                ...(mode === "create" ? {} : { quoteId: initialData?.quoteId }),
+                clientId: selectedClient.clientId,
+                client: clientSnapshot,
+
+                samples: samples.map((s) => ({
+                    ...s,
+                    analyses: s.analyses.map((a) => ({
+                        ...a,
+                        parameterPrice: a.unitPrice,
+                        feeBeforeTax: a.unitPrice,
+                        parameterTaxRate: a.taxRate,
+                        tax: (a.unitPrice * (a.taxRate || 0)) / 100,
+                    })),
+                })),
+
+                discount,
+                // commission, // Quote might not have commission in backend schema? Adding just in case.
+
+                totalFeeBeforeTax: pricing.subtotal,
+                totalDiscountValue: pricing.discountAmount,
+                totalFeeBeforeTaxAndDiscount: pricing.feeBeforeTax,
+                totalTaxValue: pricing.tax,
+                totalAmount: pricing.total,
+            };
+
+            let response;
+            if (mode === "create") {
+                response = await createQuote({ body: quoteData });
+            } else {
+                response = await updateQuote({ body: quoteData });
+            }
+
+            if (response.success) {
+                toast.success(t("order.saveSuccess"));
+                setHasUnsavedChanges(false);
+                if (onSaveSuccess) {
+                    onSaveSuccess();
+                }
+            } else {
+                toast.error((response.error as any)?.message || "Failed to save quote");
+            }
+        } catch (error) {
+            console.error("Save Quote Error", error);
+            toast.error("An error occurred while saving");
         }
     };
 
@@ -372,9 +485,9 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 sampleNote: s.sampleNote || "",
                 analyses: s.analyses.map((a) => ({
                     parameterName: a.parameterName,
-                    protocolCode: a.protocolCode || "",
-                    unitPrice: a.unitPrice || 0,
-                    quantity: a.quantity || 1,
+                    feeBeforeTax: (a.unitPrice || 0) * (a.quantity || 1),
+                    taxRate: a.taxRate || 0,
+                    feeAfterTax: (a.unitPrice || 0) * (a.quantity || 1) * (1 + (a.taxRate || 0) / 100),
                 })),
             })),
             pricing,
@@ -468,6 +581,8 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                                 <PricingSummary
                                     subtotal={pricing.subtotal}
                                     discount={discount}
+                                    discountAmount={pricing.discountAmount}
+                                    feeBeforeTax={pricing.feeBeforeTax}
                                     tax={pricing.tax}
                                     total={pricing.total}
                                     commission={commission}

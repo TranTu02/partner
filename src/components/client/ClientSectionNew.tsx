@@ -1,10 +1,12 @@
-import { useState } from "react";
-import { Search, Plus } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Search, Plus, Loader2 } from "lucide-react";
 import type { Client } from "@/types/client";
 import { useTranslation } from "react-i18next";
+import { getClients } from "@/api";
+import debounce from "lodash.debounce"; // Ensure you have this or implement a simple debounce
 
 interface ClientSectionNewProps {
-    clients: Client[];
+    clients: Client[]; // Still passed for initial data or fallback
     selectedClient: Client | null;
 
     // Basic Info
@@ -51,17 +53,14 @@ interface ClientSectionNewProps {
 }
 
 export function ClientSectionNew({
-    clients,
+    clients: _initialClients,
     selectedClient,
     address,
     clientPhone = "",
-    clientEmail = "",
     contactPerson,
     contactPhone,
-    contactIdentity,
     contactEmail = "",
     contactPosition = "",
-    contactAddress = "",
     reportEmail,
     taxName = "",
     taxCode = "",
@@ -70,13 +69,10 @@ export function ClientSectionNew({
     onClientChange,
     onAddressChange,
     onClientPhoneChange,
-    onClientEmailChange,
     onContactPersonChange,
     onContactPhoneChange,
-    onContactIdentityChange,
     onContactEmailChange,
     onContactPositionChange,
-    onContactAddressChange,
     onReportEmailChange,
     onTaxNameChange,
     onTaxCodeChange,
@@ -88,8 +84,64 @@ export function ClientSectionNew({
     const { t } = useTranslation();
     const [searchQuery, setSearchQuery] = useState("");
     const [showDropdown, setShowDropdown] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const filteredClients = clients.filter((client) => client.clientName.toLowerCase().includes(searchQuery.toLowerCase()) || client.legalId.includes(searchQuery));
+    // Server-side search state
+    const [searchResults, setSearchResults] = useState<Client[]>([]);
+
+    // Debounced search function
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const debouncedSearch = useCallback(
+        debounce(async (query: string) => {
+            if (!query.trim()) {
+                setSearchResults([]);
+                return;
+            }
+
+            setIsLoading(true);
+            try {
+                // Assuming getClients supports a 'search' query param
+                // Or we use 'otherFilters' if the API requires that specific format
+                const response = await getClients({
+                    query: {
+                        page: 1,
+                        pageSize: 20, // Limit results
+                        search: query,
+                    },
+                });
+
+                if (response.success && response.data) {
+                    // Check if response.data is the array directly or if it is inside a 'data' property (paginated)
+                    const results = Array.isArray(response.data) ? response.data : (response.data as any)?.data && Array.isArray((response.data as any)?.data) ? (response.data as any)?.data : [];
+
+                    setSearchResults(results as Client[]);
+                } else {
+                    setSearchResults([]);
+                }
+            } catch (error) {
+                console.error("Failed to search clients:", error);
+                setSearchResults([]);
+            } finally {
+                setIsLoading(false);
+            }
+        }, 500),
+        [],
+    );
+
+    useEffect(() => {
+        if (showDropdown && searchQuery) {
+            debouncedSearch(searchQuery);
+        } else {
+            setSearchResults([]); // Clear if dropdown closed or empty query
+        }
+    }, [searchQuery, showDropdown, debouncedSearch]);
+
+    // Determine which list to show:
+    // If we have search results from server, use them.
+    // Otherwise, if we have initialClients (passed from parent), filter them client-side fallback (optional, but good if parent provided full list).
+    // Given the request is "search server side", we prioritize server search results when searching.
+    // If not searching, we show nothing or recent? Let's stick to search results logic.
+    // const displayClients = searchResults.length > 0 ? searchResults : [];
 
     const handleSelectClient = (client: Client) => {
         onClientChange(client);
@@ -113,22 +165,40 @@ export function ClientSectionNew({
                                 <input
                                     type="text"
                                     className="w-full pl-10 pr-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                    value={searchQuery || selectedClient?.clientName}
+                                    value={searchQuery || (selectedClient?.clientName ?? "")}
                                     onChange={(e) => {
                                         setSearchQuery(e.target.value);
                                         setShowDropdown(true);
                                     }}
-                                    onFocus={() => !isReadOnly && setShowDropdown(true)}
+                                    onFocus={() => {
+                                        if (!isReadOnly) {
+                                            setShowDropdown(true);
+                                            if (searchQuery) debouncedSearch(searchQuery);
+                                        }
+                                    }}
+                                    // Blur needs care, clicking dropdown item might trigger blur first.
+                                    // Usually solved by using onMouseDown on the dropdown items or a click outside hook.
+                                    // For simplicity, we won't auto-close on blur instantly to allow click to register.
+                                    // Better: use a ClickOutside wrapper.
                                     placeholder={t("client.searchPlaceholder")}
                                     disabled={isReadOnly}
                                 />
+                                {isLoading && (
+                                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Dropdown */}
                             {showDropdown && searchQuery && !isReadOnly && (
-                                <div className="absolute z-10 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
-                                    {filteredClients.length > 0 ? (
-                                        filteredClients.map((client) => (
+                                <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
+                                    {isLoading ? (
+                                        <div className="px-4 py-3 text-center">
+                                            <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+                                        </div>
+                                    ) : searchResults.length > 0 ? (
+                                        searchResults.map((client) => (
                                             <div
                                                 key={client.clientId}
                                                 className="px-4 py-3 hover:bg-muted cursor-pointer border-b border-border last:border-b-0"
@@ -155,6 +225,8 @@ export function ClientSectionNew({
                                     )}
                                 </div>
                             )}
+                            {/* Overlay to close dropdown when clicking outside - simple version */}
+                            {showDropdown && <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setShowDropdown(false)} />}
                         </div>
 
                         <div>
@@ -177,7 +249,7 @@ export function ClientSectionNew({
                             <input
                                 type="text"
                                 className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                value={address}
+                                value={address || ""}
                                 onChange={(e) => onAddressChange(e.target.value)}
                                 placeholder={t("client.address")}
                                 disabled={isReadOnly}
@@ -188,7 +260,7 @@ export function ClientSectionNew({
                             <input
                                 type="text"
                                 className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                value={clientPhone}
+                                value={clientPhone || ""}
                                 onChange={(e) => onClientPhoneChange?.(e.target.value)}
                                 placeholder={t("client.phone")}
                                 disabled={isReadOnly}

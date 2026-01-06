@@ -30,6 +30,7 @@ const ACCESS_KEY = import.meta.env.VITE_ACCESS_KEY;
 const axiosInstance: AxiosInstance = axios.create({
     baseURL: BASE_URL,
     headers: {
+        Authorization: `Bearer ${Cookies.get("authToken")}`,
         "Content-Type": "application/json",
         "x-app-uid": APP_UID,
         "x-access-key": ACCESS_KEY,

@@ -29,6 +29,7 @@ export interface Client {
     availableByIds: string[]; // List of Identity IDs (text[])
     availableByName?: string[]; // List of names
     clientContacts: ClientContact[]; // jsonb[]
+    contacts: { name: string; email: string }[]; // Alias for clientContacts or legacy support
     invoiceEmail: string;
     invoiceInfo: InvoiceInfo; // jsonb structure
     totalOrderAmount: number;

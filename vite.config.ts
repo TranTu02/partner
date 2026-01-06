@@ -10,4 +10,27 @@ export default defineConfig({
             "@": path.resolve(__dirname, "./src"),
         },
     },
+    assetsInclude: ["**/*.png", "**/*.jpg", "**/*.svg"], // file ảnh
+    define: {
+        __WS_TOKEN__: JSON.stringify("abc"),
+        global: "globalThis", // Định nghĩa `global` thành `globalThis`
+    },
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    tinymce: ["tinymce/tinymce"],
+                },
+            },
+        },
+    },
+    server: {
+        host: true,
+        allowedHosts: [".irdop.org"],
+    },
+    preview: {
+        host: true, // or '0.0.0.0' for all interfaces
+        port: 4173,
+        allowedHosts: [".irdop.org"],
+    },
 });

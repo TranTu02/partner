@@ -19,26 +19,39 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data }: Sample
     if (!isOpen) return null;
 
     const generateSampleRequestHtml = (data: OrderPrintData) => {
+        let globalStt = 0;
         const samplesHtml = data.samples
-            .map(
-                (sample, index) => `
-            <tr>
-                <td style="text-align: center; border: 1px solid black; padding: 5px;">${index + 1}</td>
-                <td style="border: 1px solid black; padding: 5px;"><span style="font-weight: 700;">${sample.sampleName}</span></td>
-                <td style="border: 1px solid black; padding: 5px;">
-                    <span>${t("sample.matrix")}:</span> <span style="font-weight: 700;">${sample.sampleMatrix}</span><br/>
-                    <span>${t("sample.desc")}:</span> <span style="font-weight: 700;">${sample.sampleNote || ""}</span>
-                </td>
-                <td style="border: 1px solid black; padding: 5px;">
-                    <span style="font-weight: 700;">${sample.analyses.map((a) => a.parameterName).join(", ")}</span>
-                </td>
-                <td style="border: 1px solid black; padding: 5px;">
-                    <span style="font-weight: 700;">${Array.from(new Set(sample.analyses.map((a) => a.protocolCode))).join(", ")}</span>
-                </td>
-                <td style="border: 1px solid black; padding: 5px;"></td>
-            </tr>
-        `,
-            )
+            .map((sample) => {
+                const rowCount = sample.analyses && sample.analyses.length > 0 ? sample.analyses.length : 1;
+                const analyses = sample.analyses && sample.analyses.length > 0 ? sample.analyses : [{ parameterName: "", protocolCode: "", id: "dummy" }];
+
+                return analyses
+                    .map((analysis: any, index: number) => {
+                        globalStt++;
+                        const isFirst = index === 0;
+
+                        const sampleCells = isFirst
+                            ? `
+                            <td rowspan="${rowCount}" style="border: 1px solid black; padding: 5px; vertical-align: middle;"><span style="font-weight: 700;">${sample.sampleName}</span></td>
+                            <td rowspan="${rowCount}" style="border: 1px solid black; padding: 5px; vertical-align: middle;">
+                                <span>${t("sample.matrix")}:</span> <span style="font-weight: 700;">${sample.sampleMatrix}</span><br/>
+                                ${sample.sampleNote ? `<span>${t("sample.desc")}:</span> <span style="font-weight: 700;">${sample.sampleNote}</span>` : ""}
+                            </td>
+                        `
+                            : "";
+
+                        return `
+                        <tr>
+                            <td style="text-align: center; border: 1px solid black; padding: 5px;">${globalStt}</td>
+                            ${sampleCells}
+                            <td style="border: 1px solid black; padding: 5px;">${analysis.parameterName || ""}</td>
+                            <td style="border: 1px solid black; padding: 5px;">${analysis.protocolCode || ""}</td>
+                            <td style="border: 1px solid black; padding: 5px;"></td>
+                        </tr>
+                    `;
+                    })
+                    .join("");
+            })
             .join("");
 
         return `
@@ -86,7 +99,7 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data }: Sample
                         </div>
                         <div style="grid-column: span 2; display: flex; align-items: baseline; font-size: 13px; margin-bottom: 4px;">
                             <span class="label-text">${t("sampleRequest.phone")}</span>
-                            <span class="field-dotted" style="flex-grow: 1;">${data.client?.contacts?.[0]?.phone || ""}</span>
+                            <span class="field-dotted" style="flex-grow: 1;">${data.client?.clientContacts?.[0]?.contactPhone || ""}</span>
                         </div>
                         <div style="grid-column: span 2; display: flex; flex-direction: column; font-size: 13px; margin-bottom: 4px;">
                             <span class="label-text" style="margin-bottom: 2px;">${t("sampleRequest.invoiceInfo")}</span>

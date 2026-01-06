@@ -3,17 +3,33 @@ import type { ReactNode } from "react";
 import Cookies from "js-cookie";
 import { login as apiLogin, checkSessionStatus } from "@/api";
 
-export type UserRole = "Collaborator" | "CustomerService" | "Accountant" | "Client" | "Guest" | "Admin";
-
 export interface User {
-    id: string; // identityId
-    username: string; // identityName
-    fullName: string; // alias
-    roles: Record<string, boolean>; // API returns object
-    role: UserRole; // Derived primary role for frontend logic
-    email?: string;
-    clientId?: string;
+    email: string;
+    roles: UserRole;
+    identityId: string;
+    identityName: string;
 }
+
+// Keep UserRole simple alias or import it but since it's used in interface above which is exported,
+// we might want to just import User from types/auth if possible OR redefine it to match perfectly.
+// To avoid duplication and circular deps, let's try to import or just ensure structure matches keys.
+// The user provided the structure in types/auth.ts, let's use that structure here.
+export type UserRole = {
+    IT: boolean;
+    bot: boolean;
+    admin: boolean;
+    accountant: boolean;
+    superAdmin: boolean;
+    technician: boolean;
+    collaborator: boolean;
+    dispatchClerk: boolean;
+    sampleManager: boolean;
+    administrative: boolean;
+    qualityControl: boolean;
+    customerService: boolean;
+    marketingCommunications: boolean;
+    documentManagementSpecialist: boolean;
+};
 
 interface AuthContextType {
     user: User | null;
@@ -27,13 +43,32 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Role-based access control matrix (Simplified/Updated)
+// Role-based access control matrix
 const accessMatrix: Record<string, string[]> = {
-    Admin: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters", "accounting", "admin"],
-    Collaborator: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters"],
-    CustomerService: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters", "accounting"],
-    Accountant: ["dashboard", "clients", "parameters", "orders", "accounting"],
-    Client: ["parameters", "quotes", "quotes-create", "orders", "orders-create"],
-    Guest: ["parameters", "quotes"],
+    // Admin roles
+    admin: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters", "accounting", "settings"],
+    superAdmin: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters", "accounting", "settings"],
+    IT: ["dashboard", "clients", "quotes", "orders", "parameters", "accounting", "settings"],
+
+    // Functional Roles
+    customerService: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters", "accounting", "settings"],
+    collaborator: ["dashboard", "clients", "quotes", "quotes-create", "settings"],
+    accountant: ["dashboard", "clients", "quotes", "orders", "accounting", "settings"],
+
+    technician: ["dashboard", "orders", "orders-create", "parameters", "settings"],
+    sampleManager: ["dashboard", "orders", "orders-create", "parameters", "settings"],
+    qualityControl: ["dashboard", "parameters", "settings"],
+    administrative: ["dashboard", "clients", "settings"],
+
+    // Others (limited access or defined elsewhere)
+    dispatchClerk: ["dashboard", "settings"],
+    marketingCommunications: ["dashboard", "settings"],
+    documentManagementSpecialist: ["dashboard", "settings"],
+    bot: [],
+
+    // External
+    client: ["parameters", "quotes", "quotes-create", "orders", "orders-create", "settings"],
+    guest: ["parameters", "quotes"],
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -59,13 +94,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     console.log("Session verified:", response.data);
                     const identity = response.data.identity;
                     if (identity) {
-                        setUser((prev) => {
-                            if (!prev) return null;
-                            const updatedUser = {
-                                ...prev,
-                                id: identity.identityId,
-                                username: identity.identityName || identity.username,
+                        setUser((_prev) => {
+                            // Construct a fresh user object to ensure all new fields (identityId, etc.) are present
+                            // This handles migration from old localStorage data (id, username) to new structure
+                            const updatedUser: User = {
+                                identityId: identity.identityId,
+                                identityName: identity.identityName,
+                                roles: identity.roles,
+                                email: identity.email || "",
                             };
+
                             localStorage.setItem("user", JSON.stringify(updatedUser));
                             return updatedUser;
                         });
@@ -85,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             const response = await apiLogin({ body: { username, password } });
             if (response.success && response.data) {
-                const apiUser = response.data.user;
+                const identity = response.data.identity;
                 const token = response.data.token;
                 const newSessionId = response.data.sessionId;
 
@@ -98,23 +136,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     localStorage.setItem("sessionId", newSessionId);
                 }
 
-                // Map API User to Context User
-                // Determine primary role
-                let primaryRole: UserRole = "Collaborator";
-                if (apiUser.roles) {
-                    if (apiUser.roles.admin) primaryRole = "Admin";
-                    else if (apiUser.roles.accountant) primaryRole = "Accountant";
-                    else if (apiUser.roles.sale || apiUser.roles.customerService) primaryRole = "CustomerService";
-                    else if (apiUser.roles.client) primaryRole = "Client";
-                }
+                // Map API Identity to Context User
+                // Determine primary role logic if needed for internal flags, otherwise use roles object directly
 
                 const mappedUser: User = {
-                    id: apiUser.identityId,
-                    username: apiUser.identityName,
-                    fullName: apiUser.alias,
-                    roles: apiUser.roles,
-                    role: primaryRole,
-                    email: apiUser.email || "", // Assuming API might return email or we default empty
+                    identityId: identity.identityId,
+                    identityName: identity.identityName,
+                    roles: identity.roles,
+                    email: identity.email || "",
                 };
 
                 setUser(mappedUser);
@@ -154,9 +183,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!user) {
             return false;
         }
-        // Fallback if role doesn't match matrix key
-        const allowedPages = accessMatrix[user.role] || [];
-        return allowedPages.includes(page);
+
+        // Check if any active role in user.roles maps to a permission list containing the page
+        const userRoles = user.roles;
+        for (const [roleKey, isActive] of Object.entries(userRoles)) {
+            if (isActive) {
+                const allowedPages = accessMatrix[roleKey] || [];
+                if (allowedPages.includes(page)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     };
 
     return <AuthContext.Provider value={{ user, isGuest, login, loginAsGuest, logout, hasAccess }}>{children}</AuthContext.Provider>;
