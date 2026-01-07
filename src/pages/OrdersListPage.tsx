@@ -5,11 +5,11 @@ import { OrderEditor } from "@/components/order/OrderEditor";
 
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { getOrders } from "@/api/index";
+import { getOrders, getOrderDetail } from "@/api/index";
+
 import type { Order } from "@/types/order";
 import { toast } from "sonner";
 import { Pagination } from "@/components/common/Pagination";
-
 import { MainLayout } from "@/components/layout/MainLayout";
 
 interface OrdersListPageProps {
@@ -40,7 +40,9 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
     const isCreate = location.pathname.endsWith("/create");
     const isDetail = location.pathname.endsWith("/detail");
     const isEdit = location.pathname.endsWith("/edit");
+
     const orderId = searchParams.get("orderId");
+    const quoteId = searchParams.get("quoteId");
 
     const isEditorActive = isCreate || isDetail || isEdit;
     const initialViewMode = isCreate ? "create" : isEdit ? "edit" : "view";
@@ -93,22 +95,27 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
     useEffect(() => {
         const loadSelectedOrder = async () => {
             if ((isDetail || isEdit) && orderId) {
-                // Try to find in current list first
-                const found = orders.find((o) => o.orderId === orderId);
-                if (found) {
-                    setSelectedOrder(found);
-                    return;
+                try {
+                    const response = await getOrderDetail({ query: { orderId } });
+                    if (response.success && response.data) {
+                        setSelectedOrder(response.data as Order);
+                    } else {
+                        // Fallback to list if detail fetch fails (or show error)
+                        const found = orders.find((o) => o.orderId === orderId);
+                        if (found) setSelectedOrder(found);
+                    }
+                } catch (error) {
+                    console.error("Failed to load order detail", error);
+                    // Fallback
+                    const found = orders.find((o) => o.orderId === orderId);
+                    if (found) setSelectedOrder(found);
                 }
-                // If not found, ideally fetch detail if we had getOrderDetail conveniently imported/setup
-                // For now, rely on list or OrderEditor to handle it if initialData is partial?
-                // OrderEditor uses initialData. If partial, it might fail.
-                // But typically user navigates from list.
             } else if (isCreate) {
                 setSelectedOrder(null);
             }
         };
         loadSelectedOrder();
-    }, [orderId, isDetail, isEdit, isCreate, orders]);
+    }, [orderId, isDetail, isEdit, isCreate]);
 
     // Status Configurations
     const statusConfig = {
@@ -137,9 +144,13 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
         }
     };
 
-    const handleSaveSuccess = () => {
+    const handleSaveSuccess = (createdOrder?: any) => {
         fetchOrders();
-        navigate("/orders");
+        if (createdOrder && createdOrder.orderId) {
+            navigate(`/orders/detail?orderId=${createdOrder.orderId}`);
+        } else {
+            navigate("/orders");
+        }
     };
 
     const handleSaveTrigger = () => {
@@ -207,7 +218,14 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                 {/* Editor Content */}
                 <div className="flex-1 overflow-hidden">
                     {/* Use key to force remount if needed, but localViewMode prop update should suffice */}
-                    <OrderEditor ref={editorRef} mode={localViewMode as any} initialData={selectedOrder || undefined} onBack={handleBack} onSaveSuccess={handleSaveSuccess} />
+                    <OrderEditor
+                        ref={editorRef}
+                        mode={localViewMode as any}
+                        initialData={selectedOrder || undefined}
+                        onBack={handleBack}
+                        onSaveSuccess={handleSaveSuccess}
+                        initialQuoteId={quoteId || undefined}
+                    />
                 </div>
             </div>
         );

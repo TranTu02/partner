@@ -25,6 +25,7 @@ export interface QuotePrintData {
         sampleNote: string;
         analyses: {
             parameterName: string;
+            parameterId?: string;
             feeBeforeTax: number;
             taxRate: number;
             feeAfterTax: number;
@@ -79,8 +80,37 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                 </table>
             </div>
 
+            {/* SECTION 2: SERVICE PROVIDER */}
+            <div style={{ marginBottom: "20px" }}>
+                <h3 style={{ fontSize: "16px", fontWeight: "bold", borderBottom: "1px solid #000", paddingBottom: "5px" }}>2. {t("order.print.provider")}</h3>
+                <table style={{ width: "100%", marginTop: "10px" }}>
+                    <tbody>
+                        <tr>
+                            <td style={{ width: "150px", fontWeight: "bold" }}>{t("organization.name")}:</td>
+                            <td>{t("organization.data.organizationName")}</td>
+                        </tr>
+                        <tr>
+                            <td style={{ fontWeight: "bold" }}>{t("organization.address")}:</td>
+                            <td>{t("organization.data.address")}</td>
+                        </tr>
+                        <tr>
+                            <td style={{ fontWeight: "bold" }}>{t("organization.taxId")}:</td>
+                            <td>{t("organization.data.taxId")}</td>
+                        </tr>
+                        <tr>
+                            <td style={{ fontWeight: "bold" }}>{t("organization.phone")}:</td>
+                            <td>{t("organization.data.phone")}</td>
+                        </tr>
+                        <tr>
+                            <td style={{ fontWeight: "bold" }}>{t("organization.email")}:</td>
+                            <td>{t("organization.data.email")}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
             <div>
-                <h3 style={{ fontSize: "16px", fontWeight: "bold", borderBottom: "1px solid #000", paddingBottom: "5px", marginBottom: "10px" }}>2. {t("order.print.samplesAndAnalysis")}</h3>
+                <h3 style={{ fontSize: "16px", fontWeight: "bold", borderBottom: "1px solid #000", paddingBottom: "5px", marginBottom: "10px" }}>3. {t("order.print.samplesAndAnalysis")}</h3>
 
                 {data.samples.map((sample, index) => (
                     <div key={index} style={{ marginBottom: "20px", pageBreakInside: "avoid" }}>
@@ -92,8 +122,9 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                                 <tr style={{ backgroundColor: "#e6e6e6" }}>
                                     <th style={{ border: "1px solid #ccc", padding: "8px", textAlign: "left" }}>{t("order.print.stt")}</th>
                                     <th style={{ border: "1px solid #ccc", padding: "8px", textAlign: "left" }}>{t("order.print.parameter")}</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right" }}>{t("order.print.unitPrice")}</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center" }}>{t("order.print.quantity")}</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right" }}>{t("order.print.amount")}</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center" }}>{t("order.print.tax")} (%)</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right" }}>{t("order.print.total")}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -117,7 +148,7 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
             </div>
 
             <div style={{ marginTop: "20px", pageBreakInside: "avoid" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: "bold", borderBottom: "1px solid #000", paddingBottom: "5px" }}>3. {t("order.print.total")}</h3>
+                <h3 style={{ fontSize: "16px", fontWeight: "bold", borderBottom: "1px solid #000", paddingBottom: "5px" }}>4. {t("order.print.total")}</h3>
                 <table style={{ width: "100%", marginTop: "10px" }}>
                     <tbody>
                         <tr>

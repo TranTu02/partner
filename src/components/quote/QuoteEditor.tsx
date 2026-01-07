@@ -10,6 +10,7 @@ import type { QuotePrintData } from "@/components/quote/QuotePrintTemplate";
 import type { Client } from "@/types/client";
 import type { Matrix } from "@/types/parameter";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "@/contexts/AuthContext";
 import type { EditorMode } from "../order/OrderEditor";
 import type { SampleWithQuantity, AnalysisWithQuantity } from "@/components/order/SampleCard";
 import { getClients, createClient } from "@/api/index";
@@ -18,7 +19,7 @@ import { toast } from "sonner";
 interface QuoteEditorProps {
     mode: EditorMode;
     initialData?: any; // Quote
-    onSaveSuccess?: () => void;
+    onSaveSuccess?: (data?: any) => void;
     onBack?: () => void;
 }
 
@@ -30,6 +31,7 @@ export interface QuoteEditorRef {
 
 export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode, initialData, onSaveSuccess }, ref) => {
     const { t } = useTranslation();
+    const { user } = useAuth();
     const [internalMode, setInternalMode] = useState<EditorMode>(mode);
     const isReadOnly = internalMode === "view";
 
@@ -87,7 +89,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
     const [currentSampleIndex, setCurrentSampleIndex] = useState<number | null>(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-    const quoteId = initialData?.quoteId || `QT-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-01`;
+    const quoteId = initialData?.quoteId;
 
     // Populate From Initial Data
     useEffect(() => {
@@ -215,7 +217,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
         const timestamp = Date.now();
         const newSample: SampleWithQuantity = {
             id: `S${timestamp}`,
-            sampleId: `SAM-${timestamp}`,
+            sampleId: undefined,
             sampleName: "",
             sampleMatrix: "",
             sampleNote: "",
@@ -233,6 +235,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
         const duplicatedSample: SampleWithQuantity = {
             ...sampleToDuplicate,
             id: `S${timestamp}`,
+            sampleId: undefined,
             analyses: sampleToDuplicate.analyses.map((a, idx) => ({ ...a, id: `${a.parameterId}_copy_${timestamp}_${idx}` })),
         };
         setSamples([...samples, duplicatedSample]);
@@ -386,6 +389,9 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             const quoteData = {
                 ...(initialData || {}),
                 ...(mode === "create" ? {} : { quoteId: initialData?.quoteId }),
+                quoteStatus: mode === "create" ? "draft" : initialData?.quoteStatus || "draft",
+                salePersonId: mode === "create" ? user?.identityId : initialData?.salePersonId,
+                salePerson: mode === "create" ? user?.identityName : initialData?.salePerson,
                 clientId: selectedClient.clientId,
                 client: clientSnapshot,
 
@@ -418,10 +424,10 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             }
 
             if (response.success) {
-                toast.success(t("order.saveSuccess"));
+                toast.success(mode === "create" ? t("quote.createSuccess") : t("quote.updateSuccess"));
                 setHasUnsavedChanges(false);
                 if (onSaveSuccess) {
-                    onSaveSuccess();
+                    onSaveSuccess(response.data);
                 }
             } else {
                 toast.error((response.error as any)?.message || "Failed to save quote");
@@ -485,6 +491,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 sampleNote: s.sampleNote || "",
                 analyses: s.analyses.map((a) => ({
                     parameterName: a.parameterName,
+                    parameterId: a.parameterId,
                     feeBeforeTax: (a.unitPrice || 0) * (a.quantity || 1),
                     taxRate: a.taxRate || 0,
                     feeAfterTax: (a.unitPrice || 0) * (a.quantity || 1) * (1 + (a.taxRate || 0) / 100),
@@ -597,7 +604,13 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             </div>
 
             <AnalysisModalNew isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onConfirm={handleAddAnalyses} />
-            <AddClientModal isOpen={isClientModalOpen} onClose={() => setIsClientModalOpen(false)} onConfirm={handleAddClient} />
+            <AddClientModal
+                isOpen={isClientModalOpen}
+                onClose={() => setIsClientModalOpen(false)}
+                onConfirm={handleAddClient}
+                currentIdentityId={user?.identityId}
+                currentIdentityName={user?.identityName}
+            />
             {printData && <QuotePrintPreviewModal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} data={printData} />}
         </div>
     );

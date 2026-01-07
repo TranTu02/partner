@@ -7,11 +7,11 @@ import { QuoteEditor } from "@/components/quote/QuoteEditor";
 
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { getQuotes } from "@/api/index";
+import { getQuotes, getQuoteDetail } from "@/api/index";
+
 import type { Quote } from "@/types/quote";
 import { toast } from "sonner";
 import { Pagination } from "@/components/common/Pagination";
-
 import { MainLayout } from "@/components/layout/MainLayout";
 
 interface QuotesListPageProps {
@@ -86,17 +86,26 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
     useEffect(() => {
         const loadSelectedQuote = async () => {
             if ((isDetail || isEdit) && quoteId) {
-                const found = quotes.find((q) => q.quoteId === quoteId);
-                if (found) {
-                    setSelectedQuote(found);
+                try {
+                    const response = await getQuoteDetail({ query: { quoteId } });
+                    if (response.success && response.data) {
+                        setSelectedQuote(response.data as Quote);
+                    } else {
+                        // Fallback
+                        const found = quotes.find((q) => q.quoteId === quoteId);
+                        if (found) setSelectedQuote(found);
+                    }
+                } catch (error) {
+                    console.error("Failed to load quote detail", error);
+                    const found = quotes.find((q) => q.quoteId === quoteId);
+                    if (found) setSelectedQuote(found);
                 }
-                // Else maybe fetch detail specifically? Rely on list for now.
             } else if (isCreate) {
                 setSelectedQuote(null);
             }
         };
         loadSelectedQuote();
-    }, [quoteId, isDetail, isEdit, isCreate, quotes]);
+    }, [quoteId, isDetail, isEdit, isCreate]);
 
     const handleCreate = () => navigate("/quotes/create");
     const handleViewDetail = (quote: Quote) => navigate(`/quotes/detail?quoteId=${quote.quoteId}`);
@@ -112,9 +121,19 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
         }
     };
 
-    const handleSaveSuccess = () => {
+    const handleSaveSuccess = (createdQuote?: any) => {
         fetchQuotes();
-        navigate("/quotes");
+        if (createdQuote && createdQuote.quoteId) {
+            navigate(`/quotes/detail?quoteId=${createdQuote.quoteId}`);
+        } else {
+            navigate("/quotes");
+        }
+    };
+
+    const handleCreateOrder = () => {
+        if (selectedQuote) {
+            navigate(`/orders/create?quoteId=${selectedQuote.quoteId}`);
+        }
     };
 
     const handleSaveTrigger = () => {
@@ -142,13 +161,22 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                     </div>
                     <div className="flex gap-2">
                         {viewMode === "view" && (
-                            <button
-                                onClick={() => editorRef.current?.export()}
-                                className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
-                            >
-                                <FileDown className="w-4 h-4" />
-                                <span className="hidden sm:inline">{t("quote.print", "In Báo giá")}</span>
-                            </button>
+                            <>
+                                <button
+                                    onClick={handleCreateOrder}
+                                    className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    <span className="hidden sm:inline">{t("quote.createOrder", "Tạo đơn hàng")}</span>
+                                </button>
+                                <button
+                                    onClick={() => editorRef.current?.export()}
+                                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+                                >
+                                    <FileDown className="w-4 h-4" />
+                                    <span className="hidden sm:inline">{t("quote.printButton", "In Báo giá")}</span>
+                                </button>
+                            </>
                         )}
                         {viewMode !== "view" && (
                             <button

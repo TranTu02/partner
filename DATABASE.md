@@ -1,8 +1,8 @@
 # TÀI LIỆU THIẾT KẾ CƠ SỞ DỮ LIỆU (DATABASE DESIGN DOCUMENT)
 
 **Dự án:** LIMS Multi-Lab SaaS Platform
-**Phiên bản:** 2.2.0 (Catalog Refined & Matrix Optimization)
-**Ngày cập nhật:** 31/12/2025
+**Phiên bản:** 2.2.1 (Print Features & Schema Refinements)
+**Ngày cập nhật:** 07/01/2026
 **Tham chiếu:** [RULE.md](./RULE.md), [BA.md](./BA.md), [API Documentation](./src/api/API_DOCUMENTATION.md)
 
 ---
@@ -346,6 +346,7 @@ interface OrderSample {
     sampleTypeId: string; // Thay cho sampleMatrix dạng text cũ
     analyses: {
         matrixId: string; // Link đến bảng Matrix
+        parameterId?: string; // ID chỉ tiêu (để tham chiếu nhanh)
         feeBeforeTax: number; // Giá trị trước thuế
         taxRate: number;
         feeAfterTax: number; // Giá trị sau thuế

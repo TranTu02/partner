@@ -1,6 +1,8 @@
 import { useRef } from "react";
 import { X, FileDown, Eye } from "lucide-react";
 import { Editor } from "@tinymce/tinymce-react";
+// @ts-ignore
+import { formatMoneyToWords } from "../../utils/textUtils";
 import type { QuotePrintData } from "./QuotePrintTemplate";
 import { useTranslation } from "react-i18next";
 // @ts-ignore
@@ -13,7 +15,7 @@ interface QuotePrintPreviewModalProps {
 }
 
 export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPreviewModalProps) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const editorRef = useRef<any>(null);
 
     if (!isOpen) return null;
@@ -23,8 +25,9 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
             .map(
                 (sample, index) => `
             <div style="margin-bottom: 20px;">
-                <div style="background-color: #f0f0f0; padding: 5px 10px; font-weight: bold; margin-bottom: 5px;">
-                    ${t("order.print.sample")} ${index + 1}: ${sample.sampleName}
+                <div style="background-color: #f0f0f0; padding: 5px 10px; margin-bottom: 5px;">
+                    <div style="font-weight: bold;">${t("order.print.sample")} ${index + 1}: ${sample.sampleName}</div>
+                    ${sample.sampleNote ? `<div style="font-style: italic; margin-top: 2px;">${t("sample.note")}: ${sample.sampleNote}</div>` : ""}
                 </div>
                 <table class="data-table" style="width: 100%; border-collapse: collapse;">
                     <thead>
@@ -70,31 +73,7 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
             </div>
 
             <div style="margin-bottom: 20px;">
-                <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid black; padding-bottom: 5px; margin-bottom: 10px;">1. ${t("order.print.provider")}</h3>
-                <table class="info-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
-                     <tbody>
-                        <tr>
-                            <td style="font-weight: bold; width: 150px; border: none !important;">${t("order.print.unit")}:</td>
-                            <td style="border: none !important;">${t("organization.data.organizationName")}</td>
-                        </tr>
-                        <tr>
-                             <td style="font-weight: bold; border: none !important;">${t("order.print.address")}:</td>
-                             <td style="border: none !important;">${t("organization.data.address")}</td>
-                        </tr>
-                        <tr>
-                             <td style="font-weight: bold; border: none !important;">${t("order.print.email")}:</td>
-                             <td style="border: none !important;">${t("organization.data.email")}</td>
-                        </tr>
-                        <tr>
-                             <td style="font-weight: bold; border: none !important;">${t("order.print.phone")}:</td>
-                             <td style="border: none !important;">${t("organization.data.phone")}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div style="margin-bottom: 20px;">
-                <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid black; padding-bottom: 5px; margin-bottom: 10px;">2. ${t("order.print.client")}</h3>
+                <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid black; padding-bottom: 5px; margin-bottom: 10px;">1. ${t("order.print.client")}</h3>
                 <table class="info-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
                     <tbody>
                         <tr>
@@ -117,13 +96,34 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                             <td style="font-weight: bold; border: none !important;">${t("client.contactPhone")}:</td>
                             <td style="border: none !important;">${data.contactPhone}</td>
                         </tr>
-                        <tr>
-                            <td style="font-weight: bold; border: none !important;">${t("client.contactIdentity")}:</td>
-                            <td style="border: none !important;">${data.contactIdentity}</td>
-                        </tr>
+
                         <tr>
                             <td style="font-weight: bold; border: none !important;">${t("order.print.email")}:</td>
                             <td style="border: none !important;">${data.reportEmail}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid black; padding-bottom: 5px; margin-bottom: 10px;">2. ${t("order.print.provider")}</h3>
+                <table class="info-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+                     <tbody>
+                        <tr>
+                            <td style="font-weight: bold; width: 150px; border: none !important;">${t("order.print.unit")}:</td>
+                            <td style="border: none !important;">${t("organization.data.organizationName")}</td>
+                        </tr>
+                        <tr>
+                             <td style="font-weight: bold; border: none !important;">${t("order.print.address")}:</td>
+                             <td style="border: none !important;">${t("organization.data.address")}</td>
+                        </tr>
+                        <tr>
+                             <td style="font-weight: bold; border: none !important;">${t("order.print.email")}:</td>
+                             <td style="border: none !important;">${t("organization.data.email")}</td>
+                        </tr>
+                        <tr>
+                             <td style="font-weight: bold; border: none !important;">${t("order.print.phone")}:</td>
+                             <td style="border: none !important;">${t("organization.data.phone")}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -175,14 +175,20 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                         </tr>
                     </tbody>
                  </table>
-            </div>
-             <div style="margin-top: 40px; display: flex; justify-content: space-between; page-break-inside: avoid;">
-                <div style="text-align: center; width: 40%;">
-                    <p style="font-weight: bold; margin-bottom: 5px;">${t("order.print.clientRep")}</p>
-                    <p style="font-style: italic;">(${t("order.print.signName")})</p>
+                 <div style="font-weight: bold; margin-top: 10px; font-style: italic;">
+                    ${t("order.print.amountInWords")}: ${formatMoneyToWords(data.pricing.total, i18n.language)}
+                 </div>
+                 <div style="margin-top: 10px;">
+                    <p style="margin-bottom: 5px;">${t("order.print.disclaimer")}</p>
+                    <p style="font-weight: bold;">${t("order.print.bankInfo.title")}</p>
+                    <p>${t("order.print.bankInfo.accountName")}</p>
+                    <p>${t("order.print.bankInfo.accountNumber")}</p>
+                    <p>${t("order.print.bankInfo.bankName")}</p>
                 </div>
-                 <div style="text-align: center; width: 40%;">
-                    <p style="font-weight: bold; margin-bottom: 5px;">${t("order.print.companyRep")}</p>
+            </div>
+            <div style="margin-top: 40px; display: flex; justify-content: flex-start; page-break-inside: avoid;">
+                <div style="text-align: center; width: 40%;">
+                    <p style="font-weight: bold; margin-bottom: 5px;">${t("order.print.customerConfirmation")}</p>
                     <p style="font-style: italic;">(${t("order.print.signName")})</p>
                 </div>
             </div>

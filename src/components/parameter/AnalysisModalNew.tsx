@@ -26,6 +26,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
     // Simulated Server-Side Search for "Select Mode"
     useEffect(() => {
         const search = async () => {
+            if (!isOpen) return; // Prevent call if closed
             setIsSearching(true);
             try {
                 // Mapping UI filter to API query
@@ -107,8 +108,8 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
             .filter((k) => k.length > 0);
 
         // Create initial rows
-        const newRows: BulkRow[] = keywords.map((k) => ({
-            id: crypto.randomUUID(),
+        const newRows: BulkRow[] = keywords.map((k, index) => ({
+            id: `row-${Date.now()}-${index}`,
             keyword: k,
             results: [],
             selectedMatrixId: null,
@@ -187,7 +188,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-card rounded-lg w-full max-w-4xl min-w-[800px] max-h-[90vh] flex flex-col shadow-xl border border-border">
+            <div className="bg-card rounded-lg w-full max-w-4xl min-w-[800px] h-[80vh] min-h-[600px] flex flex-col shadow-xl border border-border">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-border">
                     <h2 className="text-xl font-bold text-foreground">{t("parameter.selectTitle")}</h2>
@@ -463,7 +464,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
                     <span className="text-sm text-muted-foreground">
                         {t("parameter.selectedCount")}:{" "}
                         <span className="font-semibold text-primary">{mode === "bulk" ? bulkRows.filter((r) => r.isSelected && r.selectedMatrixId).length : selectedMatrixIds.size}</span>{" "}
-                        {t("common.parameters.subtitle")?.toLowerCase() || "chỉ tiêu"}
+                        {t("common.parameter")?.toLowerCase()}
                     </span>
                     <div className="flex gap-3">
                         <button onClick={handleClose} className="px-4 py-2 border border-border rounded-lg hover:bg-muted text-foreground transition-colors text-sm font-medium">

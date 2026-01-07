@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Pencil, Trash2, Search, Eye, Lock, Globe } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "@/contexts/AuthContext";
 import { getClients, createClient, updateClient, deleteClient } from "@/api";
 import type { Client } from "@/types/client"; // Ensure correct type import path
 import { AddClientModal } from "@/components/client/AddClientModal";
@@ -17,6 +18,7 @@ interface ClientsPageProps {
 
 export function ClientsPage({ activeMenu, onMenuClick }: ClientsPageProps) {
     const { t } = useTranslation();
+    const { user } = useAuth();
     const [clients, setClients] = useState<Client[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [page, setPage] = useState(1);
@@ -236,11 +238,11 @@ export function ClientsPage({ activeMenu, onMenuClick }: ClientsPageProps) {
                 </div>
 
                 {!isLoading && clients.length > 0 && (
-                    <Pagination 
-                        currentPage={page} 
-                        totalPages={totalPages} 
-                        totalItems={totalItems} 
-                        itemsPerPage={itemsPerPage} 
+                    <Pagination
+                        currentPage={page}
+                        totalPages={totalPages}
+                        totalItems={totalItems}
+                        itemsPerPage={itemsPerPage}
                         onPageChange={(p) => setPage(p)}
                         onItemsPerPageChange={(items) => {
                             setItemsPerPage(items);
@@ -250,7 +252,13 @@ export function ClientsPage({ activeMenu, onMenuClick }: ClientsPageProps) {
                 )}
             </div>
 
-            <AddClientModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onConfirm={handleAddClient} />
+            <AddClientModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                onConfirm={handleAddClient}
+                currentIdentityId={user?.identityId}
+                currentIdentityName={user?.identityName}
+            />
 
             {selectedClient && (
                 <>

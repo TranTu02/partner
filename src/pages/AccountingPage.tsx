@@ -7,6 +7,7 @@ import type { Order } from "@/types/order";
 import { AccountingStats } from "@/components/accounting/AccountingStats";
 import { AccountingTable } from "@/components/accounting/AccountingTable";
 import { InvoiceModal } from "@/components/accounting/InvoiceModal";
+import { AccountingDetailModal } from "@/components/accounting/AccountingDetailModal";
 
 interface AccountingPageProps {
     activeMenu: string;
@@ -19,6 +20,7 @@ export function AccountingPage({ activeMenu, onMenuClick }: AccountingPageProps)
     const [stats, setStats] = useState({ pendingCount: 0, completedCount: 0, totalPendingValue: 0 });
     const [searchQuery, setSearchQuery] = useState("");
     const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+    const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [loading, setLoading] = useState(false);
 
@@ -101,6 +103,11 @@ export function AccountingPage({ activeMenu, onMenuClick }: AccountingPageProps)
         setShowInvoiceModal(true);
     };
 
+    const handleEditOrder = (order: Order) => {
+        setSelectedOrder(order);
+        setShowDetailModal(true);
+    };
+
     const handleConfirmInvoice = () => {
         if (!selectedOrder) return;
         // In a real app, you would call an API here to generate an invoice
@@ -158,9 +165,19 @@ export function AccountingPage({ activeMenu, onMenuClick }: AccountingPageProps)
                         setPage(1);
                     }}
                     onCreateInvoice={handleCreateInvoice}
+                    onEdit={handleEditOrder}
                 />
 
                 <InvoiceModal open={showInvoiceModal} order={selectedOrder} onClose={() => setShowInvoiceModal(false)} onConfirm={handleConfirmInvoice} />
+                <AccountingDetailModal
+                    open={showDetailModal}
+                    order={selectedOrder}
+                    onClose={() => setShowDetailModal(false)}
+                    onRefresh={() => {
+                        fetchOrders();
+                        fetchStats();
+                    }}
+                />
             </div>
         </MainLayout>
     );

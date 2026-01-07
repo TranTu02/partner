@@ -34,7 +34,10 @@ Hệ thống phân quyền dựa trên vai trò của người dùng:
     -   **Form động**: Cho phép thêm nhiều mẫu cùng lúc, nhân bản mẫu (Duplicate) để nhập liệu nhanh.
     -   **Chọn chỉ tiêu**: Modal tìm kiếm chỉ tiêu (`AnalysisModalNew`) hỗ trợ chọn đơn lẻ hoặc chọn theo gói (nếu có).
     -   **Tính giá**: Hệ thống tự động tính Thành tiền = Đơn giá x Số lượng + Thuế (VAT) - Chiết khấu.
-    -   **In ấn**: Tạo file PDF "Phiếu yêu cầu thử nghiệm" khổ A4, có đầy đủ thông tin để khách hàng ký xác nhận (`OrderPrintPreviewModal`).
+    -   **In ấn**:
+        -   Tạo file PDF "Phiếu yêu cầu thử nghiệm" khổ A4.
+        -   **Tính năng nâng cao**: Tự động đọc số tiền bằng chữ (Việt/Anh), hiển thị thông tin chuyển khoản và ghi chú miễn trừ trách nhiệm (Disclaimer) theo ngôn ngữ.
+        -   Chữ ký: Rút gọn chỉ hiển thị "Xác nhận của khách hàng".
 -   **Chế độ Xem/Sửa (View/Edit Mode)**:
     -   Mặc định khi mở đơn hàng cũ là **View Mode** (Chỉ xem) để tránh sai sót.
     -   Nút "Edit" chuyển sang **Edit Mode** để chỉnh sửa.
@@ -46,7 +49,7 @@ Hệ thống phân quyền dựa trên vai trò của người dùng:
 -   **Quy trình**: Tương tự như Đơn hàng nhưng dùng cho giai đoạn trước bán hàng (chào giá).
 -   **Tính năng**:
     -   Tạo và chỉnh sửa Báo giá.
-    -   **Xuất PDF**: Tạo file Báo giá chuyên nghiệp gửi cho khách hàng (`QuotePrintPreviewModal`).
+    -   **Xuất PDF**: Tạo file Báo giá chuyên nghiệp (`QuotePrintPreviewModal`) với đầy đủ tính năng đọc số tiền bằng chữ và thông tin thanh toán tương tự Đơn hàng.
     -   **Chuyển đổi**: (Tính năng sắp tới) Chuyển đổi trực tiếp từ Báo giá sang Đơn hàng khi khách đồng ý.
     -   **Chiết khấu/Hoa hồng**: Hỗ trợ nhập % chiết khấu thương mại hoặc hoa hồng môi giới.
 
@@ -101,6 +104,7 @@ Thông tin cấu hình chung của phòng Lab:
 8.  **Xử lý dữ liệu cũ (Pricing Fallback)**:
     -   Trong trường hợp đơn hàng cũ thiếu thông tin đơn giá trước thuế (`feeBeforeTax`), hệ thống phải tự động tính ngược từ giá sau thuế (`feeAfterTax`) theo công thức: `feeBeforeTax = feeAfterTax / (1 + taxRate/100)`.
     -   Điều này đảm bảo hiển thị đúng giá trị khi in ấn hoặc tính toán lại tổng tiền.
+9.  **Tiện ích văn bản**: Sử dụng module `textUtils` (Pure Logic) để chuyển đổi số thành chữ, đảm bảo hoạt động ổn định trên mọi môi trường (tránh lỗi thư viện bên thứ 3).
 
 ## 5. Tích hợp API (API Integration)
 

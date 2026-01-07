@@ -11,6 +11,7 @@ import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import { OrderPrintPreviewModal } from "@/components/order/OrderPrintPreviewModal";
 import { SampleRequestPrintPreviewModal } from "@/components/order/SampleRequestPrintPreviewModal";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "@/contexts/AuthContext";
 import { getClients, getQuotes } from "@/api/index";
 import { toast } from "sonner";
 
@@ -21,8 +22,9 @@ import type { SampleWithQuantity, AnalysisWithQuantity } from "@/components/orde
 interface OrderEditorProps {
     mode: EditorMode;
     initialData?: any; // Order
-    onSaveSuccess?: () => void;
+    onSaveSuccess?: (data?: any) => void;
     onBack?: () => void;
+    initialQuoteId?: string;
 }
 
 export interface OrderEditorRef {
@@ -32,8 +34,9 @@ export interface OrderEditorRef {
     hasUnsavedChanges: () => boolean;
 }
 
-export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode, initialData, onSaveSuccess }, ref) => {
+export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode, initialData, onSaveSuccess, initialQuoteId }, ref) => {
     const { t } = useTranslation();
+    const { user } = useAuth();
     const [internalMode, setInternalMode] = useState<EditorMode>(mode);
     const isReadOnly = internalMode === "view";
 
@@ -80,10 +83,24 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     const [taxAddress, setTaxAddress] = useState("");
     const [taxEmail, setTaxEmail] = useState("");
 
-    const [quoteId, setQuoteId] = useState(initialData?.quoteId || "");
+    const [quoteId, setQuoteId] = useState(initialData?.quoteId || initialQuoteId || "");
     const [samples, setSamples] = useState<SampleWithQuantity[]>([]);
     const [discount, setDiscount] = useState(0);
     const [commission, setCommission] = useState(0);
+
+    // Auto-load Quote if initialQuoteId is present and entering create mode
+    useEffect(() => {
+        if (mode === "create" && initialQuoteId && !initialData) {
+            // We can reuse handleLoadQuote but need to ensure it uses the correct ID
+            // Since handleLoadQuote uses state 'quoteId', and we set it in useState initializer, it should be fine?
+            // No, useState initializer runs once. If component remounts or props change?
+            // If navigating from one create to another, remount occurs? Yes.
+            // But if specific Quote loading logic relies on state ...
+            // Better to allow handleLoadQuote to accept an optional ID arg
+            handleLoadQuote(initialQuoteId);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mode, initialQuoteId]);
 
     // Initial Data Population
     useEffect(() => {
@@ -165,7 +182,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     const [currentSampleIndex, setCurrentSampleIndex] = useState<number | null>(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-    const orderId = initialData?.orderId || `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-01`;
+    const orderId = initialData?.orderId;
 
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -241,16 +258,17 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         }
     }, [selectedClient, initialData]);
 
-    const handleLoadQuote = async () => {
+    const handleLoadQuote = async (arg?: string | React.MouseEvent) => {
+        const idToUse = typeof arg === "string" ? arg : quoteId;
         if (isReadOnly) return;
-        if (!quoteId.trim()) {
+        if (!idToUse?.trim()) {
             alert(t("order.errorQuoteCode"));
             return;
         }
 
         try {
             // User specified query "quoteId=<value>" returns a single object
-            const response = await getQuotes({ query: { quoteId: quoteId } });
+            const response = await getQuotes({ query: { quoteId: idToUse } });
 
             let foundQuote: any = null;
             if (response.success && response.data) {
@@ -294,14 +312,14 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 setDiscount(foundQuote.discount || 0);
 
                 const convertedSamples: SampleWithQuantity[] = (foundQuote.samples || []).map((s: any) => ({
-                    id: s.sampleId || crypto.randomUUID(),
+                    id: s.sampleId || `temp-sample-${Date.now()}-${Math.random().toString(36).slice(2)}`,
                     sampleId: s.sampleId,
                     sampleName: s.sampleName || s.name || "Sample",
                     sampleMatrix: s.sampleMatrix || s.matrix || "Water",
                     sampleNote: s.sampleNote || "",
                     analyses: (s.analyses || []).map((a: any) => ({
                         ...a,
-                        id: a.id || crypto.randomUUID(),
+                        id: a.id || `temp-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`,
                         unitPrice: a.unitPrice || a.feeBeforeTax || 0, // Quote might use feeBeforeTax or unitPrice
                         quantity: a.quantity || 1,
                         taxRate: a.taxRate || 0,
@@ -443,6 +461,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     const feeBefore = a.feeBeforeTax || (a.unitPrice || 0) * (a.quantity || 1) || feeAfter / (1 + (a.taxRate || 0) / 100);
                     return {
                         parameterName: a.parameterName,
+                        parameterId: a.parameterId,
                         feeBeforeTax: feeBefore,
                         taxRate: a.taxRate || 0,
                         feeAfterTax: feeAfter,
@@ -489,10 +508,10 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
     const handleAddSample = () => {
         if (isReadOnly) return;
-        const newId = crypto.randomUUID();
+        const newId = `temp-sample-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const newSample: SampleWithQuantity = {
             id: newId,
-            sampleId: newId,
+            sampleId: undefined,
             sampleName: "",
             sampleMatrix: "",
             sampleNote: "",
@@ -506,12 +525,12 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         const sampleToDuplicate = samples.find((s) => s.id === sampleId);
         if (!sampleToDuplicate) return;
 
-        const newSampleId = crypto.randomUUID();
+        const newSampleId = `temp-sample-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const duplicatedSample: SampleWithQuantity = {
             ...sampleToDuplicate,
             id: newSampleId,
-            sampleId: newSampleId,
-            analyses: sampleToDuplicate.analyses.map((a) => ({ ...a, id: crypto.randomUUID() })),
+            sampleId: undefined,
+            analyses: sampleToDuplicate.analyses.map((a) => ({ ...a, id: `temp-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}` })),
         };
         setSamples([...samples, duplicatedSample]);
     };
@@ -547,7 +566,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
             return {
                 ...matrixItem,
-                id: crypto.randomUUID(),
+                id: `temp-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`,
                 unitPrice: unitPrice,
                 feeBeforeTax: unitPrice,
                 taxRate: taxRate,
@@ -627,20 +646,28 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 ...(initialData || {}), // Keep existing fields if edit, but overwrite with new
                 // orderId: mode === "create" ? undefined : initialData?.orderId, // Exclude orderId on create
                 ...(mode === "create" ? {} : { orderId: initialData?.orderId }), // Only include if edit
+                orderStatus: mode === "create" ? "pending" : initialData?.orderStatus || "pending",
+                salePersonId: mode === "create" ? user?.identityId : initialData?.salePersonId,
+                salePerson: mode === "create" ? user?.identityName : initialData?.salePerson,
                 clientId: selectedClient.clientId || selectedClient.clientId,
                 client: clientSnapshot,
                 quoteId,
 
-                samples: samples.map((s) => ({
-                    ...s,
-                    analyses: s.analyses.map((a) => ({
-                        parameterName: a.parameterName,
-                        unitPrice: Number(a.unitPrice) || 0, // Ensure unitPrice is saved
-                        feeBeforeTax: (a.unitPrice || 0) * (a.quantity || 1),
-                        taxRate: a.taxRate || 0,
-                        feeAfterTax: (a.unitPrice || 0) * (a.quantity || 1) * (1 + (a.taxRate || 0) / 100),
-                    })),
-                })),
+                samples: samples.map((s) => {
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { id, ...rest } = s;
+                    return {
+                        ...rest,
+                        analyses: s.analyses.map((a) => ({
+                            parameterName: a.parameterName,
+                            parameterId: a.parameterId,
+                            unitPrice: Number(a.unitPrice) || 0, // Ensure unitPrice is saved
+                            feeBeforeTax: (a.unitPrice || 0) * (a.quantity || 1),
+                            taxRate: a.taxRate || 0,
+                            feeAfterTax: (a.unitPrice || 0) * (a.quantity || 1) * (1 + (a.taxRate || 0) / 100),
+                        })),
+                    };
+                }),
 
                 discount,
                 commission,
@@ -660,11 +687,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             }
 
             if (response.success) {
-                toast.success(t("order.saveSuccess"));
-                setHasUnsavedChanges(false);
-                if (onSaveSuccess) {
-                    onSaveSuccess();
-                }
+                toast.success(mode === "create" ? t("order.createSuccess") : t("order.updateSuccess"));
+                if (onSaveSuccess) onSaveSuccess(response.data);
             } else {
                 toast.error((response.error as any)?.message || "Failed to save order");
             }
@@ -804,7 +828,13 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             </div>
 
             <AnalysisModalNew isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onConfirm={handleAddAnalyses} />
-            <AddClientModal isOpen={isClientModalOpen} onClose={() => setIsClientModalOpen(false)} onConfirm={handleAddClientAPI} />
+            <AddClientModal
+                isOpen={isClientModalOpen}
+                onClose={() => setIsClientModalOpen(false)}
+                onConfirm={handleAddClientAPI}
+                currentIdentityId={user?.identityId}
+                currentIdentityName={user?.identityName}
+            />
             {previewData && <OrderPrintPreviewModal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} data={previewData} />}
             {previewData && <SampleRequestPrintPreviewModal isOpen={isSampleRequestPreviewOpen} onClose={() => setIsSampleRequestPreviewOpen(false)} data={previewData} />}
         </div>

@@ -1,4 +1,4 @@
-import { FileText } from "lucide-react";
+import { FileText, Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Order } from "@/types/order";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -15,9 +15,10 @@ interface AccountingTableProps {
     onPageChange: (page: number) => void;
     onItemsPerPageChange: (itemsPerPage: number) => void;
     onCreateInvoice: (order: Order) => void;
+    onEdit: (order: Order) => void;
 }
 
-export function AccountingTable({ orders, loading, pagination, onPageChange, onItemsPerPageChange, onCreateInvoice }: AccountingTableProps) {
+export function AccountingTable({ orders, loading, pagination, onPageChange, onItemsPerPageChange, onCreateInvoice, onEdit }: AccountingTableProps) {
     const { t } = useTranslation();
     const { page, itemsPerPage, totalItems, totalPages } = pagination;
 
@@ -29,7 +30,9 @@ export function AccountingTable({ orders, loading, pagination, onPageChange, onI
                         <tr>
                             <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("accounting.table.orderCode")}</th>
                             <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-large">{t("accounting.table.client")}</th>
-                            <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("accounting.table.taxCode")}</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("accounting.table.salePerson")}</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("accounting.table.status")}</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("accounting.table.payment")}</th>
                             <th className="px-6 py-4 text-right text-sm font-semibold text-foreground min-w-size-medium">{t("accounting.table.total")}</th>
                             <th className="px-6 py-4 text-right text-sm font-semibold text-foreground min-w-size-medium">{t("accounting.table.commission")}</th>
                             <th className="px-6 py-4 text-center text-sm font-semibold text-foreground min-w-size-medium">{t("accounting.table.date")}</th>
@@ -39,13 +42,13 @@ export function AccountingTable({ orders, loading, pagination, onPageChange, onI
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground text-sm">
+                                <td colSpan={9} className="px-6 py-8 text-center text-muted-foreground text-sm">
                                     {t("common.loading")}
                                 </td>
                             </tr>
                         ) : orders.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground text-sm">
+                                <td colSpan={9} className="px-6 py-8 text-center text-muted-foreground text-sm">
                                     {t("accounting.noInvoicesFound")}
                                 </td>
                             </tr>
@@ -53,19 +56,65 @@ export function AccountingTable({ orders, loading, pagination, onPageChange, onI
                             orders.map((order) => (
                                 <tr key={order.orderId} className="border-t border-border hover:bg-muted">
                                     <td className="px-6 py-4 text-sm font-medium text-primary">{order.orderId}</td>
-                                    <td className="px-6 py-4 text-sm text-foreground">{order.client?.clientName}</td>
-                                    <td className="px-6 py-4 text-sm text-muted-foreground">{order.client?.legalId}</td>
+                                    <td className="px-6 py-4 text-sm text-foreground">
+                                        <div>{order.client?.clientName || "--"}</div>
+                                        <div className="text-xs text-muted-foreground mt-0.5">{order.client?.legalId || "--"}</div>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-foreground">{order.salePerson || "--"}</td>
+                                    <td className="px-6 py-4 text-sm text-foreground">
+                                        {order.orderStatus ? (
+                                            <span
+                                                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                    order.orderStatus === "Completed"
+                                                        ? "bg-green-100 text-green-700"
+                                                        : order.orderStatus === "Cancelled"
+                                                        ? "bg-red-100 text-red-700"
+                                                        : "bg-yellow-100 text-yellow-700"
+                                                }`}
+                                            >
+                                                {t(`order.statuses.${order.orderStatus.toLowerCase()}` as any)}
+                                            </span>
+                                        ) : (
+                                            "--"
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-foreground">
+                                        {order.paymentStatus ? (
+                                            <span
+                                                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                    order.paymentStatus === "Paid"
+                                                        ? "bg-green-100 text-green-700"
+                                                        : order.paymentStatus === "Debt"
+                                                        ? "bg-orange-100 text-orange-700"
+                                                        : "bg-gray-100 text-gray-700"
+                                                }`}
+                                            >
+                                                {t(`order.paymentStatuses.${order.paymentStatus.toLowerCase()}` as any)}
+                                            </span>
+                                        ) : (
+                                            "--"
+                                        )}
+                                    </td>
                                     <td className="px-6 py-4 text-right text-sm font-medium text-foreground">{formatCurrency(order.totalAmount || 0)}</td>
-                                    <td className="px-6 py-4 text-right text-sm text-foreground">{order.saleCommissionPercent !== undefined ? `${order.saleCommissionPercent}%` : "-"}</td>
+                                    <td className="px-6 py-4 text-right text-sm text-foreground">{order.saleCommissionPercent != null ? `${order.saleCommissionPercent}%` : "--"}</td>
                                     <td className="px-6 py-4 text-center text-sm text-muted-foreground">{formatDate(order.createdAt)}</td>
                                     <td className="px-6 py-4 text-center">
-                                        <button
-                                            onClick={() => onCreateInvoice(order)}
-                                            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-                                        >
-                                            <FileText className="w-4 h-4" />
-                                            {t("accounting.createInvoice")}
-                                        </button>
+                                        <div className="flex items-center justify-center gap-2">
+                                            <button
+                                                onClick={() => onEdit(order)}
+                                                className="p-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent/80 transition-colors"
+                                                title={t("accounting.edit")}
+                                            >
+                                                <Pencil className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => onCreateInvoice(order)}
+                                                className="p-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                                                title={t("accounting.createInvoice")}
+                                            >
+                                                <FileText className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))

@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { X, Plus, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Plus, Trash2, Copy } from "lucide-react";
 import type { Client } from "@/types/client";
 import { useTranslation } from "react-i18next";
+import { getClientDetail } from "@/api/index";
 
 interface EditClientModalProps {
     isOpen: boolean;
@@ -29,10 +30,30 @@ export function EditClientModal({ isOpen, onClose, client, onConfirm }: EditClie
 
     const [clientSaleScope, setClientSaleScope] = useState<"public" | "private">(client.clientSaleScope);
 
+    // Fetch Details on Open
+    useEffect(() => {
+        if (isOpen && client.clientId) {
+            getClientDetail({ query: { clientId: client.clientId } })
+                .then((res) => {
+                    if (res.success && res.data) {
+                        const detailed = res.data as Client;
+                        setClientName(detailed.clientName);
+                        setLegalId(detailed.legalId);
+                        setClientAddress(detailed.clientAddress);
+                        setInvoiceEmail(detailed.invoiceEmail);
+                        setInvoiceInfo(detailed.invoiceInfo || {});
+                        setClientContacts(detailed.clientContacts || []);
+                        setClientSaleScope(detailed.clientSaleScope as "public" | "private");
+                    }
+                })
+                .catch((err) => console.error("Failed to fetch client detail", err));
+        }
+    }, [isOpen, client.clientId]);
+
     if (!isOpen) return null;
 
     const handleAddContact = () => {
-        setClientContacts([...clientContacts, { contactName: "", contactPhone: "", contactEmail: "", contactPosition: "", contactAddress: "", contactId: crypto.randomUUID() }]);
+        setClientContacts([...clientContacts, { contactName: "", contactPhone: "", contactEmail: "", contactPosition: "", contactAddress: "", contactId: undefined }]);
     };
 
     const handleRemoveContact = (index: number) => {
@@ -45,6 +66,15 @@ export function EditClientModal({ isOpen, onClose, client, onConfirm }: EditClie
         const newContacts = [...clientContacts];
         newContacts[index] = { ...newContacts[index], [field]: value };
         setClientContacts(newContacts);
+    };
+
+    const handleCopyBasicInfo = () => {
+        setInvoiceInfo({
+            taxName: clientName,
+            taxCode: legalId,
+            taxAddress: clientAddress,
+            taxEmail: invoiceEmail,
+        });
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -147,7 +177,13 @@ export function EditClientModal({ isOpen, onClose, client, onConfirm }: EditClie
 
                         {/* Invoice Info Group - Structured */}
                         <div className="space-y-4">
-                            <h3 className="text-base font-semibold text-primary border-b border-border pb-2">{t("client.invoiceInfo")}</h3>
+                            <div className="flex items-center justify-between border-b border-border pb-2">
+                                <h3 className="text-base font-semibold text-primary">{t("client.invoiceInfo")}</h3>
+                                <button type="button" onClick={handleCopyBasicInfo} className="text-xs text-primary hover:underline flex items-center gap-1">
+                                    <Copy className="w-3 h-3" />
+                                    {t("client.copyBasicInfo")}
+                                </button>
+                            </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="col-span-2">
                                     <label className="block mb-2 text-sm font-medium text-foreground">{t("client.taxName")}</label>

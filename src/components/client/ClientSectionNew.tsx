@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Search, Plus, Loader2 } from "lucide-react";
+import { Search, Plus, Loader2, Copy } from "lucide-react";
 import type { Client } from "@/types/client";
 import { useTranslation } from "react-i18next";
 import { getClients } from "@/api";
@@ -57,6 +57,7 @@ export function ClientSectionNew({
     selectedClient,
     address,
     clientPhone = "",
+    clientEmail = "",
     contactPerson,
     contactPhone,
     contactEmail = "",
@@ -69,6 +70,7 @@ export function ClientSectionNew({
     onClientChange,
     onAddressChange,
     onClientPhoneChange,
+    onClientEmailChange,
     onContactPersonChange,
     onContactPhoneChange,
     onContactEmailChange,
@@ -105,7 +107,7 @@ export function ClientSectionNew({
                 const response = await getClients({
                     query: {
                         page: 1,
-                        pageSize: 20, // Limit results
+                        itemsPerPage: 20, // Limit results
                         search: query,
                     },
                 });
@@ -129,12 +131,22 @@ export function ClientSectionNew({
     );
 
     useEffect(() => {
-        if (showDropdown && searchQuery) {
+        if (showDropdown) {
             debouncedSearch(searchQuery);
         } else {
-            setSearchResults([]); // Clear if dropdown closed or empty query
+            // Do not clear results immediately to avoid flicker if just toggling
         }
     }, [searchQuery, showDropdown, debouncedSearch]);
+
+    // Sync search query with selected client when it changes externally
+    useEffect(() => {
+        if (selectedClient) {
+            setSearchQuery(selectedClient.clientName);
+        }
+        // If selectedClient becomes null, meaning was cleared externally, we might want to clear input?
+        // But if cleared internally by typing, we don't want this to loop.
+        // We only update if selectedClient exists.
+    }, [selectedClient]);
 
     // Determine which list to show:
     // If we have search results from server, use them.
@@ -147,6 +159,13 @@ export function ClientSectionNew({
         onClientChange(client);
         setSearchQuery(client.clientName);
         setShowDropdown(false);
+    };
+
+    const handleCopyBasicInfo = () => {
+        onTaxNameChange?.(selectedClient?.clientName || searchQuery);
+        onTaxCodeChange?.(selectedClient?.legalId || "");
+        onTaxAddressChange?.(address);
+        onTaxEmailChange?.(clientEmail || "");
     };
 
     return (
@@ -165,15 +184,20 @@ export function ClientSectionNew({
                                 <input
                                     type="text"
                                     className="w-full pl-10 pr-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                    value={searchQuery || (selectedClient?.clientName ?? "")}
+                                    value={searchQuery}
                                     onChange={(e) => {
                                         setSearchQuery(e.target.value);
                                         setShowDropdown(true);
+                                        // If cleared, allow selection to be cleared or just let user search new
+                                        if (!e.target.value && selectedClient) {
+                                            onClientChange(null);
+                                        }
                                     }}
                                     onFocus={() => {
                                         if (!isReadOnly) {
                                             setShowDropdown(true);
-                                            if (searchQuery) debouncedSearch(searchQuery);
+                                            // Trigger search if empty or existing
+                                            debouncedSearch(searchQuery);
                                         }
                                     }}
                                     // Blur needs care, clicking dropdown item might trigger blur first.
@@ -266,6 +290,17 @@ export function ClientSectionNew({
                                 disabled={isReadOnly}
                             />
                         </div>
+                        <div className="col-span-2">
+                            <label className="block mb-2 text-sm font-medium text-foreground">{t("client.email")}</label>
+                            <input
+                                type="email"
+                                className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                value={clientEmail || ""}
+                                onChange={(e) => onClientEmailChange?.(e.target.value)}
+                                placeholder={t("client.emailPlaceholder", "Email")}
+                                disabled={isReadOnly}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -340,7 +375,15 @@ export function ClientSectionNew({
 
             {/* Section 3: Invoice Info */}
             <div>
-                <h3 className="mb-4 text-base font-semibold text-primary border-b border-border pb-2">{t("client.invoiceInfo")}</h3>
+                <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
+                    <h3 className="text-base font-semibold text-primary">{t("client.invoiceInfo")}</h3>
+                    {!isReadOnly && (
+                        <button type="button" onClick={handleCopyBasicInfo} className="text-xs text-primary hover:underline flex items-center gap-1">
+                            <Copy className="w-3 h-3" />
+                            {t("client.copyBasicInfo")}
+                        </button>
+                    )}
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
                         <label className="block mb-2 text-sm font-medium text-foreground">{t("client.taxName")}</label>

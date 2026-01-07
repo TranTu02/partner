@@ -17,7 +17,11 @@
     -   **Quản lý trạng thái**: React Context API.
     -   **Dữ liệu**: Fetch từ API Backend.
     -   **Xác thực**: Session-based authentication với `sessionId` và `authToken`.
-    -   **Tiện ích**: date-fns (xử lý ngày tháng), html2pdf.js (xuất PDF), clsx, tailwind-merge (xử lý class CSS).
+    -   **Tiện ích**:
+        -   `date-fns` (xử lý ngày tháng).
+        -   `html2pdf.js` (xuất PDF).
+        -   `clsx`, `tailwind-merge` (xử lý class CSS).
+        -   **Custom Utils**: Sử dụng `src/utils/textUtils.ts` (Pure Logic) cho các tác vụ chuyển đổi dữ liệu nhạy cảm (như đọc số tiền) thay vì cài thêm thư viện npm không ổn định.
 
 ## 2. Cấu trúc Thư mục (Directory Structure)
 
@@ -77,6 +81,7 @@ partner/
 -   Sử dụng hook `useTranslation()`.
 -   Từ khóa (Keys) phải được phân nhóm rõ ràng trong `vi.ts` và `en.ts` (VD: `sidebar.*`, `order.print.*`).
 -   Dữ liệu tĩnh từ Server (VD: tên công ty, địa chỉ) nên được lấy từ API hoặc file cấu hình, không hardcode trong file ngôn ngữ nếu nó có thể thay đổi.
+-   **Print Templates**: Tuyệt đối sử dụng i18n cho toàn bộ văn bản trong mẫu in (Kể cả dấu câu, đơn vị tiền tệ, tiêu đề cột) để đảm bảo trải nghiệm người dùng nhất quán.
 
 ### C. Types & Interfaces
 

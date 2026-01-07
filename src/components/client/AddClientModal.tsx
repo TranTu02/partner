@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X } from "lucide-react";
+import { X, Copy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Client, ClientContact, InvoiceInfo } from "@/types/client";
 
@@ -8,9 +8,10 @@ interface AddClientModalProps {
     onClose: () => void;
     onConfirm: (client: any) => void;
     currentIdentityId?: string;
+    currentIdentityName?: string;
 }
 
-export function AddClientModal({ isOpen, onClose, onConfirm, currentIdentityId = "ID001" }: AddClientModalProps) {
+export function AddClientModal({ isOpen, onClose, onConfirm, currentIdentityId = "ID001", currentIdentityName = "Collaborator" }: AddClientModalProps) {
     const { t } = useTranslation();
 
     // Basic Info
@@ -33,6 +34,13 @@ export function AddClientModal({ isOpen, onClose, onConfirm, currentIdentityId =
     const [contactPosition, setContactPosition] = useState("");
     const [contactAddress, setContactAddress] = useState("");
 
+    const handleCopyBasicInfo = () => {
+        setTaxName(clientName);
+        setTaxCode(legalId);
+        setTaxAddress(clientAddress);
+        setTaxEmail(invoiceEmail);
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!clientName || !clientAddress) {
@@ -48,7 +56,7 @@ export function AddClientModal({ isOpen, onClose, onConfirm, currentIdentityId =
         };
 
         const primaryContact: ClientContact = {
-            contactId: `C-${Date.now()}`,
+            contactId: undefined,
             contactName: contactName,
             contactPhone: contactPhone,
             contactEmail: contactEmail,
@@ -66,6 +74,7 @@ export function AddClientModal({ isOpen, onClose, onConfirm, currentIdentityId =
             invoiceInfo,
             clientSaleScope: "private",
             availableByIds: [currentIdentityId],
+            availableByName: [currentIdentityName],
             totalOrderAmount: 0,
             clientContacts: contactName ? [primaryContact] : [],
         };
@@ -232,7 +241,13 @@ export function AddClientModal({ isOpen, onClose, onConfirm, currentIdentityId =
 
                     {/* Section 3: Invoice Info */}
                     <div>
-                        <h3 className="text-lg font-semibold mb-4 text-primary">{t("client.invoiceInfo")}</h3>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-primary">{t("client.invoiceInfo")}</h3>
+                            <button type="button" onClick={handleCopyBasicInfo} className="text-sm text-primary hover:underline flex items-center gap-1">
+                                <Copy className="w-4 h-4" />
+                                {t("client.copyBasicInfo")}
+                            </button>
+                        </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="col-span-2">
                                 <label className="block mb-2 text-sm font-medium text-foreground">{t("client.taxName")}</label>

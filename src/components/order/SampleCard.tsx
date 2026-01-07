@@ -1,9 +1,9 @@
-import { X, Trash2, Copy } from "lucide-react";
+import { X, Trash2, Copy, Unlink } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Matrix } from "@/types/parameter";
-import { SampleTypeSearch } from "@/components/common/SampleTypeSearch";
 
-// Extended interfaces to support both view and create modes
+// ... (interfaces remain same)
+
 export interface AnalysisWithQuantity extends Omit<Matrix, "createdAt" | "createdById" | "modifiedAt" | "modifiedById" | "feeAfterTax" | "taxRate"> {
     id: string;
     unitPrice: number;
@@ -63,6 +63,12 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
             const quantity = updatedAnalysis.quantity || 1;
             const taxRate = updatedAnalysis.taxRate || 0;
             updatedAnalysis.unitPrice = newFeeAfterTax / quantity / (1 + taxRate / 100);
+        } else if (field === "unitPrice") {
+            const newUnitPrice = Number(value);
+            updatedAnalysis.unitPrice = newUnitPrice;
+            const quantity = updatedAnalysis.quantity || 1;
+            const taxRate = updatedAnalysis.taxRate || 0;
+            updatedAnalysis.feeAfterTax = newUnitPrice * quantity * (1 + taxRate / 100);
         } else if (field === "taxRate") {
             const newTaxRate = Number(value);
             updatedAnalysis.taxRate = newTaxRate;
@@ -79,6 +85,12 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
         // unitPrice is now read-only and calculated, so no direct input change for it.
 
         newAnalyses[analysisIndex] = updatedAnalysis;
+        onUpdateSample({ analyses: newAnalyses });
+    };
+
+    const handleUnlinkAnalysis = (analysisIndex: number) => {
+        const newAnalyses = [...sample.analyses];
+        newAnalyses[analysisIndex] = { ...newAnalyses[analysisIndex], parameterId: "" };
         onUpdateSample({ analyses: newAnalyses });
     };
 
@@ -130,13 +142,13 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
                         />
                     </div>
                     <div>
-                        <label className="block mb-2 text-sm font-medium text-foreground">
-                            {t("order.sampleMatrix")} <span className="text-destructive">*</span>
-                        </label>
-                        <SampleTypeSearch
-                            value={sample.sampleMatrix}
-                            onChange={(val) => onUpdateSample({ sampleMatrix: val })}
-                            placeholder={t("order.sampleMatrixPlaceholder")}
+                        <label className="block mb-2 text-sm font-medium text-foreground">{t("sample.note")}</label>
+                        <input
+                            type="text"
+                            className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            value={sample.sampleNote || ""}
+                            onChange={(e) => onUpdateSample({ sampleNote: e.target.value })}
+                            placeholder={t("sample.note")}
                             disabled={isReadOnly}
                         />
                     </div>
@@ -199,8 +211,17 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
                                         )}
                                     </td>
                                     <td className="px-4 py-3 text-right text-sm text-foreground">
-                                        {/* Unit Price is now read-only and calculated */}
-                                        {(analysis.unitPrice || 0).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                                    {/* <td className="px-4 py-3 text-right text-sm text-foreground"> */}
+                                        {isReadOnly ? (
+                                            (analysis.unitPrice || 0).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " đ"
+                                        ) : (
+                                            <input
+                                                type="number"
+                                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent text-right"
+                                                value={analysis.unitPrice}
+                                                onChange={(e) => handleAnalysisChange(index, "unitPrice", e.target.value)}
+                                            />
+                                        )}
                                     </td>
                                     <td className="px-4 py-3 text-center text-sm text-foreground">
                                         {isReadOnly ? (
@@ -231,9 +252,20 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
                                     </td>
                                     {!isReadOnly && (
                                         <td className="px-4 py-3 text-center">
-                                            <button onClick={() => onRemoveAnalysis(analysis.id)} className="p-1 text-muted-foreground hover:text-destructive transition-colors">
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            <div className="flex items-center justify-center gap-1">
+                                                {analysis.parameterId && (
+                                                    <button
+                                                        onClick={() => handleUnlinkAnalysis(index)}
+                                                        className="p-1 text-muted-foreground hover:text-orange-500 transition-colors"
+                                                        title={t("parameter.unlink", "Ngắt liên kết")}
+                                                    >
+                                                        <Unlink className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                                <button onClick={() => onRemoveAnalysis(analysis.id)} className="p-1 text-muted-foreground hover:text-destructive transition-colors">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </td>
                                     )}
                                 </tr>
