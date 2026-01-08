@@ -2,6 +2,7 @@ import type { Client } from "@/types/client";
 import { useTranslation } from "react-i18next";
 
 export interface OrderPrintData {
+    createdAt?: string;
     orderId: string;
     client: Client | null;
 
@@ -13,6 +14,7 @@ export interface OrderPrintData {
     contactPosition?: string;
     contactAddress?: string;
     reportEmail: string;
+    salePerson?: string;
 
     // Address & Invoice Info Snapshot
     clientAddress: string;

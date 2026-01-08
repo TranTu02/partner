@@ -23,6 +23,7 @@ This directory contains components related to Quote (Báo giá) management.
 
 -   **Create Order Integration**: In `view` mode, displays a **"Create Order"** (Tạo đơn hàng) button. This navigates to the Order Creation page passing the `quoteId` to pre-fill the order.
 -   **Client Integration**: Uses `ClientSectionNew` with search and "Copy Basic Info" features.
+-   **Analysis Reordering**: Supports drag-and-drop reordering of analyses (parameters) within the sample table.
 -   **Navigation**: Redirects to Quote Detail page on successful save.
 -   **Export**: Integration with `QuotePrintPreviewModal` for PDF generation.
 
@@ -44,9 +45,18 @@ This directory contains components related to Quote (Báo giá) management.
 **Logic**:
 
 -   Constructs HTML structure similar to Order but titled "BÁO GIÁ".
+-   **Provider Section**: Displays Institute info (Name, Address, Email) but excludes Phone number as per configuration.
 -   **Pricing Table**: Distinctly displays Unit Price and Totals.
+-   **Notes**:
+    -   Validity Note ("Đơn hàng có giá trị...") includes the export date (DD/MM/YYYY).
+    -   Disclaimer ("Thời gian thử nghiệm...") does not include the date.
 -   **Bank Info**: Includes specific bank transfer details for the Institute.
 -   **PDF Export**: Supports multi-page exports with "Page X/Y" footer using `html2pdf.js`.
+
+### `QuotesListPage.tsx`
+
+**Purpose**: Displays the list of quotes.
+**Columns**: Code, Client, Sale Person (Người liên hệ), Total Value (Giá trị), Created Date, Status, Actions.
 
 ### `QuotePrintTemplate.tsx`
 

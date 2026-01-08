@@ -15,6 +15,8 @@ import type { EditorMode } from "../order/OrderEditor";
 import type { SampleWithQuantity, AnalysisWithQuantity } from "@/components/order/SampleCard";
 import { getClients, createClient } from "@/api/index";
 import { toast } from "sonner";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 
 interface QuoteEditorProps {
     mode: EditorMode;
@@ -556,20 +558,22 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                     <div className="space-y-4">
                         <h3 className="text-base font-semibold text-foreground">{t("order.samples")}</h3>
 
-                        {samples.map((sample, index) => (
-                            <div key={sample.id}>
-                                <SampleCard
-                                    sample={sample}
-                                    sampleIndex={index}
-                                    onRemoveSample={() => handleRemoveSample(sample.id)}
-                                    onDuplicateSample={() => handleDuplicateSample(sample.id)}
-                                    onUpdateSample={(updates) => handleUpdateSample(sample.id, updates)}
-                                    onAddAnalysis={() => handleOpenModal(index)}
-                                    onRemoveAnalysis={(analysisId) => handleRemoveAnalysis(sample.id, analysisId)}
-                                    isReadOnly={isReadOnly}
-                                />
-                            </div>
-                        ))}
+                        <DndProvider backend={HTML5Backend}>
+                            {samples.map((sample, index) => (
+                                <div key={sample.id}>
+                                    <SampleCard
+                                        sample={sample}
+                                        sampleIndex={index}
+                                        onRemoveSample={() => handleRemoveSample(sample.id)}
+                                        onDuplicateSample={() => handleDuplicateSample(sample.id)}
+                                        onUpdateSample={(updates) => handleUpdateSample(sample.id, updates)}
+                                        onAddAnalysis={() => handleOpenModal(index)}
+                                        onRemoveAnalysis={(analysisId) => handleRemoveAnalysis(sample.id, analysisId)}
+                                        isReadOnly={isReadOnly}
+                                    />
+                                </div>
+                            ))}
+                        </DndProvider>
 
                         {!isReadOnly && (
                             <button

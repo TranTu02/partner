@@ -7,6 +7,8 @@ import type { OrderPrintData } from "./OrderPrintTemplate";
 import { useTranslation } from "react-i18next";
 // @ts-ignore
 import html2pdf from "html2pdf.js";
+import logoFull from "../../assets/LOGO-FULL.png";
+import { format } from "date-fns";
 
 interface OrderPrintPreviewModalProps {
     isOpen: boolean;
@@ -80,6 +82,25 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                 : "";
 
         return `
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px; border: none;">
+                <tr>
+                    <td style="width: 30%; vertical-align: top; border: none !important; padding: 0;">
+                        <img src="${logoFull}" alt="Logo" style="width: 100%; max-width: 150px;" />
+                    </td>
+                    <td style="vertical-align: top; text-align: left; padding-left: 10px; border: none !important;">
+                        <div style="font-weight: bold; font-size: 14px; margin-bottom: 2px; text-transform: uppercase;">
+                            ${t("order.print.header.lines.line1")}
+                        </div>
+                        <div style="margin-bottom: 1px;">
+                            ${t("order.print.header.lines.line2")}
+                        </div>
+                        <div>
+                            ${t("order.print.header.lines.line3")}
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
             <div style="text-align: center; margin-bottom: 20px;">
                 <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 5px;">${t("order.print.title")}</h1>
                 <p>Order ID: ${data.orderId}</p>
@@ -94,12 +115,20 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                             <td style="border: none !important;">${data.client?.clientName || ""}</td>
                         </tr>
                         <tr>
+                            <td style="font-weight: bold; border: none !important;">${t("client.clientId")}:</td>
+                            <td style="border: none !important;">${data.client?.clientId || ""}</td>
+                        </tr>
+                        <tr>
                             <td style="font-weight: bold; border: none !important;">${t("order.print.address")}:</td>
                             <td style="border: none !important;">${data.clientAddress}</td>
                         </tr>
                          <tr>
                             <td style="font-weight: bold; border: none !important;">${t("order.print.taxCode")}:</td>
                              <td style="border: none !important;">${data.client?.legalId || ""}</td>
+                        </tr>
+                         <tr>
+                            <td style="font-weight: bold; border: none !important;">${t("client.taxEmail")}:</td>
+                            <td style="border: none !important;">${data.client?.invoiceInfo?.taxEmail || ""}</td>
                         </tr>
                          <tr>
                             <td style="font-weight: bold; border: none !important;">${t("order.print.contact")}:</td>
@@ -130,13 +159,15 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                              <td style="border: none !important;">${t("organization.data.address")}</td>
                         </tr>
                         <tr>
-                             <td style="font-weight: bold; border: none !important;">${t("order.print.email")}:</td>
+                             <td style="font-weight: bold; border: none !important;">${t("organization.email")}:</td>
                              <td style="border: none !important;">${t("organization.data.email")}</td>
                         </tr>
+
                         <tr>
-                             <td style="font-weight: bold; border: none !important;">${t("order.print.phone")}:</td>
-                             <td style="border: none !important;">${t("organization.data.phone")}</td>
+                             <td style="font-weight: bold; border: none !important;">${t("order.print.salePerson")}:</td>
+                             <td style="border: none !important;">${data.salePerson || ""}</td>
                         </tr>
+
                     </tbody>
                 </table>
             </div>
@@ -174,7 +205,7 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                         </tr>
                         <tr style="font-size: 16px;">
                             <td style="text-align: right; padding-right: 20px; font-weight: bold; border: none !important;">${t("order.print.grandTotal")}:</td>
-                            <td style="text-align: right; font-weight: bold; color: #1890FF; border: none !important;">${data.pricing.total.toLocaleString("vi-VN", {
+                            <td style="text-align: right; font-weight: bold; border: none !important;">${Math.ceil(data.pricing.total).toLocaleString("vi-VN", {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 2,
                             })} đ</td>
@@ -182,20 +213,39 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                     </tbody>
                  </table>
                  <div style="font-weight: bold; margin-top: 10px; font-style: italic;">
-                    ${t("order.print.amountInWords")}: ${formatMoneyToWords(data.pricing.total, i18n.language)}
+                    ${t("order.print.amountInWords")}: ${formatMoneyToWords(Math.ceil(data.pricing.total), i18n.language)}
                  </div>
-                 <div style="margin-top: 10px;">
-                    <p style="margin-bottom: 5px;">${t("order.print.disclaimer")}</p>
+                 <div style="font-style: italic; margin-top: 5px;">
+                    <p style="font-weight: bold; margin-bottom: 2px;">${t("order.print.notePrefix")}</p>
+                    <div style="margin-left: 10px;">
+                        <p style="margin-bottom: 2px;">${t("order.print.validityNote")} ${data.createdAt ? `${format(new Date(data.createdAt), "dd/MM/yyyy")}` : ""}</p>
+                        <p style="margin-bottom: 2px;">${t("order.print.disclaimer")}</p>
+                    </div>
+                 </div>
+                  <div style="margin-top: 10px;">
                     <p style="font-weight: bold;">${t("order.print.bankInfo.title")}</p>
-                    <p>${t("order.print.bankInfo.accountName")}</p>
-                    <p>${t("order.print.bankInfo.accountNumber")}</p>
-                    <p>${t("order.print.bankInfo.bankName")}</p>
+                    <table style="width: 100%; border-collapse: collapse; border: none;">
+                        <tr>
+                            <td style="width: 60%; vertical-align: top; border: none !important; padding: 0;">
+                                <p>${t("order.print.bankInfo.accountName")}</p>
+                                <p>${t("order.print.bankInfo.accountNumber")}</p>
+                                <p>${t("order.print.bankInfo.bankName")}</p>
+                                <p>${t("order.print.bankInfo.transferContent")}: ${data.orderId} THANH TOAN BOI ${(data.client?.clientId || "").toUpperCase()}</p>
+                            </td>
+                            <td style="width: 40%; vertical-align: top; text-align: center; border: none !important; padding: 0;">
+                                <img src="https://img.vietqr.io/image/ACB-16356688-qr_only.png?amount=${Math.ceil(data.pricing.total)}&addInfo=${encodeURIComponent(
+            `${data.orderId} THANH TOAN BOI ${(data.client?.clientId || "").toUpperCase()}`,
+        )}&accountName=Vien%20nghien%20cuu%20va%20phat%20trien%20san%20pham%20thien%20nhien" alt="QR Code" style="width: 125px;" />
+                            </td>
+                        </tr>
+                    </table>
                 </div>
             </div>
-            <div style="margin-top: 40px; display: flex; justify-content: flex-start; page-break-inside: avoid;">
+            <div style="margin-top: 40px; display: flex; justify-content: flex-end; page-break-inside: avoid;">
                 <div style="text-align: center; width: 40%;">
                     <p style="font-weight: bold; margin-bottom: 5px;">${t("order.print.customerConfirmation")}</p>
                     <p style="font-style: italic;">(${t("order.print.signName")})</p>
+                    <div style="height: 30mm;"></div>
                 </div>
             </div>
             </div>
@@ -236,6 +286,9 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
             }
             .data-table th, .data-table td {
                 border: 1px solid #000 !important;
+                vertical-align: middle !important;
+                padding-top: 5px !important;
+                padding-bottom: 5px !important;
             }
             .info-table td, .total-table td {
                 border: none !important;
@@ -257,6 +310,7 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
             image: { type: "jpeg", quality: 0.98 },
             html2canvas: {
                 useCORS: true,
+                scale: 2, // Improve resolution
                 letterRendering: true,
                 windowWidth: 718, // 96 DPI Printable Width
             },

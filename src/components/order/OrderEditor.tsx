@@ -12,8 +12,10 @@ import { OrderPrintPreviewModal } from "@/components/order/OrderPrintPreviewModa
 import { SampleRequestPrintPreviewModal } from "@/components/order/SampleRequestPrintPreviewModal";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import { getClients, getQuotes } from "@/api/index";
+import { getClients, getQuoteDetail } from "@/api/index";
 import { toast } from "sonner";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 
 export type EditorMode = "view" | "edit" | "create";
 
@@ -267,67 +269,58 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         }
 
         try {
-            // User specified query "quoteId=<value>" returns a single object
-            const response = await getQuotes({ query: { quoteId: idToUse } });
+            const response = await getQuoteDetail({ query: { quoteId: idToUse } });
 
-            let foundQuote: any = null;
             if (response.success && response.data) {
-                if (Array.isArray(response.data)) {
-                    // unexpected but handle list
-                    foundQuote = response.data[0];
-                } else if ((response.data as any).data && Array.isArray((response.data as any).data)) {
-                    // unexpected pagination
-                    foundQuote = (response.data as any).data[0];
+                const foundQuote: any = response.data;
+
+                if (foundQuote && foundQuote.client) {
+                    setSelectedClient(foundQuote.client);
+                    const qClient = foundQuote.client;
+
+                    setClientAddress(qClient.clientAddress);
+                    setClientPhone(qClient.clientPhone || "");
+                    setClientEmail(qClient.clientEmail || "");
+
+                    setTaxName(qClient.invoiceInfo?.taxName || qClient.clientName);
+                    setTaxCode(qClient.invoiceInfo?.taxCode || qClient.legalId);
+                    setTaxAddress(qClient.invoiceInfo?.taxAddress || qClient.clientAddress);
+                    setTaxEmail(qClient.invoiceInfo?.taxEmail || "");
+
+                    if (qClient.clientContacts?.[0]) {
+                        const contact = qClient.clientContacts[0];
+                        setContactPerson(contact.contactName || (contact as any).name || "");
+                        setContactPhone(contact.contactPhone || (contact as any).phone || "");
+                        setContactIdentity(contact.identityId || "");
+                        setContactEmail(contact.contactEmail || (contact as any).email || "");
+                        setContactPosition(contact.contactPosition || (contact as any).position || "");
+                        setContactAddress(contact.contactAddress || "");
+                        setReportEmail(contact.contactEmail || (contact as any).email || "");
+                    }
+
+                    setDiscount(foundQuote.discount || 0);
+
+                    const convertedSamples: SampleWithQuantity[] = (foundQuote.samples || []).map((s: any) => ({
+                        id: s.sampleId || `temp-sample-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                        sampleId: s.sampleId,
+                        sampleName: s.sampleName || s.name || "Sample",
+                        sampleMatrix: s.sampleMatrix || s.matrix || "Water",
+                        sampleNote: s.sampleNote || "",
+                        analyses: (s.analyses || []).map((a: any) => ({
+                            ...a,
+                            id: a.id || `temp-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                            unitPrice: a.unitPrice || a.feeBeforeTax || 0,
+                            quantity: a.quantity || 1,
+                            taxRate: a.taxRate || 0,
+                        })),
+                    }));
+
+                    setSamples(convertedSamples);
+                    toast.success(t("order.loadQuoteSuccess"));
                 } else {
-                    // Expected single object
-                    foundQuote = response.data;
+                    // Should not happen if data is detail, but good check
+                    toast.error(t("order.errorQuoteNotFound"));
                 }
-            }
-
-            if (foundQuote && foundQuote.client) {
-                setSelectedClient(foundQuote.client);
-                // Map quote client data to form state (similar to selectedClient)
-                const qClient = foundQuote.client;
-
-                setClientAddress(qClient.clientAddress);
-                setClientPhone(qClient.clientPhone || "");
-                setClientEmail(qClient.clientEmail || "");
-
-                setTaxName(qClient.invoiceInfo?.taxName || qClient.clientName);
-                setTaxCode(qClient.invoiceInfo?.taxCode || qClient.legalId);
-                setTaxAddress(qClient.invoiceInfo?.taxAddress || qClient.clientAddress);
-                setTaxEmail(qClient.invoiceInfo?.taxEmail || "");
-
-                if (qClient.clientContacts?.[0]) {
-                    const contact = qClient.clientContacts[0];
-                    setContactPerson(contact.contactName || (contact as any).name || "");
-                    setContactPhone(contact.contactPhone || (contact as any).phone || "");
-                    setContactIdentity(contact.identityId || "");
-                    setContactEmail(contact.contactEmail || (contact as any).email || "");
-                    setContactPosition(contact.contactPosition || (contact as any).position || "");
-                    setContactAddress(contact.contactAddress || "");
-                    setReportEmail(contact.contactEmail || (contact as any).email || "");
-                }
-
-                setDiscount(foundQuote.discount || 0);
-
-                const convertedSamples: SampleWithQuantity[] = (foundQuote.samples || []).map((s: any) => ({
-                    id: s.sampleId || `temp-sample-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                    sampleId: s.sampleId,
-                    sampleName: s.sampleName || s.name || "Sample",
-                    sampleMatrix: s.sampleMatrix || s.matrix || "Water",
-                    sampleNote: s.sampleNote || "",
-                    analyses: (s.analyses || []).map((a: any) => ({
-                        ...a,
-                        id: a.id || `temp-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                        unitPrice: a.unitPrice || a.feeBeforeTax || 0, // Quote might use feeBeforeTax or unitPrice
-                        quantity: a.quantity || 1,
-                        taxRate: a.taxRate || 0,
-                    })),
-                }));
-
-                setSamples(convertedSamples);
-                toast.success(t("order.loadQuoteSuccess"));
             } else {
                 toast.error(t("order.errorQuoteNotFound"));
             }
@@ -437,6 +430,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
         const data: OrderPrintData = {
             orderId,
+            createdAt: initialData?.createdAt,
+            salePerson: mode === "create" ? user?.identityName : initialData?.salePerson,
             client: clientSnapshot,
 
             contactPerson,
@@ -780,20 +775,22 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     <div className="space-y-4">
                         <h3 className="text-base font-semibold text-foreground">{t("order.samples")}</h3>
 
-                        {samples.map((sample, index) => (
-                            <div key={sample.id}>
-                                <SampleCard
-                                    sample={sample}
-                                    sampleIndex={index}
-                                    onRemoveSample={() => handleRemoveSample(sample.id)}
-                                    onDuplicateSample={() => handleDuplicateSample(sample.id)}
-                                    onUpdateSample={(updates) => handleUpdateSample(sample.id, updates)}
-                                    onAddAnalysis={() => handleOpenModal(index)}
-                                    onRemoveAnalysis={(analysisId) => handleRemoveAnalysis(sample.id, analysisId)}
-                                    isReadOnly={isReadOnly}
-                                />
-                            </div>
-                        ))}
+                        <DndProvider backend={HTML5Backend}>
+                            {samples.map((sample, index) => (
+                                <div key={sample.id}>
+                                    <SampleCard
+                                        sample={sample}
+                                        sampleIndex={index}
+                                        onRemoveSample={() => handleRemoveSample(sample.id)}
+                                        onDuplicateSample={() => handleDuplicateSample(sample.id)}
+                                        onUpdateSample={(updates) => handleUpdateSample(sample.id, updates)}
+                                        onAddAnalysis={() => handleOpenModal(index)}
+                                        onRemoveAnalysis={(analysisId) => handleRemoveAnalysis(sample.id, analysisId)}
+                                        isReadOnly={isReadOnly}
+                                    />
+                                </div>
+                            ))}
+                        </DndProvider>
 
                         {!isReadOnly && (
                             <button

@@ -236,6 +236,8 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("quote.code")}</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("quote.client")}</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.salePerson")}</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.total")}</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("quote.createdDate")}</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("quote.status")}</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("common.actions")}</th>
@@ -244,13 +246,13 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                             <tbody className="divide-y divide-border">
                                 {isLoading ? (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-4 text-center text-sm text-muted-foreground">
+                                        <td colSpan={7} className="px-6 py-4 text-center text-sm text-muted-foreground">
                                             Loading...
                                         </td>
                                     </tr>
                                 ) : quotes.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-4 text-center text-sm text-muted-foreground">
+                                        <td colSpan={7} className="px-6 py-4 text-center text-sm text-muted-foreground">
                                             {t("common.noData")}
                                         </td>
                                     </tr>
@@ -264,6 +266,8 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                                                 <div>{quote.client?.clientName || "Unknown Client"}</div>
                                                 <div className="text-xs text-muted-foreground">{quote.contactPerson?.identityName || "N/A"}</div>
                                             </td>
+                                            <td className="px-6 py-4 text-sm text-foreground">{quote.salePerson || "-"}</td>
+                                            <td className="px-6 py-4 text-right text-sm font-medium text-foreground">{(quote.totalAmount || 0).toLocaleString("vi-VN")} đ</td>
                                             <td className="px-6 py-4 text-sm text-muted-foreground">{quote.createdAt ? new Date(quote.createdAt).toLocaleDateString("vi-VN") : "N/A"}</td>
                                             <td className="px-6 py-4">
                                                 <span className={`px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800`}>{quote.quoteStatus}</span>

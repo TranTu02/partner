@@ -27,7 +27,9 @@ This directory contains components related to Order management, handling the lif
 
 **Key Features**:
 
--   **Quote Integration**: Can "Load Quote" via header input or URL parameter (`initialQuoteId`), mapping Quote Samples and Client info to the Order.
+-   **Quote Integration**:
+    -   Can "Load Quote" via header input or URL parameter (`initialQuoteId`), mapping Quote Samples and Client info to the Order.
+    -   Uses `getQuoteDetail` API to ensure full structure (including all samples and parameters) is retrieved.
 -   **Client Integration**: Uses `ClientSectionNew`. Supports syncing "Invoice Info" from "Basic Info".
 -   **Sample Management**: Uses `SampleCard` for adding/removing/duplicating samples.
 -   **Validation**: Checks for Client selection and at least one Sample with Analyses before saving.
@@ -47,6 +49,8 @@ This directory contains components related to Order management, handling the lif
 
 -   **Header**: Editable Sample Name and Matrix. "Duplicate" button copies the sample + all analyses to a new entry.
 -   **Analysis Table**: Lists selected parameters (`AnalysisModalNew` integration).
+    -   **Reordering**: Supports drag-and-drop reordering of analyses rows using the "grip" handle (icon).
+    -   **ReadOnly**: When `isReadOnly` is true, editing inputs and drag handles are hidden.
 -   **Pricing**: Displays unit price, tax, and line total for each parameter.
 
 ## Print & Export Components
@@ -67,7 +71,7 @@ This directory contains components related to Order management, handling the lif
 -   Layout includes:
     1.  **Header**: "ĐƠN HÀNG", Order ID, Date.
     2.  **Section 1**: Client Information (Name, Address, Contact, Tax Info).
-    3.  **Section 2**: Service Provider (Institute info).
+    3.  **Section 2**: Service Provider (Institute info, excluding Phone).
     4.  **Section 3**: Detailed Table of Samples (Name, Matrix) and Parameters (Method, Price, VAT).
     5.  **Section 4**: Financial Summary (Subtotal, Discount, VAT, Total).
     6.  **Footer**: Signatures and Bank Info.

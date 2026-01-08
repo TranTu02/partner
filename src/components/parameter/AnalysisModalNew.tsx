@@ -22,6 +22,14 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
     // Server-side selection results
     const [displayedMatrix, setDisplayedMatrix] = useState<Matrix[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+
+    // Reset page when filters change
+    useEffect(() => {
+        setPage(1);
+    }, [searchQuery, selectedField]);
 
     // Simulated Server-Side Search for "Select Mode"
     useEffect(() => {
@@ -33,8 +41,13 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
                 interface SearchQuery {
                     search?: string;
                     scientificField?: string;
+                    page: number;
+                    itemsPerPage: number;
                 }
-                const query: SearchQuery = {};
+                const query: SearchQuery = {
+                    page,
+                    itemsPerPage: 20, // Default items per page
+                };
                 if (searchQuery) {
                     query.search = searchQuery;
                 }
@@ -46,8 +59,14 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
 
                 if (response.success && response.data) {
                     setDisplayedMatrix(response.data as Matrix[]);
+                    if (response.meta) {
+                        setTotalPages(response.meta.totalPages);
+                        setTotalItems(response.meta.total);
+                    }
                 } else {
                     setDisplayedMatrix([]);
+                    setTotalPages(1);
+                    setTotalItems(0);
                 }
             } catch (error) {
                 console.error("Error searching matrices", error);
@@ -59,7 +78,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
 
         const timer = setTimeout(search, 300); // Debounce
         return () => clearTimeout(timer);
-    }, [searchQuery, selectedField, isOpen]); // Add isOpen to refresh when opened
+    }, [searchQuery, selectedField, isOpen, page]); // Add isOpen to refresh when opened
 
     const handleToggleItem = (matrixId: string) => {
         const newSelected = new Set(selectedMatrixIds);
@@ -188,7 +207,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-card rounded-lg w-full max-w-4xl min-w-[800px] h-[80vh] min-h-[600px] flex flex-col shadow-xl border border-border">
+            <div className="bg-card rounded-lg w-full max-w-6xl min-w-[900px] h-[95vh] min-h-[600px] flex flex-col shadow-xl border border-border">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-border">
                     <h2 className="text-xl font-bold text-foreground">{t("parameter.selectTitle")}</h2>
@@ -198,7 +217,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
                 </div>
 
                 {/* Mode Toggle */}
-                <div className="p-6 border-b border-border">
+                <div className="p-3 border-b border-border">
                     <div className="flex gap-2 mb-4">
                         <button
                             onClick={() => setMode("select")}
@@ -301,7 +320,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
                                                             ) : (
                                                                 row.results.map((m) => (
                                                                     <option key={m.matrixId} value={m.matrixId}>
-                                                                        {m.parameterName} - {m.protocolCode} (
+                                                                        {m.parameterName} - {m.sampleTypeName} - {m.protocolCode} (
                                                                         {(m.feeBeforeTax ?? Number((m as any).feeAfterTax || 0) / (1 + Number(m.taxRate || 0) / 100)).toLocaleString("vi-VN")} đ)
                                                                     </option>
                                                                 ))
@@ -365,7 +384,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
                                 />
                             </div>
 
-                            <div className="flex gap-2">
+                            <div className="hidden gap-2">
                                 <button
                                     onClick={() => setSelectedField("all")}
                                     className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
@@ -415,6 +434,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
                                         </th>
                                         <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.print.parameter")}</th>
                                         <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.sampleMatrix")}</th>
+                                        <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">{t("parameter.unitPrice")}</th>
                                         <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">{t("parameter.tax")}</th>
                                         <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">{t("order.lineTotal")}</th>
                                     </tr>
@@ -422,13 +442,13 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
                                 <tbody>
                                     {isSearching ? (
                                         <tr>
-                                            <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                                            <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground text-sm">
                                                 Loading...
                                             </td>
                                         </tr>
                                     ) : displayedMatrix.length === 0 ? (
                                         <tr>
-                                            <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                                            <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground text-sm">
                                                 {t("parameter.notFound")}
                                             </td>
                                         </tr>
@@ -446,6 +466,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-foreground">{item.parameterName}</td>
                                                 <td className="px-4 py-3 text-sm text-foreground">{item.sampleTypeName}</td>
+                                                <td className="px-4 py-3 text-right text-sm text-foreground">{(item.feeBeforeTax || 0).toLocaleString("vi-VN")} đ</td>
                                                 <td className="px-4 py-3 text-center text-sm text-foreground">{item.taxRate}%</td>
                                                 <td className="px-4 py-3 text-right text-sm text-foreground">
                                                     {(item.feeAfterTax ?? (item.feeBeforeTax || 0) * (1 + (item.taxRate || 0) / 100)).toLocaleString("vi-VN")} đ
@@ -455,6 +476,28 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
                                     )}
                                 </tbody>
                             </table>
+                        </div>
+                        {/* Pagination Controls */}
+                        <div className="flex items-center justify-between mt-4">
+                            <div className="text-sm text-muted-foreground">
+                                {t("pagination.showing")} {displayedMatrix.length} / {totalItems} {t("pagination.results")} (Page {page}/{totalPages})
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                                    disabled={page === 1}
+                                    className="px-3 py-1 border border-border rounded text-sm disabled:opacity-50 hover:bg-muted transition-colors"
+                                >
+                                    {t("pagination.previous", "Previous")}
+                                </button>
+                                <button
+                                    onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                                    disabled={page === totalPages}
+                                    className="px-3 py-1 border border-border rounded text-sm disabled:opacity-50 hover:bg-muted transition-colors"
+                                >
+                                    {t("pagination.next", "Next")}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

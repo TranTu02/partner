@@ -7,6 +7,7 @@ import type { QuotePrintData } from "./QuotePrintTemplate";
 import { useTranslation } from "react-i18next";
 // @ts-ignore
 import html2pdf from "html2pdf.js";
+import { format } from "date-fns";
 
 interface QuotePrintPreviewModalProps {
     isOpen: boolean;
@@ -81,6 +82,10 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                             <td style="border: none !important;">${data.client?.clientName || ""}</td>
                         </tr>
                         <tr>
+                            <td style="font-weight: bold; border: none !important;">${t("client.clientId")}:</td>
+                            <td style="border: none !important;">${data.client?.clientId || ""}</td>
+                        </tr>
+                        <tr>
                             <td style="font-weight: bold; border: none !important;">${t("order.print.address")}:</td>
                             <td style="border: none !important;">${data.clientAddress}</td>
                         </tr>
@@ -121,10 +126,7 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                              <td style="font-weight: bold; border: none !important;">${t("order.print.email")}:</td>
                              <td style="border: none !important;">${t("organization.data.email")}</td>
                         </tr>
-                        <tr>
-                             <td style="font-weight: bold; border: none !important;">${t("order.print.phone")}:</td>
-                             <td style="border: none !important;">${t("organization.data.phone")}</td>
-                        </tr>
+
                     </tbody>
                 </table>
             </div>
@@ -168,7 +170,7 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                         </tr>
                          <tr style="font-size: 16px;">
                             <td style="text-align: right; padding-right: 20px; font-weight: bold; border: none !important;">${t("order.print.grandTotal")}:</td>
-                            <td style="text-align: right; font-weight: bold; color: #1890FF; border: none !important;">${data.pricing.total.toLocaleString("vi-VN", {
+                            <td style="text-align: right; font-weight: bold; border: none !important;">${Math.ceil(data.pricing.total).toLocaleString("vi-VN", {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 2,
                             })} đ</td>
@@ -176,14 +178,32 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                     </tbody>
                  </table>
                  <div style="font-weight: bold; margin-top: 10px; font-style: italic;">
-                    ${t("order.print.amountInWords")}: ${formatMoneyToWords(data.pricing.total, i18n.language)}
+                    ${t("order.print.amountInWords")}: ${formatMoneyToWords(Math.ceil(data.pricing.total), i18n.language)}
+                 </div>
+                 <div style="font-style: italic; margin-top: 5px;">
+                    <p style="font-weight: bold; margin-bottom: 2px;">${t("order.print.notePrefix")}</p>
+                    <div style="margin-left: 10px;">
+                        <p style="margin-bottom: 2px;">${t("order.print.validityNote")} ${data.createdAt ? `${format(new Date(data.createdAt), "dd/MM/yyyy")}` : ""}</p>
+                        <p style="margin-bottom: 2px;">${t("order.print.disclaimer")}</p>
+                    </div>
                  </div>
                  <div style="margin-top: 10px;">
-                    <p style="margin-bottom: 5px;">${t("order.print.disclaimer")}</p>
                     <p style="font-weight: bold;">${t("order.print.bankInfo.title")}</p>
-                    <p>${t("order.print.bankInfo.accountName")}</p>
-                    <p>${t("order.print.bankInfo.accountNumber")}</p>
-                    <p>${t("order.print.bankInfo.bankName")}</p>
+                    <table style="width: 100%; border-collapse: collapse; border: none;">
+                        <tr>
+                            <td style="width: 60%; vertical-align: top; border: none !important; padding: 0;">
+                                <p>${t("order.print.bankInfo.accountName")}</p>
+                                <p>${t("order.print.bankInfo.accountNumber")}</p>
+                                <p>${t("order.print.bankInfo.bankName")}</p>
+                                <p>${t("order.print.bankInfo.transferContent")}: ${data.quoteId} THANH TOAN BOI ${(data.client?.clientId || "").toUpperCase()}</p>
+                            </td>
+                            <td style="width: 40%; vertical-align: top; text-align: center; border: none !important; padding: 0;">
+                                <img src="https://img.vietqr.io/image/ACB-16356688-qr_only.png?amount=${Math.ceil(data.pricing.total)}&addInfo=${encodeURIComponent(
+            `${data.quoteId} THANH TOAN BOI ${(data.client?.clientId || "").toUpperCase()}`,
+        )}&accountName=Vien%20nghien%20cuu%20va%20phat%20trien%20san%20pham%20thien%20nhien" alt="QR Code" style="width: 125px;" />
+                            </td>
+                        </tr>
+                    </table>
                 </div>
             </div>
             <div style="margin-top: 40px; display: flex; justify-content: flex-start; page-break-inside: avoid;">
@@ -223,13 +243,16 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
             }
             tr { page-break-inside: avoid; page-break-after: auto; }
             th, td { 
-                padding: 4px !important; 
+                padding: 5px !important; 
                 word-break: break-word; 
                 vertical-align: middle !important;
                 font-family: "Times New Roman", Times, serif;
             }
             .data-table th, .data-table td {
                 border: 1px solid #000 !important;
+                vertical-align: middle !important;
+                padding-top: 5px !important;
+                padding-bottom: 5px !important;
             }
             .info-table td, .total-table td {
                 border: none !important;

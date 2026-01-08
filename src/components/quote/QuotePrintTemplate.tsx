@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 export interface QuotePrintData {
     quoteId: string;
+    createdAt?: string; // Add this
     client: Client | null;
 
     // Contact Info Snapshot
