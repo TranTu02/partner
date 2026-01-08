@@ -33,6 +33,7 @@ Hệ thống phân quyền dựa trên vai trò của người dùng:
 -   **Tính năng chi tiết**:
     -   **Form động**: Cho phép thêm nhiều mẫu cùng lúc, nhân bản mẫu (Duplicate) để nhập liệu nhanh.
     -   **Chọn chỉ tiêu**: Modal tìm kiếm chỉ tiêu (`AnalysisModalNew`) hỗ trợ chọn đơn lẻ hoặc chọn theo gói (nếu có).
+    -   **Thông tin hóa đơn**: Nút "Copy Basic Info" cho phép tự động điền thông tin xuất hóa đơn từ thông tin cơ bản của khách hàng.
     -   **Tính giá**: Hệ thống tự động tính Thành tiền = Đơn giá x Số lượng + Thuế (VAT) - Chiết khấu.
     -   **In ấn**:
         -   Tạo file PDF "Phiếu yêu cầu thử nghiệm" khổ A4.
@@ -50,7 +51,7 @@ Hệ thống phân quyền dựa trên vai trò của người dùng:
 -   **Tính năng**:
     -   Tạo và chỉnh sửa Báo giá.
     -   **Xuất PDF**: Tạo file Báo giá chuyên nghiệp (`QuotePrintPreviewModal`) với đầy đủ tính năng đọc số tiền bằng chữ và thông tin thanh toán tương tự Đơn hàng.
-    -   **Chuyển đổi**: (Tính năng sắp tới) Chuyển đổi trực tiếp từ Báo giá sang Đơn hàng khi khách đồng ý.
+    -   **Chuyển đổi**: Tạo Đơn hàng trực tiếp từ Báo giá ("Create Order") giữ nguyên thông tin khách hàng và chỉ tiêu.
     -   **Chiết khấu/Hoa hồng**: Hỗ trợ nhập % chiết khấu thương mại hoặc hoa hồng môi giới.
 
 ### D. Quản lý Khách hàng (`ClientsPage`)
@@ -70,8 +71,14 @@ Hệ thống phân quyền dựa trên vai trò của người dùng:
 ### F. Kế toán & Công nợ (`AccountingPage`)
 
 -   **Mục tiêu**: Theo dõi dòng tiền và tình trạng thanh toán của các đơn hàng.
--   **Trang thái thanh toán**: Chưa thanh toán (Unpaid), Thanh toán 1 phần (Partially Paid), Đã thanh toán (Paid).
--   **Tính năng**: Xem danh sách đơn hàng cần thu tiền, lịch sử thanh toán.
+-   **Trang thái**:
+    -   _Đơn hàng_: Chờ xử lý, Đang xử lý, Hoàn thành, Hủy.
+    -   _Thanh toán_: Chưa thanh toán (Unpaid), Thanh toán 1 phần (Partially Paid), Đã thanh toán (Paid), Công nợ (Debt).
+-   **Tính năng chính**:
+    -   **Danh sách**: Hiển thị đơn hàng với trạng thái, mã số thuế, và người tạo.
+    -   **Chi tiết & Cập nhật**: Modal chi tiết (`AccountingDetailModal`) cho phép xem thông tin đơn hàng, khách hàng (read-only) và cập nhật trạng thái đơn hàng.
+    -   **Lịch sử giao dịch**: Ghi lại chi tiết các lần thanh toán (Ngày, Số tiền, Phương thức, Ghi chú) trong Detail Modal.
+    -   **Xuất hóa đơn**: Tính năng tạo hóa đơn từ đơn hàng đã chọn.
 
 ## 3. Thực thể Dữ liệu (Data Entities)
 

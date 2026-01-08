@@ -104,6 +104,12 @@ partner/
 -   **Props**: Định nghĩa Interface Props rõ ràng.
 -   **Tính Module hóa**: Chia nhỏ các component lớn. Ví dụ `QuoteCreationPage` nên được chia thành `ClientSection`, `SampleCard`, `PricingSummary`... để dễ bảo trì và tái sử dụng.
 
+### F. Tài liệu hóa (Documentation)
+
+-   **Convention**: Mỗi module lớn trong `src/components/` phải có một file `0_[MODULE_NAME]_DOCUMENTATION.md` đặt tại thư mục gốc của module đó.
+-   **Nội dung**: Phải mô tả Mục đích, Các Component chính, Props, Logic quan trọng.
+-   **Cập nhật**: Khi thay đổi tính năng core, phải cập nhật file tài liệu tương ứng.
+
 ## 4. Quy trình Git & Công việc (Git & Workflow)
 
 1.  **Kiểm tra**: Luôn đảm bảo `npm run dev` chạy không lỗi trước khi commit.
