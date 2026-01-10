@@ -319,6 +319,7 @@ export default {
             print: {
                 title: "QUOTE",
                 previewTitle: "Quote Preview",
+                validityNote: "Quote is valid for 15 days from the date of issue.",
             },
         },
         accounting: {

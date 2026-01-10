@@ -227,7 +227,7 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                 ${samplesHtml}
             </div>
 
-             <div style="margin-top: 20px; page-break-inside: avoid;">
+             <div style="margin-top: 20px;">
                 <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid black; padding-bottom: 5px; margin-bottom: 10px;">4. ${t("order.print.total")}</h3>
                  <table class="total-table" style="width: 100%; margin-top: 10px;">
                     <tbody>
@@ -289,7 +289,7 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                             <td style="width: 60%; vertical-align: top; border: none !important; padding: 0;">
                                 <p>${t("order.print.bankInfo.accountName")}</p>
                                 <p>${t("order.print.bankInfo.accountNumber")}</p>
-                                <p>${t("order.print.bankInfo.bankName")}</p>
+                                <p>${t("order.print.bankInfo.bankName")}</p>                                
                                 <p>${t("order.print.bankInfo.transferContent")}: ${data.orderId} THANH TOAN BOI ${(data.client?.clientId || "").toUpperCase()}</p>
                             </td>
                             <td style="width: 40%; vertical-align: top; text-align: center; border: none !important; padding: 0;">
@@ -301,7 +301,7 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                     </table>
                 </div>
             </div>
-            <div style="margin-top: 40px; display: flex; justify-content: flex-end; page-break-inside: avoid;">
+            <div style="margin-top: 40px; display: flex; justify-content: flex-end;">
                 <div style="text-align: center; width: 40%;">
                     <p style="font-weight: bold; margin-bottom: 5px;">${t("order.print.customerConfirmation")}</p>
                     <p style="font-style: italic;">(${t("order.print.signName")})</p>
@@ -337,7 +337,7 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                 font-size: 13px;
                 page-break-inside: auto;
             }
-            tr { page-break-inside: avoid; page-break-after: auto; }
+            tr { page-break-inside: auto; page-break-after: auto; }
             th, td { 
                 padding: 4px !important; 
                 word-break: break-word; 

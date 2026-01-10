@@ -245,7 +245,7 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data }: Sample
                 font-size: 12px;
                 page-break-inside: auto;
             }
-            tr { page-break-inside: avoid; page-break-after: auto; }
+            tr { page-break-inside: auto; page-break-after: auto; }
             th, td { 
                 border: 1px solid #1e293b !important; 
                 padding: 6px 4px !important; 

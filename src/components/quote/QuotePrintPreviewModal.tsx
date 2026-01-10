@@ -7,6 +7,7 @@ import type { QuotePrintData } from "./QuotePrintTemplate";
 import { useTranslation } from "react-i18next";
 // @ts-ignore
 import html2pdf from "html2pdf.js";
+import { format } from "date-fns";
 
 import logoFull from "@/assets/logo-full.png";
 
@@ -53,7 +54,7 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                 });
 
                 return `
-            <div style="margin-bottom: 20px; page-break-inside: avoid;">
+            <div style="margin-bottom: 20px;">
                 <div style="background-color: #f0f0f0; padding: 5px 10px; font-weight: bold; margin-bottom: 5px;">
                      ${t("order.print.sample")} ${data.samples.indexOf(sample) + 1}: ${sample.sampleName}
                      ${sample.sampleNote ? `<span style="font-weight: normal; font-style: italic;"> - ${sample.sampleNote}</span>` : ""}
@@ -272,12 +273,11 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                  <div style="font-style: italic; margin-top: 5px;">
                     <p style="font-weight: bold; margin-bottom: 2px;">${t("order.print.notePrefix")}</p>
                     <div style="margin-left: 10px;">
-                        <p style="margin-bottom: 2px;">Báo giá có giá trị trong vòng 30 ngày kể từ ngày báo giá.</p>
-                        <p style="margin-bottom: 2px;">${t("order.print.disclaimer")}</p>
+                        <p style="margin-bottom: 2px;">${t("quote.print.validityNote")} ${data.createdAt ? `${format(new Date(data.createdAt), "dd/MM/yyyy")}` : ""}</p>
                     </div>
                  </div>
             </div>
-            <div style="margin-top: 40px; display: flex; justify-content: flex-start; page-break-inside: avoid;">
+            <div style="margin-top: 40px; display: flex; justify-content: flex-end;">
                 <div style="text-align: center; width: 40%;">
                     <p style="font-weight: bold; margin-bottom: 5px;">${t("order.print.customerConfirmation")}</p>
                     <p style="font-style: italic;">(${t("order.print.signName")})</p>
@@ -312,7 +312,7 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                 font-size: 13px;
                 page-break-inside: auto;
             }
-            tr { page-break-inside: avoid; page-break-after: auto; }
+            tr { page-break-inside: auto; page-break-after: auto; }
             th, td { 
                 padding: 5px !important; 
                 word-break: break-word; 

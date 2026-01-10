@@ -119,7 +119,7 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                 <h3 style={{ fontSize: "16px", fontWeight: "bold", borderBottom: "1px solid #000", paddingBottom: "5px", marginBottom: "10px" }}>3. {t("order.print.samplesAndAnalysis")}</h3>
 
                 {data.samples.map((sample, index) => (
-                    <div key={index} style={{ marginBottom: "20px", pageBreakInside: "avoid" }}>
+                    <div key={index} style={{ marginBottom: "20px" }}>
                         <div style={{ backgroundColor: "#f0f0f0", padding: "5px 10px", fontWeight: "bold", marginBottom: "5px" }}>
                             {t("order.print.sample")} {index + 1}: {sample.sampleName} ({sample.sampleMatrix})
                         </div>
@@ -153,7 +153,7 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                 ))}
             </div>
 
-            <div style={{ marginTop: "20px", pageBreakInside: "avoid" }}>
+            <div style={{ marginTop: "20px" }}>
                 <h3 style={{ fontSize: "16px", fontWeight: "bold", borderBottom: "1px solid #000", paddingBottom: "5px" }}>4. {t("order.print.total")}</h3>
                 <table style={{ width: "100%", marginTop: "10px" }}>
                     <tbody>
@@ -196,7 +196,7 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                     </tbody>
                 </table>
             </div>
-            <div style={{ marginTop: "40px", display: "flex", justifyContent: "space-between", pageBreakInside: "avoid" }}>
+            <div style={{ marginTop: "40px", display: "flex", justifyContent: "space-between" }}>
                 <div style={{ textAlign: "center", width: "40%" }}>
                     <p style={{ fontWeight: "bold" }}>{t("order.print.clientRep")}</p>
                     <p>({t("order.print.signName")})</p>

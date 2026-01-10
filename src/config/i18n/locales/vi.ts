@@ -323,6 +323,7 @@ export default {
             detail: "Chi tiết báo giá",
             printButton: "In Báo giá",
             print: {
+                validityNote: "Báo giá có giá trị trong vòng 15 ngày kể từ ngày báo giá:",
                 title: "BÁO GIÁ",
                 previewTitle: "Xem trước Báo giá",
             },
