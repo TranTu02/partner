@@ -162,7 +162,7 @@ export default {
             sumUnitPrice: "Tổng đơn giá",
             totalDiscount: "Giảm giá",
             sumBeforeTax: "Tiền trước thuế",
-            sumAfterTax: "Tổng tiền sau thuế",
+            sumAfterTax: "Tổng tiền",
         },
         sidebar: {
             dashboard: "Bảng điều khiển",

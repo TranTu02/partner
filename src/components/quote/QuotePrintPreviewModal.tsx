@@ -73,7 +73,6 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                         ${sample.analyses
                             .map((analysis, i) => {
                                 const price = analysis.feeBeforeTaxAndDiscount ?? analysis.feeBeforeTax ?? 0;
-                                const rate = analysis.discountRate || 0;
 
                                 return `
                             <tr>
@@ -84,7 +83,6 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                                         minimumFractionDigits: 0,
                                         maximumFractionDigits: 2,
                                     })}
-                                    ${rate > 0 ? `<div style="font-size: 11px; color: #16a34a;">(-${rate}%)</div>` : ""}
                                 </td>
                                 <td style="border: 1px solid black; padding: 3px; text-align: center;">${analysis.taxRate || 0}%</td>
                                 <td style="border: 1px solid black; padding: 3px; text-align: right;">
@@ -97,29 +95,9 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                         `;
                             })
                             .join("")}
-                         <tr>
-                            <td colspan="4" style="border: 1px solid black; padding: 3px; text-align: right; font-weight: bold;">${t("parameter.sumUnitPrice", "Tổng đơn giá")}</td>
-                            <td style="border: 1px solid black; padding: 3px; text-align: right; font-weight: bold;">${sampleTotalUnitPrice.toLocaleString("vi-VN", {
-                                minimumFractionDigits: 0,
-                                maximumFractionDigits: 2,
-                            })} đ</td>
-                        </tr>
+                        
                         <tr>
-                            <td colspan="4" style="border: 1px solid black; padding: 3px; text-align: right; font-weight: bold;">${t("parameter.totalDiscount", "Giảm giá")}</td>
-                            <td style="border: 1px solid black; padding: 3px; text-align: right; font-weight: bold;">${sampleTotalDiscount.toLocaleString("vi-VN", {
-                                minimumFractionDigits: 0,
-                                maximumFractionDigits: 2,
-                            })} đ</td>
-                        </tr>
-                        <tr>
-                            <td colspan="4" style="border: 1px solid black; padding: 3px; text-align: right; font-weight: bold;">${t("parameter.sumBeforeTax", "Tiền trước thuế")}</td>
-                            <td style="border: 1px solid black; padding: 3px; text-align: right; font-weight: bold;">${sampleTotalBeforeTax.toLocaleString("vi-VN", {
-                                minimumFractionDigits: 0,
-                                maximumFractionDigits: 2,
-                            })} đ</td>
-                        </tr>
-                        <tr>
-                            <td colspan="4" style="border: 1px solid black; padding: 3px; text-align: right; font-weight: bold;">${t("parameter.sumAfterTax", "Tổng tiền sau thuế")}</td>
+                            <td colspan="4" style="border: 1px solid black; padding: 3px; text-align: right; font-weight: bold;">${t("parameter.sumAfterTax", "Tổng tiền")}</td>
                             <td style="border: 1px solid black; padding: 3px; text-align: right; font-weight: bold;">${sampleTotalAfterTax.toLocaleString("vi-VN", {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 2,
@@ -234,9 +212,12 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                         ${
                             (data.pricing.discountAmount || 0) > 0 || data.discountRate > 0
                                 ? `<tr>
-                            <td style="text-align: right; padding-right: 20px; border: none !important; margin-right: 0px !important;">${t("parameter.totalDiscount", "Giảm giá")} (${
+                            <td style="text-align: right; padding-right: 20px; border: none !important; margin-right: 0px !important;">
+                            ${t("parameter.totalDiscount", "Chiết khấu")} 
+                            (${
                                       data.discountRate
-                                  }%):</td>
+                                  }%):
+                            </td>
                             <td style="text-align: right; border: none !important;">- ${(data.pricing.discountAmount || (data.pricing.subtotal * data.discountRate) / 100).toLocaleString("vi-VN", {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 2,
