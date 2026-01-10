@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import html2pdf from "html2pdf.js";
 import { format } from "date-fns";
 
-import logoFull from "@/assets/logo-full.png";
+import logoFull from "../../assets/LOGO-FULL.png";
 
 interface QuotePrintPreviewModalProps {
     isOpen: boolean;
