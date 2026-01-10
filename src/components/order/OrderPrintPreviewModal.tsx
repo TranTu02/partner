@@ -88,7 +88,7 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                                     ${analysis.feeAfterTax.toLocaleString("vi-VN", {
                                         minimumFractionDigits: 0,
                                         maximumFractionDigits: 2,
-                                    })} đ
+                                    })} 
                                 </td>
                             </tr>
                         `;
@@ -99,7 +99,7 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                             <td style="border: 1px solid black; padding: 3px; text-align: right; font-weight: bold;">${sampleTotalAfterTax.toLocaleString("vi-VN", {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 2,
-                            })} đ</td>
+                            })} </td>
                         </tr>
                     </tbody>
                 </table>
@@ -213,7 +213,7 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                             <td style="width: 150px; text-align: right; font-weight: bold; border: none !important;">${data.pricing.subtotal.toLocaleString("vi-VN", {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 2,
-                            })} đ</td>
+                            })} </td>
                         </tr>
                         ${
                             (data.pricing.discountAmount || 0) > 0 || data.discountRate > 0
@@ -222,7 +222,7 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                             <td style="text-align: right; border: none !important;">- ${(data.pricing.discountAmount || (data.pricing.subtotal * data.discountRate) / 100).toLocaleString("vi-VN", {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 2,
-                            })} đ</td>
+                            })} </td>
                         </tr>`
                                 : ""
                         }
@@ -231,21 +231,21 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                             <td style="text-align: right; font-weight: bold; border: none !important;">${(data.pricing.feeBeforeTax || 0).toLocaleString("vi-VN", {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 2,
-                            })} đ</td>
+                            })} </td>
                         </tr>
                         <tr>
                             <td style="text-align: right; padding-right: 20px; border: none !important;">${t("order.print.vat")}:</td>
                             <td style="text-align: right; border: none !important;">${data.pricing.tax.toLocaleString("vi-VN", {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 2,
-                            })} đ</td>
+                            })} </td>
                         </tr>
                         <tr style="font-size: 16px;">
-                            <td style="text-align: right; padding-right: 20px; font-weight: bold; border: none !important;">${t("parameter.sumAfterTax", "Tổng tiền sau thuế")}:</td>
+                            <td style="text-align: right; padding-right: 20px; font-weight: bold; border: none !important;">${t("order.total", "Tổng thanh toán")}:</td>
                             <td style="text-align: right; font-weight: bold; border: none !important;">${Math.ceil(data.pricing.total).toLocaleString("vi-VN", {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 2,
-                            })} đ</td>
+                            })} </td>
                         </tr>
                     </tbody>
                  </table>
@@ -267,12 +267,12 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                                 <p>${t("order.print.bankInfo.accountName")}</p>
                                 <p>${t("order.print.bankInfo.accountNumber")}</p>
                                 <p>${t("order.print.bankInfo.bankName")}</p>                                
-                                <p>${t("order.print.bankInfo.transferContent")}: ${data.orderId} THANH TOAN BOI ${(data.client?.clientId || "").toUpperCase()}</p>
+                                <p>${t("order.print.bankInfo.transferContent")}: ${data.orderId}  ${t("order.print.customerContent")}</p>
                             </td>
                             <td style="width: 40%; vertical-align: top; text-align: center; border: none !important; padding: 0;">
                                 <img src="https://img.vietqr.io/image/ACB-16356688-qr_only.png?amount=${Math.ceil(data.pricing.total)}&addInfo=${encodeURIComponent(
-            `${data.orderId} THANH TOAN BOI ${(data.client?.clientId || "").toUpperCase()}`,
-        )}&accountName=Vien%20nghien%20cuu%20va%20phat%20trien%20san%20pham%20thien%20nhien" alt="QR Code" style="width: 125px;" />
+            `${data.orderId}`,
+        )}&accountName=Vien%20nghien%20cuu%20va%20phat%20trien%20san%20pham%20thien%20nhien" alt="QR Code" style="width: 105px;" />
                             </td>
                         </tr>
                     </table>

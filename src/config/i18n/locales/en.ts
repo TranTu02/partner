@@ -293,6 +293,7 @@ export default {
                     bankName: "ACB Bank - Hanoi Branch",
                     transferContent: "Transfer Content",
                 },
+                customerContent: "< Add customer information if needed >",
                 customerConfirmation: "Customer Confirmation",
             },
         },

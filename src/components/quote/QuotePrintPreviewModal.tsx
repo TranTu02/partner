@@ -240,7 +240,7 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                             })} đ</td>
                         </tr>
                          <tr style="font-size: 16px;">
-                            <td style="text-align: right; padding-right: 20px; font-weight: bold; border: none !important;">${t("parameter.sumAfterTax", "Tổng tiền sau thuế")}:</td>
+                            <td style="text-align: right; padding-right: 20px; font-weight: bold; border: none !important;">${t("quote.total", "Tổng thanh toán")}:</td>
                             <td style="text-align: right; font-weight: bold; border: none !important;">${Math.ceil(data.pricing.total).toLocaleString("vi-VN", {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 2,
