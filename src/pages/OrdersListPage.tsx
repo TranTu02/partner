@@ -245,7 +245,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                 tax: storedTax,
                 total: storedTotal,
             },
-            discount: fullOrder.discount || 0,
+            discountRate: fullOrder.discountRate || 0,
         };
 
         setPrintData(data);
