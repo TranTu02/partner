@@ -31,21 +31,140 @@ Tất cả các bảng (ngoại trừ bảng trung gian thuần túy) phải bao
 
 ## II. CHI TIẾT SCHEMA (DETAILED SCHEMA)
 
-### A. MODULE DANH MỤC LÕI (CORE CATALOGS)
+### A. SCHEMA IDENTITY (`identity`)
 
-Đây là bộ khung định nghĩa năng lực phân tích của phòng Lab.
+Chứa thông tin danh tính và phiên làm việc.
 
-#### 1. Bảng `parameters` (Chỉ tiêu phân tích)
+#### 1. Bảng `identities` (Danh tính User)
 
-Lưu trữ danh tính của các chỉ tiêu hóa/lý/vi sinh.
+| Column Name      | Type    | Key    | Description                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| :--------------- | :------ | :----- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `identityId`     | `text`  | **PK** | Custom Text ID.                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `email`          | `text`  | **UQ** | Email.                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `identityName`   | `text`  |        | Tên hiển thị.                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `alias`          | `text`  |        | Bí danh trong vị trí công việc.                                                                                                                                                                                                                                                                                                                                                                                               |
+| `roles`          | `jsonb` |        | Vị trí công việc: `{'admin': true/false, 'customerService': true/false, 'technician': true/false, 'collaborator': true/false, 'administrative': true/false, 'accountant': true/false, 'sampleManager': true/false, 'superAdmin': true/false, 'dispatchClerk': true/false, 'documentManagementSpecialist': true/false, bot:true/false , IT: true/false , marketingCommunications: true/false, qualityControl: true/false,  }`. |
+| `permissions`    | `jsonb` |        | Quyền truy cập: .                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `password`       | `text`  |        | Mật khẩu.                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `identityStatus` | `text`  |        | Trạng thái: `{'active', 'inactive'}`.                                                                                                                                                                                                                                                                                                                                                                                         |
+| _Audit Cols_     | ...     |        |                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
-| Column Name       | Type    | Key    | Description                                    |
-| :---------------- | :------ | :----- | :--------------------------------------------- |
-| `parameterId`     | `text`  | **PK** | ID tùy chỉnh (VD: `PAR001`).                   |
-| `parameterName`   | `text`  |        | Tên chỉ tiêu (VD: `Chì (Pb)`, `Tổng số VSV`).  |
-| `displayStyle`    | `jsonb` |        | Cấu hình hiển thị (Định dạng số thập phân...). |
-| `technicianAlias` | `text`  |        | Tên nội bộ cho kỹ thuật viên.                  |
-| _Audit Cols_      | ...     |        |                                                |
+#### 2. Bảng `sessions` (Phiên đăng nhập)
+
+| Column Name     | Type        | Key    | Description                               |
+| :-------------- | :---------- | :----- | :---------------------------------------- |
+| `sessionId`     | `text`      | **PK** | Custom Text ID.                           |
+| `identityId`    | `text`      | **FK** | Tham chiếu `identities`.                  |
+| `sessionExpiry` | `timestamp` |        | Thời gian hết hạn phiên.                  |
+| `sessionStatus` | `text`      |        | `active` (default), `expired`, `revoked`. |
+| `ipAddress`     | `text`      |        | IP người dùng.                            |
+| `sessionDomain` | `text`      |        | Domain đăng nhập.                         |
+| `createdAt`     | `timestamp` |        | Thời điểm tạo phiên.                      |
+| `modifiedAt`    | `timestamp` |        | Thời điểm cập nhật cuối.                  |
+
+---
+
+### B. SCHEMA CRM (`crm`)
+
+Chứa thông tin khách hàng và bán hàng.
+
+#### 1. Bảng `clients` (Danh sách Khách hàng)
+
+| Column Name        | Type      | Key    | Description                                                                                                                                 |
+| :----------------- | :-------- | :----- | :------------------------------------------------------------------------------------------------------------------------------------------ |
+| `clientId`         | `text`    | **PK** | Custom Text ID.                                                                                                                             |
+| `clientName`       | `text`    |        | Tên công ty / Cá nhân.                                                                                                                      |
+| `legalId`          | `text`    |        | Mã số thuế / CMND.                                                                                                                          |
+| `clientAddress`    | `text`    |        | Địa chỉ trụ sở.                                                                                                                             |
+| `clientPhone`      | `text`    |        | SĐT trụ sở.                                                                                                                                 |
+| `clientEmail`      | `text`    |        | Email trụ sở.                                                                                                                               |
+| `clientSaleScope`  | `text`    |        | Phạm vi quyền: `'public'` (Toàn cty), `'private'` (Riêng sale).                                                                             |
+| `availableByIds`   | `text[]`  |        | Danh sách ID Sale/CTV được phép truy cập (nếu private).                                                                                     |
+| `availableByName`  | `text[]`  |        | Danh sách tên Sale/CTV được phép truy cập (nếu private).                                                                                    |
+| `clientContacts`   | `jsonb[]` |        | [{ contactName, contactPhone, contactEmail, contactPosition, contactAddress, contactId }]. **Note**: Frontend có thể dùng alias `contacts`. |
+| `invoiceInfo`      | `jsonb`   |        | Thông tin xuất hóa đơn {taxAddress, taxCode, taxName, taxEmail }.                                                                           |
+| `totalOrderAmount` | `numeric` |        | Tổng doanh số tích lũy (Cached).                                                                                                            |
+| _Audit Cols_       | ...       |        |                                                                                                                                             |
+
+#### 2. Bảng `orders` (Đơn hàng)
+
+| Column Name                    | Type      | Key    | Description                                                                                                                                                                                            |
+| :----------------------------- | :-------- | :----- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `orderId`                      | `text`    | **PK** | Custom Text ID.                                                                                                                                                                                        |
+| `quoteId`                      | `text`    | **FK** | Tham chiếu báo giá nguồn (nếu có).                                                                                                                                                                     |
+| `clientId`                     | `text`    | **FK** |                                                                                                                                                                                                        |
+| `client`                       | `jsonb`   |        | Snapshot khách hàng.                                                                                                                                                                                   |
+| `contactPerson`                | `jsonb`   |        | Thông tin người liên hệ.                                                                                                                                                                               |
+| `salePersonId`                 | `text`    |        |                                                                                                                                                                                                        |
+| `salePerson`                   | `text`    |        |                                                                                                                                                                                                        |
+| `saleCommissionPercent`        | `numeric` |        | % doanh số cho salePerson.                                                                                                                                                                             |
+| `samples`                      | `jsonb[]` |        | Chi tiết yêu cầu: `[{ sampleName, sampleTypeName ,analyses: [{parameterName ,parameterId, feeBeforeTax, taxRate, feeAfterTax }]`. Note: `feeBeforeTax` có thể null và cần tính ngược từ `feeAfterTax`. |
+| `totalAmount`                  | `numeric` |        | Giá trị hợp đồng.                                                                                                                                                                                      |
+| `totalFeeBeforeTax`            | `numeric` |        | Tổng chưa thuế (Sum Net Prices).                                                                                                                                                                       |
+| `totalFeeBeforeTaxAndDiscount` | `numeric` |        | Tổng giá niêm yết (Sum List Prices - trước khi trừ chiết khấu).                                                                                                                                        |
+| `totalTaxValue`                | `numeric` |        | Giá trị thuế                                                                                                                                                                                           |
+| `totalDiscountValue`           | `numeric` |        | Giá trị giảm giá                                                                                                                                                                                       |
+| `orderStatus`                  | `text`    |        | `Pending`, `Processing`, `Completed`, `Cancelled`.                                                                                                                                                     |
+| `taxRate`                      | `numeric` |        | Thuế suất áp dụng chung.                                                                                                                                                                               |
+| `discountRate`                 | `numeric` |        | Số tiền/Phần trăm chiết khấu (trên tổng chưa thuế).                                                                                                                                                    |
+| `paymentStatus`                | `text`    |        | `Unpaid`, `Partial`, `Paid`, `Debt`.                                                                                                                                                                   |
+| `transactions`                 | `jsonb[]` |        | Lịch sử thanh toán: `[{ amount, date, method, note }]`.                                                                                                                                                |
+| _Audit Cols_                   | ...       |        |                                                                                                                                                                                                        |
+
+#### 3. Bảng `quotes` (Báo giá)
+
+Bảng này cập nhật logic sử dụng `matrixId` để tham chiếu giá và phương pháp.
+
+| Column Name                    | Type      | Key    | Description                                         |
+| :----------------------------- | :-------- | :----- | :-------------------------------------------------- |
+| `quoteId`                      | `text`    | **PK** | Custom Text ID.                                     |
+| `quoteCode`                    | `text`    |        | Mã báo giá (Readable).                              |
+| `clientId`                     | `text`    | **FK** |                                                     |
+| `client`                       | `jsonb`   |        | Snapshot thông tin khách khi báo giá.               |
+| `salePersonId`                 | `text`    |        |                                                     |
+| `salePerson`                   | `jsonb`   |        | Thông tin Sale phụ trách: `{ id, name }`.           |
+| `contactPerson`                | `jsonb`   |        | Thông tin người liên hệ.                            |
+| `samples`                      | `jsonb[]` |        | Danh sách mẫu & chỉ tiêu. Chi tiết dùng `matrixId`. |
+| `totalFeeBeforeTax`            | `numeric` |        | Tổng chưa thuế (Sum Net Prices).                    |
+| `totalFeeBeforeTaxAndDiscount` | `numeric` |        | Tổng giá niêm yết (Sum List Prices).                |
+| `totalTaxValue`                | `numeric` |        | Giá trị thuế                                        |
+| `totalDiscountValue`           | `numeric` |        | Giá trị giảm giá                                    |
+| `taxRate`                      | `numeric` |        | Thuế suất áp dụng chung.                            |
+| `discount`                     | `numeric` |        | Số tiền/Phần trăm chiết khấu (trên tổng chưa thuế). |
+| `totalAmount`                  | `numeric` |        | Tổng tiền cuối cùng.                                |
+| `quoteStatus`                  | `text`    |        | `Draft`, `Sent`, `Approved`, `Expired`.             |
+| _Audit Cols_                   | ...       |        |                                                     |
+
+---
+
+### C. SCHEMA LIBRARY (`library`)
+
+Chứa các bảng danh mục cấu hình.
+
+#### 1. Bảng `matrices` (Ma trận cấu hình & Giá)
+
+Bảng trung gian quan trọng nhất, kết hợp 3 bảng trên để tạo ra đơn giá và ngưỡng kỹ thuật.
+
+| Column Name             | Type      | Key    | Description                                            |
+| :---------------------- | :-------- | :----- | :----------------------------------------------------- |
+| `matrixId`              | `text`    | **PK** | ID tùy chỉnh (VD: `MAT001`).                           |
+| `parameterId`           | `text`    |        | (Optional) Tham chiếu `parameters` nếu có.             |
+| `protocolId`            | `text`    |        | (Optional) Tham chiếu `protocols` nếu có.              |
+| `sampleTypeId`          | `text`    | **FK** | Tham chiếu `sampleTypes`.                              |
+| `protocolCode`          | `text`    |        | Mã phương pháp (Nhập trực tiếp hoặc từ protocol).      |
+| `protocolSource`        | `text`    |        | Nguồn phương pháp.                                     |
+| `protocolAccreditation` | `jsonb`   |        | Phạm vi được công nhận của phương pháp.                |
+| `parameterName`         | `text`    |        | Tên chỉ tiêu (Nhập trực tiếp).                         |
+| `sampleTypeName`        | `text`    |        | Tham chiếu `sampleTypes`.                              |
+| `feeBeforeTax`          | `numeric` |        | Đơn giá trước thuế.                                    |
+| `taxRate`               | `numeric` |        | Thuế suất (8, 10...).                                  |
+| `feeAfterTax`           | `numeric` |        | Đơn giá sau thuế (Niêm yết).                           |
+| `LOD`                   | `text`    |        | Giới hạn phát hiện (Limit of Detection).               |
+| `LOQ`                   | `text`    |        | Giới hạn định lượng (Limit of Quantitation).           |
+| `thresholdLimit`        | `text`    |        | Ngưỡng quy chuẩn cho phép (Để đánh giá Đạt/Không đạt). |
+| `turnaroundTime`        | `int`     |        | Thời gian thực hiện tiêu chuẩn (số ngày).              |
+| `technicianGroupId`     | `text`    |        | Tổ chuyên môn phụ trách.                               |
+| _Audit Cols_            | ...       |        |                                                        |
 
 #### 2. Bảng `protocols` (Phương pháp thử - SOP)
 
@@ -59,7 +178,19 @@ Danh mục các tiêu chuẩn áp dụng (TCVN, ISO, ASTM...).
 | `protocolAccreditation` | `jsonb` |        | Phạm vi được công nhận của phương pháp: `{"VILAS": true, "TDC": true}`. |
 | _Audit Cols_            | ...     |        |                                                                         |
 
-#### 3. Bảng `sampleTypes` (Loại mẫu/Nhóm sản phẩm)
+#### 3. Bảng `parameters` (Chỉ tiêu phân tích)
+
+Lưu trữ danh tính của các chỉ tiêu hóa/lý/vi sinh.
+
+| Column Name       | Type    | Key    | Description                                    |
+| :---------------- | :------ | :----- | :--------------------------------------------- |
+| `parameterId`     | `text`  | **PK** | ID tùy chỉnh (VD: `PAR001`).                   |
+| `parameterName`   | `text`  |        | Tên chỉ tiêu (VD: `Chì (Pb)`, `Tổng số VSV`).  |
+| `displayStyle`    | `jsonb` |        | Cấu hình hiển thị (Định dạng số thập phân...). |
+| `technicianAlias` | `text`  |        | Tên nội bộ cho kỹ thuật viên.                  |
+| _Audit Cols_      | ...     |        |                                                |
+
+#### 4. Bảng `sampleTypes` (Loại mẫu/Nhóm sản phẩm)
 
 Phân loại mẫu để áp dụng đơn giá và ngưỡng quy chuẩn.
 
@@ -70,46 +201,50 @@ Phân loại mẫu để áp dụng đơn giá và ngưỡng quy chuẩn.
 | `displayTypeStyle` | `jsonb` |        | {eng: <tên tiếng anh>, default: <tên tiếng Việt>}   |
 | _Audit Cols_       | ...     |        |                                                     |
 
-#### 4. Bảng `matrices` (Ma trận cấu hình & Giá)
+#### 5. Bảng `parameterGroups` (Nhóm chỉ tiêu / Gói kiểm)
 
-Bảng trung gian quan trọng nhất, kết hợp 3 bảng trên để tạo ra đơn giá và ngưỡng kỹ thuật.
+Bảng định nghĩa các gói/nhóm chỉ tiêu để tư vấn bán hàng và báo giá nhanh.
 
-| Column Name             | Type      | Key    | Description                                            |
-| :---------------------- | :-------- | :----- | :----------------------------------------------------- |
-| `matrixId`              | `text`    | **PK** | ID tùy chỉnh (VD: `MAT001`).                           |
-| `parameterId`           | `text`    | **FK** | Tham chiếu `parameters`.                               |
-| `protocolId`            | `text`    | **FK** | Tham chiếu `protocols`.                                |
-| `sampleTypeId`          | `text`    | **FK** | Tham chiếu `sampleTypes`.                              |
-| `protocolCode`          | `text`    |        | Mã phương pháp.                                        |
-| `protocolSource`        | `text`    |        | Nguồn phương pháp.                                     |
-| `protocolAccreditation` | `jsonb`   |        | Phạm vi được công nhận của phương pháp.                |
-| `parameterName`         | `text`    |        | Tham chiếu `parameters`.                               |
-| `sampleTypeName`        | `text`    |        | Tham chiếu `sampleTypes`.                              |
-| `feeAfterTax`           | `numeric` |        | Đơn giá niêm yết.                                      |
-| `taxRate`               | `numeric` |        | Thuế suất (8, 10...).                                  |
-| `LOD`                   | `text`    |        | Giới hạn phát hiện (Limit of Detection).               |
-| `LOQ`                   | `text`    |        | Giới hạn định lượng (Limit of Quantitation).           |
-| `thresholdLimit`        | `text`    |        | Ngưỡng quy chuẩn cho phép (Để đánh giá Đạt/Không đạt). |
-| `turnaroundTime`        | `int`     |        | Thời gian thực hiện tiêu chuẩn (số ngày).              |
-| `technicianGroupId`     | `text`    |        | Tổ chuyên môn phụ trách.                               |
-| _Audit Cols_            | ...       |        |                                                        |
+| Column Name               | Type            | Key    | Description                                                        |
+| :------------------------ | :-------------- | :----- | :----------------------------------------------------------------- |
+| `groupId`                 | `text`          | **PK** | Mã nhóm chỉ tiêu (Custom Text ID).                                 |
+| `groupName`               | `text`          |        | Tên nhóm chỉ tiêu (VD: Gói kiểm nhanh thực phẩm).                  |
+| `matrixIds`               | `text[]`        |        | Mảng mã liên kết với bảng `library.matrices`. (GIN Index support). |
+| `groupNote`               | `text`          |        | Ghi chú cho nhóm chỉ tiêu.                                         |
+| `sampleTypeId`            | `text`          | **FK** | Link ID loại sản phẩm (`library.sampleTypes`).                     |
+| `sampleTypeName`          | `text`          |        | Snapshot tên loại sản phẩm áp dụng.                                |
+| `feeBeforeTaxAndDiscount` | `numeric(15,2)` |        | Giá tiền trước giảm giá. Default 0.                                |
+| `discountRate`            | `numeric(5,2)`  |        | Giảm giá (%). Default 0.                                           |
+| `feeBeforeTax`            | `numeric(15,2)` |        | Giá tiền sau giảm giá (Trước thuế). Default 0.                     |
+| `taxRate`                 | `numeric(5,2)`  |        | Thuế suất (%). Default 0.                                          |
+| `feeAfterTax`             | `numeric(15,2)` |        | Giá tiền sau thuế. Default 0.                                      |
+| _Audit Cols_              | ...             |        |                                                                    |
+
+**Indexes:**
+
+-   `idx_paramgroup_sampletype` on `sampleTypeId` (Lọc gói theo ngành hàng).
+-   `idx_paramgroup_matrices` (GIN) on `matrixIds` (Tìm gói chứa matrixId cụ thể).
 
 ---
 
-### B. MODULE PHÒNG LAB (OPERATION)
+### D. SCHEMA LAB (`lab`)
+
+Các bảng vận hành phòng thí nghiệm.
 
 #### 1. Bảng `receipts` (Phiếu nhận mẫu)
 
-| Column Name     | Type        | Key    | Description                                |
-| :-------------- | :---------- | :----- | :----------------------------------------- |
-| `receiptId`     | `text`      | **PK** |                                            |
-| `receiptCode`   | `text`      | **UQ** | Mã phiếu in: `TNM2501-001`.                |
-| `client`        | `jsonb`     |        | Snapshot thông tin khách hàng.             |
-| `receiptStatus` | `text`      |        | `Pending`, `Processing`, `Done`, `Cancel`. |
-| `receiptDate`   | `timestamp` |        | Ngày nhận mẫu thực tế.                     |
-| `deadline`      | `timestamp` |        | Ngày hẹn trả kết quả dự kiến.              |
-| `receiptNote`   | `text`      |        | Ghi chú chung cho phiếu nhận.              |
-| _Audit Cols_    | ...         |        |                                            |
+| Column Name      | Type        | Key    | Description                                |
+| :--------------- | :---------- | :----- | :----------------------------------------- |
+| `receiptId`      | `text`      | **PK** |                                            |
+| `receiptCode`    | `text`      | **UQ** | Mã phiếu in: `TNM2501-001`.                |
+| `client`         | `jsonb`     |        | Snapshot thông tin khách hàng.             |
+| `receiptStatus`  | `text`      |        | `Pending`, `Processing`, `Done`, `Cancel`. |
+| `receiptDate`    | `timestamp` |        | Ngày nhận mẫu thực tế.                     |
+| `deadline`       | `timestamp` |        | Ngày hẹn trả kết quả dự kiến.              |
+| `receiptNote`    | `text`      |        | Ghi chú chung cho phiếu nhận.              |
+| `orderId`        | `text`      |        | ID đơn hàng.                               |
+| `trackingNumber` | `text`      |        | Số theo dõi.                               |
+| _Audit Cols_     | ...         |        |                                            |
 
 #### 2. Bảng `samples` (Mẫu phân tích)
 
@@ -142,80 +277,9 @@ Bảng trung gian quan trọng nhất, kết hợp 3 bảng trên để tạo ra
 
 ---
 
-### C. MODULE SALES & KHÁCH HÀNG (CRM)
+### E. SCHEMA DOCUMENT (`document`)
 
-#### 1. Bảng `clients` (Danh sách Khách hàng)
-
-| Column Name        | Type      | Key    | Description                                                                                                                                 |
-| :----------------- | :-------- | :----- | :------------------------------------------------------------------------------------------------------------------------------------------ |
-| `clientId`         | `text`    | **PK** | Custom Text ID.                                                                                                                             |
-| `clientName`       | `text`    |        | Tên công ty / Cá nhân.                                                                                                                      |
-| `legalId`          | `text`    |        | Mã số thuế / CMND.                                                                                                                          |
-| `clientAddress`    | `text`    |        | Địa chỉ trụ sở.                                                                                                                             |
-| `clientPhone`      | `text`    |        | SĐT trụ sở.                                                                                                                                 |
-| `clientEmail`      | `text`    |        | Email trụ sở.                                                                                                                               |
-| `clientSaleScope`  | `text`    |        | Phạm vi quyền: `'public'` (Toàn cty), `'private'` (Riêng sale).                                                                             |
-| `availableByIds`   | `text[]`  |        | Danh sách ID Sale/CTV được phép truy cập (nếu private).                                                                                     |
-| `availableByName`  | `text[]`  |        | Danh sách tên Sale/CTV được phép truy cập (nếu private).                                                                                    |
-| `clientContacts`   | `jsonb[]` |        | [{ contactName, contactPhone, contactEmail, contactPosition, contactAddress, contactId }]. **Note**: Frontend có thể dùng alias `contacts`. |
-| `invoiceInfo`      | `jsonb`   |        | Thông tin xuất hóa đơn {taxAddress, taxCode, taxName, taxEmail }.                                                                           |
-| `totalOrderAmount` | `numeric` |        | Tổng doanh số tích lũy (Cached).                                                                                                            |
-| _Audit Cols_       | ...       |        |                                                                                                                                             |
-
-#### 2. Bảng `quotes` (Báo giá)
-
-Bảng này cập nhật logic sử dụng `matrixId` để tham chiếu giá và phương pháp.
-
-| Column Name                    | Type      | Key    | Description                                         |
-| :----------------------------- | :-------- | :----- | :-------------------------------------------------- |
-| `quoteId`                      | `text`    | **PK** | Custom Text ID.                                     |
-| `quoteCode`                    | `text`    |        | Mã báo giá (Readable).                              |
-| `clientId`                     | `text`    | **FK** |                                                     |
-| `client`                       | `jsonb`   |        | Snapshot thông tin khách khi báo giá.               |
-| `salePersonId`                 | `text`    |        |                                                     |
-| `salePerson`                   | `jsonb`   |        | Thông tin Sale phụ trách: `{ id, name }`.           |
-| `contactPerson`                | `jsonb`   |        | Thông tin người liên hệ.                            |
-| `samples`                      | `jsonb[]` |        | Danh sách mẫu & chỉ tiêu. Chi tiết dùng `matrixId`. |
-| `totalFeeBeforeTax`            | `numeric` |        | Tổng chưa thuế.                                     |
-| `totalFeeBeforeTax`            | `numeric` |        | Giá trị đơn hàng trước thuế (đã áp giảm giá)        |
-| `totalFeeBeforeTaxAndDiscount` | `numeric` |        | Giá trị đơn hàng trước thuế và giảm giá             |
-| `totalTaxValue`                | `numeric` |        | Giá trị thuế                                        |
-| `totalDiscountValue`           | `numeric` |        | Giá trị giảm giá                                    |
-| `taxRate`                      | `numeric` |        | Thuế suất áp dụng chung.                            |
-| `discount`                     | `numeric` |        | Số tiền/Phần trăm chiết khấu.                       |
-| `totalAmount`                  | `numeric` |        | Tổng tiền cuối cùng.                                |
-| `quoteStatus`                  | `text`    |        | `Draft`, `Sent`, `Approved`, `Expired`.             |
-| _Audit Cols_                   | ...       |        |                                                     |
-
-#### 3. Bảng `orders` (Đơn hàng)
-
-| Column Name             | Type      | Key    | Description                                                                                                                                                                                            |
-| :---------------------- | :-------- | :----- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `orderId`               | `text`    | **PK** | Custom Text ID.                                                                                                                                                                                        |
-| `quoteId`               | `text`    | **FK** | Tham chiếu báo giá nguồn (nếu có).                                                                                                                                                                     |
-| `clientId`              | `text`    | **FK** |                                                                                                                                                                                                        |
-| `client`                | `jsonb`   |        | Snapshot khách hàng.                                                                                                                                                                                   |
-| `contactPerson`         | `jsonb`   |        | Thông tin người liên hệ.                                                                                                                                                                               |
-| `salePersonId`          | `text`    |        |                                                                                                                                                                                                        |
-| `salePerson`            | `text`    |        |                                                                                                                                                                                                        |
-| `saleCommissionPercent` | `numeric` |        | % doanh số cho salePerson.                                                                                                                                                                             |
-| `samples`               | `jsonb[]` |        | Chi tiết yêu cầu: `[{ sampleName, sampleTypeName ,analyses: [{parameterName ,parameterId, feeBeforeTax, taxRate, feeAfterTax }]`. Note: `feeBeforeTax` có thể null và cần tính ngược từ `feeAfterTax`. |
-
-| `totalAmount` | `numeric` | | Giá trị hợp đồng. |
-| `totalFeeBeforeTax` | `numeric` | | Giá trị đơn hàng trước thuế (đã áp giảm giá) |
-| `totalFeeBeforeTaxAndDiscount` | `numeric` | | Giá trị đơn hàng trước thuế và giảm giá |
-| `totalTaxValue` | `numeric` | | Giá trị thuế |
-| `totalDiscountValue` | `numeric` | | Giá trị giảm giá |
-| `orderStatus` | `text` | | `Pending`, `Processing`, `Completed`, `Cancelled`. |
-| `taxRate` | `numeric` | | Thuế suất áp dụng chung. |
-| `discount` | `numeric` | | Số tiền/Phần trăm chiết khấu. |
-| `paymentStatus` | `text` | | `Unpaid`, `Partial`, `Paid`, `Debt`. |
-| `transactions` | `jsonb[]` | | Lịch sử thanh toán: `[{ amount, date, method, note }]`. |
-| _Audit Cols_ | ... | | |
-
----
-
-### D. MODULE TÀI LIỆU & FILE (DMS)
+Liên quan đến file và tài liệu.
 
 #### 1. Bảng `files` (Quản lý File vật lý)
 
@@ -255,7 +319,9 @@ Bảng này cập nhật logic sử dụng `matrixId` để tham chiếu giá v�
 
 ---
 
-### E. MODULE HỖ TRỢ & AI (SERVICES)
+### F. SCHEMA SERVICE (`service`)
+
+Liên quan đến các dịch vụ ngoài và hỗ trợ.
 
 #### 1. Bảng `opai` (OpenAI Logs)
 
@@ -279,36 +345,7 @@ Bảng này cập nhật logic sử dụng `matrixId` để tham chiếu giá v�
 | `shipOrder`      | `jsonb` |        | Snapshot thông tin đơn giao.              |
 | _Audit Cols_     | ...     |        |                                           |
 
-#### 3. Bảng `identities` (Danh tính User)
-
-| Column Name      | Type    | Key    | Description                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| :--------------- | :------ | :----- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `identityId`     | `text`  | **PK** | Custom Text ID.                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `email`          | `text`  | **UQ** | Email.                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `identityName`   | `text`  |        | Tên hiển thị.                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `alias`          | `text`  |        | Bí danh trong vị trí công việc.                                                                                                                                                                                                                                                                                                                                                                                               |
-| `roles`          | `jsonb` |        | Vị trí công việc: `{'admin': true/false, 'customerService': true/false, 'technician': true/false, 'collaborator': true/false, 'administrative': true/false, 'accountant': true/false, 'sampleManager': true/false, 'superAdmin': true/false, 'dispatchClerk': true/false, 'documentManagementSpecialist': true/false, bot:true/false , IT: true/false , marketingCommunications: true/false, qualityControl: true/false,  }`. |
-| `permissions`    | `jsonb` |        | Quyền truy cập: .                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `password`       | `text`  |        | Mật khẩu.                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `identityStatus` | `text`  |        | Trạng thái: `{'active', 'inactive'}`.                                                                                                                                                                                                                                                                                                                                                                                         |
-| _Audit Cols_     | ...     |        |                                                                                                                                                                                                                                                                                                                                                                                                                               |
-
-#### 4. Bảng `sessions` (Phiên đăng nhập)
-
-| Column Name     | Type        | Key    | Description                               |
-| :-------------- | :---------- | :----- | :---------------------------------------- |
-| `sessionId`     | `text`      | **PK** | Custom Text ID.                           |
-| `identityId`    | `text`      | **FK** | Tham chiếu `identities`.                  |
-| `sessionExpiry` | `timestamp` |        | Thời gian hết hạn phiên.                  |
-| `sessionStatus` | `text`      |        | `active` (default), `expired`, `revoked`. |
-| `ipAddress`     | `text`      |        | IP người dùng.                            |
-| `sessionDomain` | `text`      |        | Domain đăng nhập.                         |
-| `createdAt`     | `timestamp` |        | Thời điểm tạo phiên.                      |
-| `modifiedAt`    | `timestamp` |        | Thời điểm cập nhật cuối.                  |
-
-#### 5. Bảng `inventories`, `suppliers`, `subcontractors`
-
-(Hiện tại ở dạng Placeholder - Sẽ chi tiết hóa khi có nghiệp vụ Kho)
+#### 3. Các bảng khác (Placeholder)
 
 -   **inventories**: Quản lý hóa chất, vật tư tiêu hao.
 -   **suppliers**: Nhà cung cấp vật tư.

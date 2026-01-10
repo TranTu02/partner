@@ -46,7 +46,7 @@ Definitions for Quote Management.
 -   **`Quote`**: The Quote entity, sharing many structures with `Order` but representing a pre-order state.
     -   `quoteStatus`: Lifecycle state (`Draft`, `Sent`, `Approved`, `Expired`).
     -   `samples`: JSONB array of proposed samples.
-    -   `totalAmount`, `discount`, `taxRate`: Pricing details.
+    -   `totalAmount`, `discountRate`, `taxRate`: Pricing details.
 
 ### `parameter.ts`
 
@@ -56,6 +56,11 @@ Definitions for the LIMS Analysis Parameters.
 -   **`Protocol`**: The testing method/standard (e.g., "ISO 10523").
 -   **`Matrix`**: The intersection of a Parameter, Protocol, and Sample Type.
     -   Reference table defining price, turnaround time, limit of detection (LOD), and limit of quantification (LOQ).
+    -   **Pricing Fields**:
+        -   `feeBeforeTaxAndDiscount`: List Price (Giá niêm yết).
+        -   `discountRate`: Discount percentage.
+        -   `feeBeforeTax`: Net Price (Giá sau giảm giá, chưa thuế).
+        -   `feeAfterTax`: Gross Price (Giá sau thuế).
     -   This is the entity selected by users when adding analyses to an order/quote.
 
 ## Shared/Utility Types

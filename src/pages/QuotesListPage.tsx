@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft } from "lucide-react";
+import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft, Copy } from "lucide-react";
 import type { QuoteEditorRef } from "@/components/quote/QuoteEditor";
 import { QuoteEditor } from "@/components/quote/QuoteEditor";
 // import type { Quote } from "../data/mockData";
@@ -13,6 +13,8 @@ import type { Quote } from "@/types/quote";
 import { toast } from "sonner";
 import { Pagination } from "@/components/common/Pagination";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { QuotePrintPreviewModal } from "@/components/quote/QuotePrintPreviewModal";
+import type { QuotePrintData } from "@/components/quote/QuotePrintTemplate";
 
 interface QuotesListPageProps {
     activeMenu: string;
@@ -31,6 +33,10 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
     const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
+    // Print State
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+    const [printData, setPrintData] = useState<QuotePrintData | null>(null);
+
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
@@ -42,6 +48,7 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
     const isDetail = location.pathname.endsWith("/detail");
     const isEdit = location.pathname.endsWith("/edit");
     const quoteId = searchParams.get("quoteId");
+    const duplicateId = searchParams.get("duplicateId");
 
     const isEditorActive = isCreate || isDetail || isEdit;
     const viewMode = isCreate ? "create" : isEdit ? "edit" : "view";
@@ -101,15 +108,132 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                     if (found) setSelectedQuote(found);
                 }
             } else if (isCreate) {
-                setSelectedQuote(null);
+                if (duplicateId) {
+                    try {
+                        const response = await getQuoteDetail({ query: { quoteId: duplicateId } });
+                        if (response.success && response.data) {
+                            setSelectedQuote(response.data as Quote);
+                        } else {
+                            const found = quotes.find((q) => q.quoteId === duplicateId);
+                            if (found) setSelectedQuote(found);
+                        }
+                    } catch (error) {
+                        console.error("Failed to load duplicate quote", error);
+                        const found = quotes.find((q) => q.quoteId === duplicateId);
+                        if (found) setSelectedQuote(found);
+                    }
+                } else {
+                    setSelectedQuote(null);
+                }
             }
         };
         loadSelectedQuote();
-    }, [quoteId, isDetail, isEdit, isCreate]);
+    }, [quoteId, isDetail, isEdit, isCreate, duplicateId, quotes]);
 
     const handleCreate = () => navigate("/quotes/create");
     const handleViewDetail = (quote: Quote) => navigate(`/quotes/detail?quoteId=${quote.quoteId}`);
     const handleEdit = (quote: Quote) => navigate(`/quotes/edit?quoteId=${quote.quoteId}`);
+
+    const handleDuplicate = (quote: Quote) => {
+        navigate(`/quotes/create?duplicateId=${quote.quoteId}`);
+    };
+
+    const handlePrint = async (quote: Quote) => {
+        let fullQuote = quote;
+        if (!quote.samples || quote.samples.length === 0) {
+            try {
+                const res = await getQuoteDetail({ query: { quoteId: quote.quoteId } });
+                if (res.success && res.data) {
+                    fullQuote = res.data as Quote;
+                }
+            } catch (e) {
+                console.error("Failed to fetch full quote for print", e);
+                toast.error("Failed to load full quote details");
+                return;
+            }
+        }
+
+        // Calculate Pricing
+        const storedSubtotal = Number(fullQuote.totalFeeBeforeTax) || 0;
+        const storedDiscount = Number((fullQuote as any).totalDiscountValue) || 0;
+        const storedNet = Number((fullQuote as any).totalFeeBeforeTaxAndDiscount) || storedSubtotal - storedDiscount;
+        const storedTotal = Number(fullQuote.totalAmount) || 0;
+        const storedTax = storedNet > 0 ? storedTotal - storedNet : 0;
+
+        // Contacts
+        const contact = fullQuote.client?.clientContacts?.[0] || {};
+        const contactPerson = (fullQuote.contactPerson as any)?.identityName || contact.contactName || (contact as any).name || "";
+        const contactPhone = (fullQuote.contactPerson as any)?.phone || contact.contactPhone || (contact as any).phone || "";
+        const contactIdentity = (fullQuote.contactPerson as any)?.identityId || contact.identityId || "";
+        const contactEmail = (fullQuote.contactPerson as any)?.email || contact.contactEmail || (contact as any).email || "";
+        const contactPosition = contact.contactPosition || (contact as any).position || "";
+        const contactAddress = contact.contactAddress || "";
+
+        const data: QuotePrintData = {
+            quoteId: fullQuote.quoteId,
+            client: fullQuote.client
+                ? {
+                      ...fullQuote.client,
+                      clientAddress: fullQuote.client.clientAddress || "",
+                      clientPhone: fullQuote.client.clientPhone || "",
+                      clientEmail: fullQuote.client.clientEmail || "",
+                      invoiceInfo: {
+                          taxName: fullQuote.client.invoiceInfo?.taxName || fullQuote.client.clientName || "",
+                          taxCode: fullQuote.client.invoiceInfo?.taxCode || fullQuote.client.legalId || "",
+                          taxAddress: fullQuote.client.invoiceInfo?.taxAddress || fullQuote.client.clientAddress || "",
+                          taxEmail: fullQuote.client.invoiceInfo?.taxEmail || "",
+                      },
+                  }
+                : null,
+
+            contactPerson,
+            contactPhone,
+            contactIdentity,
+            reportEmail: contactEmail,
+            contactEmail,
+            contactPosition,
+            contactAddress,
+
+            clientAddress: fullQuote.client?.clientAddress || "",
+            taxName: fullQuote.client?.invoiceInfo?.taxName || fullQuote.client?.clientName || "",
+            taxCode: fullQuote.client?.invoiceInfo?.taxCode || fullQuote.client?.legalId || "",
+            taxAddress: fullQuote.client?.invoiceInfo?.taxAddress || fullQuote.client?.clientAddress || "",
+
+            samples: (fullQuote.samples || []).map((s) => ({
+                sampleName: s.sampleName || "",
+                sampleMatrix: s.sampleMatrix || "",
+                sampleNote: s.sampleNote || "",
+                analyses: (s.analyses || []).map((a: any) => {
+                    const quantity = a.quantity || 1;
+                    const taxRate = a.taxRate || 0;
+                    const unitPrice = a.unitPrice || (a.feeBeforeTax ? a.feeBeforeTax / quantity : 0);
+                    const feeBefore = a.feeBeforeTax || unitPrice * quantity;
+                    const feeAfter = a.feeAfterTax || feeBefore * (1 + taxRate / 100);
+
+                    return {
+                        parameterName: a.parameterName,
+                        parameterId: a.parameterId,
+                        feeBeforeTax: feeBefore,
+                        taxRate: taxRate,
+                        feeAfterTax: feeAfter,
+                    };
+                }),
+            })),
+
+            pricing: {
+                subtotal: storedSubtotal,
+                discountAmount: storedDiscount,
+                feeBeforeTax: storedNet,
+                tax: storedTax,
+                total: storedTotal,
+            },
+            discountRate: fullQuote.discountRate || 0,
+            commission: 0,
+        };
+
+        setPrintData(data);
+        setIsPrintModalOpen(true);
+    };
 
     const handleBack = () => {
         if (editorRef.current?.hasUnsavedChanges()) {
@@ -162,6 +286,13 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                     <div className="flex gap-2">
                         {viewMode === "view" && (
                             <>
+                                <button
+                                    onClick={() => navigate(`/quotes/edit?quoteId=${selectedQuote?.quoteId}`)}
+                                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+                                >
+                                    <Pencil className="w-4 h-4" />
+                                    <span className="hidden sm:inline">{t("common.edit")}</span>
+                                </button>
                                 <button
                                     onClick={handleCreateOrder}
                                     className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
@@ -288,7 +419,18 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                                                     >
                                                         <Pencil className="w-4 h-4" />
                                                     </button>
-                                                    <button className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors" title={t("quote.download")}>
+                                                    <button
+                                                        onClick={() => handleDuplicate(quote)}
+                                                        className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors"
+                                                        title={t("common.duplicate")}
+                                                    >
+                                                        <Copy className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handlePrint(quote)}
+                                                        className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors"
+                                                        title={t("quote.download")}
+                                                    >
                                                         <FileDown className="w-4 h-4" />
                                                     </button>
                                                 </div>
@@ -315,6 +457,7 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                     )}
                 </div>
             </div>
+            {printData && <QuotePrintPreviewModal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} data={printData} />}
         </MainLayout>
     );
 }

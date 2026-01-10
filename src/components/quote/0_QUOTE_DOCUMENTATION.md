@@ -17,7 +17,32 @@ This directory contains components related to Quote (Báo giá) management.
 **State Management**:
 
 -   **Status**: `quoteStatus` defaults to `"Draft"` on create.
--   **Pricing**: Handles `discount`, `taxRate`, and `commission` (Sale commission).
+-   **Pricing**: Handles `discountRate`, `taxRate`, and `commission` (Sale commission).
+
+**Pricing Logic & Formulas (CRITICAL)**:
+
+1. **Analysis Level**:
+
+    - `List Price` = `Unit Price` \* `Quantity`
+    - `Net Price` = `List Price` \* (1 - `Discount Rate` / 100)
+    - `VAT` = `Net Price` \* (`Tax Rate` / 100)
+    - `Line Total` (After Tax) = `Net Price` + `VAT`
+
+2. **Sample Level (Footer Summaries)**:
+
+    - `Total Unit Price` (Tổng đơn giá toàn bộ mẫu) = Sum(`List Price`)
+    - `Total Discount` (Chiết khấu toàn đơn) = Sum(`List Price` - `Net Price`)
+    - **`Total Before Tax` (Tổng tiền trước thuế)** = Sum(`Net Price`)
+        - _Note: Sum of Net Price (List Price - Item Discount)._
+    - `Total After Tax` (Tổng tiền thanh toán (đã bao gồm VAT)) = Sum(`Line Total`)
+        - _Note: Sum of (Net Price + VAT)._
+
+3. **Quote Level (Grand Totals)**:
+    - `Subtotal` (TotalFeeBeforeTax) = Sum(All Analysis `Net Prices`)
+    - `Discount Amount` (Tiền chiết khấu) = `Subtotal` \* (`Quote Discount Rate` / 100)
+    - `Net Before Tax` = `Subtotal` - `Discount Amount`
+    - `Total Tax` = Sum(All Analysis `VAT`) \* (1 - `Quote Discount Rate` / 100)
+    - `Grand Total` = `Net Before Tax` + `Total Tax`
 
 **Key Features**:
 
@@ -34,6 +59,8 @@ This directory contains components related to Quote (Báo giá) management.
 **Features**:
 
 -   Displays: Subtotal, Discount Amount, Fee Before Tax, VAT, Grand Total.
+-   Use standard labels: "Tổng đơn giá toàn bộ mẫu", "Chiết khấu toàn đơn", "Tổng tiền trước thuế", "Tổng tiền thanh toán (đã bao gồm VAT)".
+-   **UI Layout**: The pricing summary container width is set to `600px` to accommodate longer labels and improve readability.
 -   **Commission**: Allows inputting a Commission % for the sales person, calculates the absolute value, but excludes it from the client-facing Grand Total (internal metric).
 
 ## Print & Export Components
@@ -46,6 +73,12 @@ This directory contains components related to Quote (Báo giá) management.
 
 -   Constructs HTML structure similar to Order but titled "BÁO GIÁ".
 -   **Provider Section**: Displays Institute info (Name, Address, Email) but excludes Phone number as per configuration.
+-   **Discount Display**: Discount percentage is shown in the **Unit Price** column (e.g., `(-10%)`) alongside the value.
+-   **Pricing Logic**:
+    -   `feeBeforeTaxAndDiscount`: Gross Price (Unit Price \* Quantity).
+    -   `feeBeforeTax`: Net Price (after discount) = `feeBeforeTaxAndDiscount * (1 - discount/100)`.
+    -   `feeAfterTax`: Final Price (after tax) = `feeBeforeTax * (1 + tax/100)`.
+-   **Print Preview**: Includes summary rows ("Total Unit Price", "Discount", etc.) and uses `feeBeforeTaxAndDiscount` for the item amount column.
 -   **Pricing Table**: Distinctly displays Unit Price and Totals.
 -   **Notes**:
     -   Validity Note ("Đơn hàng có giá trị...") includes the export date (DD/MM/YYYY).

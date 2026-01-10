@@ -10,7 +10,7 @@ export interface Quote {
     samples: any[]; // jsonb[]
     totalFeeBeforeTax: number;
     taxRate: number;
-    discount: number;
+    discountRate: number;
     totalAmount: number;
     quoteStatus: "Draft" | "Sent" | "Approved" | "Expired";
     contactPerson: { identityId: string; identityName: string }; // jsonb

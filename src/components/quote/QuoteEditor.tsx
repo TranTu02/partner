@@ -80,7 +80,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
     const [taxEmail, setTaxEmail] = useState("");
 
     const [samples, setSamples] = useState<SampleWithQuantity[]>([]);
-    const [discount, setDiscount] = useState(initialData?.discount || 0);
+    const [discountRate, setDiscountRate] = useState(initialData?.discountRate || 0);
     const [commission, setCommission] = useState(0);
 
     // UI State
@@ -120,7 +120,19 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 setReportEmail(contact.contactEmail || (contact as any).email || "");
             }
             if (initialData.samples && initialData.samples.length > 0) {
-                setSamples(initialData.samples);
+                const mappedSamples = initialData.samples.map((s: any) => ({
+                    ...s,
+                    id: s.id || `restored-sample-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                    analyses: (s.analyses || []).map((a: any) => ({
+                        ...a,
+                        id: a.id || `restored-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                    })),
+                }));
+                setSamples(mappedSamples);
+            }
+            // Ensure discountRate is synced from initialData
+            if (initialData.discountRate !== undefined) {
+                setDiscountRate(initialData.discountRate);
             }
         }
     }, [initialData]);
@@ -281,6 +293,9 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 taxRate: taxRate,
                 feeAfterTax: feeAfterTax,
                 quantity: 1,
+                groupId: (matrixItem as any).groupId,
+                groupDiscount: (matrixItem as any).groupDiscount,
+                discountRate: (matrixItem as any).discountRate,
             };
         });
 
@@ -313,8 +328,8 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             const storedSubtotal = Number(initialData.totalFeeBeforeTax) || 0;
             const storedDiscount = Number(initialData.totalDiscountValue) || 0;
             const storedNet = Number(initialData.totalFeeBeforeTaxAndDiscount) || storedSubtotal - storedDiscount;
+            const storedTax = Number(initialData.totalTaxValue) || 0;
             const storedTotal = Number(initialData.totalAmount) || 0;
-            const storedTax = storedTotal - storedNet;
 
             return {
                 subtotal: storedSubtotal,
@@ -325,24 +340,41 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             };
         }
 
-        let subtotal = 0;
-        let totalTax = 0;
+        let totalFeeBeforeTax = 0; // Sum of Analysis Net Prices
+        let sumVAT = 0; // Sum of Analysis VATs
 
         samples.forEach((sample) => {
             sample.analyses.forEach((analysis) => {
-                const lineSubtotal = (analysis.unitPrice || 0) * (analysis.quantity || 1);
-                subtotal += lineSubtotal;
-                totalTax += lineSubtotal * ((analysis.taxRate || 0) / 100);
+                const quantity = Number(analysis.quantity || 1);
+                const unitPrice = Number(analysis.unitPrice || 0);
+                const lineDiscountRate = Number(analysis.discountRate || 0);
+                const taxRate = Number(analysis.taxRate || 0);
+
+                const lineTotalGross = unitPrice * quantity;
+                const lineTotalNet = lineTotalGross * (1 - lineDiscountRate / 100);
+
+                totalFeeBeforeTax += lineTotalNet;
+
+                const lineVAT = lineTotalNet * (taxRate / 100);
+                sumVAT += lineVAT;
             });
         });
 
-        const discountAmount = (subtotal * discount) / 100;
-        const subtotalAfterDiscount = subtotal - discountAmount;
+        const discountAmount = totalFeeBeforeTax * (discountRate / 100);
+        const totalFeeBeforeTaxAndDiscount = totalFeeBeforeTax - discountAmount;
 
-        const taxAfterDiscount = totalTax * (1 - discount / 100);
-        const total = subtotalAfterDiscount + taxAfterDiscount;
+        // Final VAT (Reduced by Quote Discount)
+        const totalTax = sumVAT * (1 - discountRate / 100);
 
-        return { subtotal, discountAmount, feeBeforeTax: subtotalAfterDiscount, tax: taxAfterDiscount, total };
+        const total = totalFeeBeforeTaxAndDiscount + totalTax;
+
+        return {
+            subtotal: totalFeeBeforeTax,
+            discountAmount: discountAmount,
+            feeBeforeTax: totalFeeBeforeTaxAndDiscount,
+            tax: totalTax,
+            total,
+        };
     };
 
     const pricing = calculatePricing();
@@ -388,8 +420,12 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                     : [],
             };
 
+            // Exclude legacy 'discount' field if it exists in initialData
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { discount, ...restInitialData } = initialData || {};
+
             const quoteData = {
-                ...(initialData || {}),
+                ...restInitialData,
                 ...(mode === "create" ? {} : { quoteId: initialData?.quoteId }),
                 quoteStatus: mode === "create" ? "draft" : initialData?.quoteStatus || "draft",
                 salePersonId: mode === "create" ? user?.identityId : initialData?.salePersonId,
@@ -399,16 +435,26 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
 
                 samples: samples.map((s) => ({
                     ...s,
-                    analyses: s.analyses.map((a) => ({
-                        ...a,
-                        parameterPrice: a.unitPrice,
-                        feeBeforeTax: a.unitPrice,
-                        parameterTaxRate: a.taxRate,
-                        tax: (a.unitPrice * (a.taxRate || 0)) / 100,
-                    })),
+                    analyses: s.analyses.map((a) => {
+                        const quantity = a.quantity || 1;
+                        const unitPrice = a.unitPrice || 0;
+                        const lineList = unitPrice * quantity;
+                        const discountRate = a.discountRate || 0;
+                        const discountValue = lineList * (discountRate / 100);
+                        const feeNet = lineList - discountValue;
+
+                        return {
+                            ...a,
+                            parameterPrice: a.unitPrice,
+                            feeBeforeTax: feeNet,
+                            discountRate: a.discountRate,
+                            parameterTaxRate: a.taxRate,
+                            tax: (feeNet * (a.taxRate || 0)) / 100, // Tax on net
+                        };
+                    }),
                 })),
 
-                discount,
+                discountRate,
                 // commission, // Quote might not have commission in backend schema? Adding just in case.
 
                 totalFeeBeforeTax: pricing.subtotal,
@@ -491,16 +537,30 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 sampleName: s.sampleName || "",
                 sampleMatrix: s.sampleMatrix || "",
                 sampleNote: s.sampleNote || "",
-                analyses: s.analyses.map((a) => ({
-                    parameterName: a.parameterName,
-                    parameterId: a.parameterId,
-                    feeBeforeTax: (a.unitPrice || 0) * (a.quantity || 1),
-                    taxRate: a.taxRate || 0,
-                    feeAfterTax: (a.unitPrice || 0) * (a.quantity || 1) * (1 + (a.taxRate || 0) / 100),
-                })),
+                analyses: s.analyses.map((a) => {
+                    const quantity = a.quantity || 1;
+                    const unitPrice = a.unitPrice || 0;
+                    const lineList = unitPrice * quantity;
+                    const discountRate = a.discountRate || 0;
+                    const lineNet = lineList * (1 - discountRate / 100);
+                    const taxRate = a.taxRate || 0;
+                    const feeAfterTax = lineNet * (1 + taxRate / 100);
+
+                    return {
+                        parameterName: a.parameterName,
+                        parameterId: a.parameterId,
+                        feeBeforeTax: lineNet,
+                        feeBeforeTaxAndDiscount: lineList,
+                        taxRate: taxRate,
+                        feeAfterTax: feeAfterTax,
+                        discountRate: discountRate,
+                        quantity: quantity,
+                        unitPrice: unitPrice,
+                    };
+                }),
             })),
             pricing,
-            discount,
+            discountRate,
             commission: 0,
         };
         setPrintData(data);
@@ -588,16 +648,16 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
 
                     {samples.length > 0 && (
                         <div className="flex justify-end">
-                            <div className="w-96">
+                            <div className="w-[600px]">
                                 <PricingSummary
                                     subtotal={pricing.subtotal}
-                                    discount={discount}
+                                    discountRate={discountRate}
                                     discountAmount={pricing.discountAmount}
                                     feeBeforeTax={pricing.feeBeforeTax}
                                     tax={pricing.tax}
                                     total={pricing.total}
                                     commission={commission}
-                                    onDiscountChange={setDiscount}
+                                    onDiscountRateChange={setDiscountRate}
                                     onCommissionChange={setCommission}
                                     isReadOnly={isReadOnly}
                                 />

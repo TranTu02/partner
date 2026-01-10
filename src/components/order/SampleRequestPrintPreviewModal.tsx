@@ -197,10 +197,10 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data }: Sample
                     <div style="margin-bottom: 20px;">
                         <div style="font-size: 15px; font-weight: 700; margin-bottom: 10px;">${t("sampleRequest.section4.title")}</div>
                         <div style="padding-top: 5px; font-size: 12px;">
-                            <div style="font-weight: 800; font-size: 13px; margin-bottom: 5px; text-transform: uppercase;">Viện nghiên cứu và phát triển sản phẩm thiên nhiên IRDOP</div>
-                            <div style="margin-bottom: 3px;"><strong>${t("sampleRequest.address")}:</strong> 12 Phùng Khoang 2 - Phường Trung Văn - Quận Nam Từ Liêm - TP. Hà Nội</div>
-                            <div style="margin-bottom: 3px;"><strong>${t("sampleRequest.phone")}:</strong> 024 355 35 355</div>
-                            <div style="margin-bottom: 3px;"><strong>${t("sampleRequest.email")}:</strong> kiemnghiem@irdop.org</div>
+                            <div style="font-weight: 800; font-size: 13px; margin-bottom: 5px; text-transform: uppercase;">${t("organization.data.organizationName")}</div>
+                            <div style="margin-bottom: 3px;"><strong>${t("organization.address")}:</strong> ${t("organization.data.address")}</div>
+                            <div style="margin-bottom: 3px;"><strong>${t("organization.phone")}:</strong> ${t("organization.data.phone")}</div>
+                            <div style="margin-bottom: 3px;"><strong>${t("organization.email")}:</strong> ${t("organization.data.email")}</div>
                         </div>
                     </div>
 

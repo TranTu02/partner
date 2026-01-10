@@ -74,6 +74,20 @@ The Accounting module primarily interacts with the `orders` table.
 | `totalDiscountValue`           | `numeric` |        | Discount Amount.                                                     |
 | `orderStatus`                  | `text`    |        | `Pending`, `Processing`, `Completed`, `Cancelled`.                   |
 | `taxRate`                      | `numeric` |        | VAT Rate (%).                                                        |
-| `discount`                     | `numeric` |        | Discount (Amount or %).                                              |
+| `discountRate`                 | `numeric` |        | Discount (Amount or %).                                              |
 | `paymentStatus`                | `text`    |        | `Unpaid`, `Partial`, `Paid`, `Debt`.                                 |
 | `transactions`                 | `jsonb[]` |        | Payment History: `[{ amount, date, method, note }]`.                 |
+
+### `parameterGroups` Table Structure
+
+| Column Name               | Type      | Key    | Description                    |
+| :------------------------ | :-------- | :----- | :----------------------------- |
+| `groupId`                 | `text`    | **PK** | Custom Text ID.                |
+| `groupName`               | `text`    |        | Tên nhóm chỉ tiêu.             |
+| `matrixIds`               | `text[]`  |        | Danh sách matrixId.            |
+| `sampleTypeId`            | `text`    | **FK** | Loại sản phẩm.                 |
+| `feeBeforeTaxAndDiscount` | `numeric` |        | Giá trước giảm giá.            |
+| `discountRate`            | `numeric` |        | Giảm giá (%).                  |
+| `feeBeforeTax`            | `numeric` |        | Giá sau giảm giá (Trước thuế). |
+| `taxRate`                 | `numeric` |        | Thuế suất (%).                 |
+| `feeAfterTax`             | `numeric` |        | Giá sau thuế.                  |

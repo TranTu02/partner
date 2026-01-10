@@ -32,6 +32,10 @@ export interface OrderPrintData {
             feeBeforeTax: number;
             taxRate: number;
             feeAfterTax: number;
+            discountRate?: number;
+            unitPrice?: number;
+            feeBeforeTaxAndDiscount?: number;
+            quantity?: number;
         }[];
     }[];
     pricing: {
@@ -41,7 +45,7 @@ export interface OrderPrintData {
         tax: number;
         total: number;
     };
-    discount: number;
+    discountRate: number;
 }
 
 export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
@@ -159,13 +163,15 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                                 {data.pricing.subtotal.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
                             </td>
                         </tr>
-                        {data.discount > 0 && (
+                        {data.discountRate > 0 && (
                             <tr>
                                 <td style={{ textAlign: "right", paddingRight: "20px" }}>
-                                    {t("order.print.discount")} ({data.discount}%):
+                                    {t("order.print.discount")} ({data.discountRate}%):
                                 </td>
                                 <td style={{ textAlign: "right", color: "red" }}>
-                                    - {(data.pricing.discountAmount || (data.pricing.subtotal * data.discount) / 100).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                                    -{" "}
+                                    {(data.pricing.discountAmount || (data.pricing.subtotal * data.discountRate) / 100).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}{" "}
+                                    đ
                                 </td>
                             </tr>
                         )}

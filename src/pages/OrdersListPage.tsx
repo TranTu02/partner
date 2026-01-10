@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft, FileText } from "lucide-react";
+import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft, Copy, FileText } from "lucide-react";
 import type { OrderEditorRef } from "@/components/order/OrderEditor";
 import { OrderEditor } from "@/components/order/OrderEditor";
 
@@ -11,6 +11,8 @@ import type { Order } from "@/types/order";
 import { toast } from "sonner";
 import { Pagination } from "@/components/common/Pagination";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { OrderPrintPreviewModal } from "@/components/order/OrderPrintPreviewModal";
+import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 
 interface OrdersListPageProps {
     activeMenu: string;
@@ -30,6 +32,10 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
+    // Print State
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+    const [printData, setPrintData] = useState<OrderPrintData | null>(null);
+
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
@@ -43,6 +49,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
 
     const orderId = searchParams.get("orderId");
     const quoteId = searchParams.get("quoteId");
+    const duplicateId = searchParams.get("duplicateId");
 
     const isEditorActive = isCreate || isDetail || isEdit;
     const initialViewMode = isCreate ? "create" : isEdit ? "edit" : "view";
@@ -111,11 +118,27 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                     if (found) setSelectedOrder(found);
                 }
             } else if (isCreate) {
-                setSelectedOrder(null);
+                if (duplicateId) {
+                    try {
+                        const response = await getOrderDetail({ query: { orderId: duplicateId } });
+                        if (response.success && response.data) {
+                            setSelectedOrder(response.data as Order);
+                        } else {
+                            const found = orders.find((o) => o.orderId === duplicateId);
+                            if (found) setSelectedOrder(found);
+                        }
+                    } catch (error) {
+                        console.error("Failed to load duplicate source", error);
+                        const found = orders.find((o) => o.orderId === duplicateId);
+                        if (found) setSelectedOrder(found);
+                    }
+                } else {
+                    setSelectedOrder(null);
+                }
             }
         };
         loadSelectedOrder();
-    }, [orderId, isDetail, isEdit, isCreate]);
+    }, [orderId, isDetail, isEdit, isCreate, duplicateId, orders]); // add orders to deps for fallback
 
     // Status Configurations
     const statusConfig = {
@@ -133,6 +156,101 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
     const handleCreate = () => navigate("/orders/create");
     const handleViewDetail = (order: Order) => navigate(`/orders/detail?orderId=${order.orderId}`);
     const handleEdit = (order: Order) => navigate(`/orders/edit?orderId=${order.orderId}`);
+
+    const handleDuplicate = (order: Order) => {
+        navigate(`/orders/create?duplicateId=${order.orderId}`);
+    };
+
+    const handlePrint = async (order: Order) => {
+        // We need full details to print comfortably, especially samples/analyses
+        // Check if current order object has samples. Usually list response might be partial.
+        let fullOrder = order;
+        // Optimization: if sample properties missing, fetch detail
+        if (!order.samples || order.samples.length === 0) {
+            try {
+                const res = await getOrderDetail({ query: { orderId: order.orderId } });
+                if (res.success && res.data) {
+                    fullOrder = res.data as Order;
+                }
+            } catch (e) {
+                console.error("Failed to fetch full order for print", e);
+                toast.error("Failed to load full order details for printing");
+                return;
+            }
+        }
+
+        // Construct QuotePrintData/OrderPrintData
+
+        // Pricing Logic
+        const storedSubtotal = Number(fullOrder.totalFeeBeforeTax) || 0;
+        const storedDiscount = Number(fullOrder.totalDiscountValue) || 0;
+        const storedNet = Number(fullOrder.totalFeeBeforeTaxAndDiscount) || storedSubtotal - storedDiscount;
+        const storedTotal = Number(fullOrder.totalAmount) || 0;
+        const storedTax = storedNet > 0 ? storedTotal - storedNet : 0;
+
+        // Client & Contact Logic (Fallbacks)
+        const contact = fullOrder.client?.clientContacts?.[0] || {};
+        const contactPerson = fullOrder.contactPerson?.identityName || contact.contactName || (contact as any).name || "";
+        const contactPhone = fullOrder.contactPerson?.phone || contact.contactPhone || (contact as any).phone || "";
+        const contactIdentity = fullOrder.contactPerson?.identityId || contact.identityId || "";
+        const contactEmail = fullOrder.contactPerson?.email || contact.contactEmail || (contact as any).email || "";
+        const contactPosition = contact.contactPosition || (contact as any).position || "";
+        const contactAddress = contact.contactAddress || "";
+
+        const data: OrderPrintData = {
+            orderId: fullOrder.orderId,
+            createdAt: fullOrder.createdAt,
+            salePerson: fullOrder.salePerson,
+            client: fullOrder.client,
+
+            contactPerson,
+            contactPhone,
+            contactIdentity,
+            reportEmail: contactEmail, // Assuming report email same as contact or field missing in Order type
+            contactEmail,
+            contactPosition,
+            contactAddress,
+
+            clientAddress: fullOrder.client?.clientAddress || "",
+            taxName: fullOrder.client?.invoiceInfo?.taxName || fullOrder.client?.clientName || "",
+            taxCode: fullOrder.client?.invoiceInfo?.taxCode || fullOrder.client?.legalId || "",
+            taxAddress: fullOrder.client?.invoiceInfo?.taxAddress || fullOrder.client?.clientAddress || "",
+
+            samples: (fullOrder.samples || []).map((s) => ({
+                sampleName: s.sampleName || "",
+                sampleMatrix: s.sampleMatrix || "",
+                sampleNote: s.sampleNote || "",
+                analyses: (s.analyses || []).map((a: any) => {
+                    // Calculate fees if missing
+                    const quantity = a.quantity || 1;
+                    const taxRate = a.taxRate || 0;
+                    const unitPrice = a.unitPrice || (a.feeBeforeTax ? a.feeBeforeTax / quantity : 0);
+                    const feeBefore = a.feeBeforeTax || unitPrice * quantity;
+                    const feeAfter = a.feeAfterTax || feeBefore * (1 + taxRate / 100);
+
+                    return {
+                        parameterName: a.parameterName,
+                        parameterId: a.parameterId,
+                        feeBeforeTax: feeBefore,
+                        taxRate: taxRate,
+                        feeAfterTax: feeAfter,
+                    };
+                }),
+            })),
+
+            pricing: {
+                subtotal: storedSubtotal,
+                discountAmount: storedDiscount,
+                feeBeforeTax: storedNet,
+                tax: storedTax,
+                total: storedTotal,
+            },
+            discount: fullOrder.discount || 0,
+        };
+
+        setPrintData(data);
+        setIsPrintModalOpen(true);
+    };
 
     const handleBack = () => {
         if (editorRef.current?.hasUnsavedChanges()) {
@@ -192,7 +310,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                                     className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
                                 >
                                     <FileDown className="w-4 h-4" />
-                                    <span className="hidden sm:inline">{t("order.print.quote", "Báo giá")}</span>
+                                    <span className="hidden sm:inline">{t("order.printButton", "In Đơn hàng")}</span>
                                 </button>
                                 <button
                                     onClick={() => editorRef.current?.exportSampleRequest()}
@@ -217,7 +335,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
 
                 {/* Editor Content */}
                 <div className="flex-1 overflow-hidden">
-                    {/* Use key to force remount if needed, but localViewMode prop update should suffice */}
+                    {/* Use key to force remount if duplicate loaded, or rely on initialData update */}
                     <OrderEditor
                         ref={editorRef}
                         mode={localViewMode as any}
@@ -345,7 +463,18 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                                                     >
                                                         <Pencil className="w-4 h-4" />
                                                     </button>
-                                                    <button className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors" title={t("order.downloadReport")}>
+                                                    <button
+                                                        onClick={() => handleDuplicate(order)}
+                                                        className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors"
+                                                        title={t("common.duplicate")}
+                                                    >
+                                                        <Copy className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handlePrint(order)}
+                                                        className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors"
+                                                        title={t("order.downloadReport")}
+                                                    >
                                                         <FileDown className="w-4 h-4" />
                                                     </button>
                                                 </div>
@@ -372,6 +501,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                     )}
                 </div>
             </div>
+            {printData && <OrderPrintPreviewModal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} data={printData} />}
         </MainLayout>
     );
 }

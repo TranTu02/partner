@@ -16,7 +16,7 @@ export interface Order {
     totalTaxValue?: number;
     totalDiscountValue?: number;
     taxRate?: number;
-    discount?: number;
+    discountRate?: number;
 
     // Sales
     saleCommissionPercent?: number;

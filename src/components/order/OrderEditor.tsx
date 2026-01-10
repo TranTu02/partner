@@ -87,7 +87,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
     const [quoteId, setQuoteId] = useState(initialData?.quoteId || initialQuoteId || "");
     const [samples, setSamples] = useState<SampleWithQuantity[]>([]);
-    const [discount, setDiscount] = useState(0);
+    const [discountRate, setDiscountRate] = useState(initialData?.discountRate || 0);
     const [commission, setCommission] = useState(0);
 
     // Auto-load Quote if initialQuoteId is present and entering create mode
@@ -136,6 +136,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 // Map API data keys to internal Editor keys if they differ
                 const mappedSamples = initialData.samples.map((s: any) => ({
                     ...s,
+                    id: s.id || `restored-sample-${Date.now()}-${Math.random().toString(36).slice(2)}`,
                     analyses: (s.analyses || []).map((a: any) => {
                         const quantity = a.quantity || 1;
                         const taxRate = a.taxRate !== undefined ? a.taxRate : parseFloat(a.parameterTaxRate || "0");
@@ -163,6 +164,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
                         return {
                             ...a,
+                            id: a.id || `restored-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`,
                             unitPrice: unitPrice,
                             feeBeforeTax: unitPrice * quantity, // Ensure this is consistent
                             feeAfterTax: a.feeAfterTax || unitPrice * quantity * (1 + taxRate / 100),
@@ -172,6 +174,13 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     }),
                 }));
                 setSamples(mappedSamples);
+            }
+            // Ensure discountRate and commission are synced from initialData
+            if (initialData.discountRate !== undefined) {
+                setDiscountRate(initialData.discountRate);
+            }
+            if (initialData.commission !== undefined) {
+                setCommission(initialData.commission);
             }
         }
     }, [initialData]);
@@ -298,7 +307,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         setReportEmail(contact.contactEmail || (contact as any).email || "");
                     }
 
-                    setDiscount(foundQuote.discount || 0);
+                    setDiscountRate(foundQuote.discountRate || 0);
 
                     const convertedSamples: SampleWithQuantity[] = (foundQuote.samples || []).map((s: any) => ({
                         id: s.sampleId || `temp-sample-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -309,9 +318,12 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         analyses: (s.analyses || []).map((a: any) => ({
                             ...a,
                             id: a.id || `temp-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                            unitPrice: a.unitPrice || a.feeBeforeTax || 0,
-                            quantity: a.quantity || 1,
-                            taxRate: a.taxRate || 0,
+                            // Maintain exact unitPrice from quote. Discount calculation should start fresh or maintain item discount?
+                            // Usually Quote Analysis has unitPrice (list price) and potentially discountRate
+                            unitPrice: Number(a.unitPrice) || Number(a.parameterPrice) || 0,
+                            quantity: Number(a.quantity) || 1,
+                            discountRate: Number(a.discountRate) || 0,
+                            taxRate: Number(a.taxRate) || Number(a.parameterTaxRate) || 0,
                         })),
                     }));
 
@@ -331,32 +343,14 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     };
 
     const calculatePricing = () => {
-        // If in view mode and we have initial data, prefer stored totals to avoid rounding diffs or recalculation issues
-        // BUT only if we don't have unsaved changes. If we have changes, we want to see the live calc.
+        // If in view mode and we have initial data, prefer stored totals
+        // We assume stored data matches the calculation model at the time of saving
         if (isReadOnly && !hasUnsavedChanges && initialData?.totalAmount !== undefined) {
-            // Retrieve stored values or fallback to 0
-            // Note: totalFeeBeforeTax usually means Sum of Item Prices (Subtotal) in this codebase context?
-            // Or does it mean Net?
-            // Looking at types: totalFeeBeforeTax, totalFeeBeforeTaxAndDiscount.
-
-            // If the backend stores:
-            // totalFeeBeforeTax (Gross)
-            // totalDiscountValue
-            // totalFeeBeforeTaxAndDiscount (Net)
-            // totalTaxValue
-            // totalAmount
-
-            // We should map them:
             const storedSubtotal = Number(initialData.totalFeeBeforeTax) || 0;
             const storedDiscount = Number(initialData.totalDiscountValue) || 0;
             const storedNet = Number(initialData.totalFeeBeforeTaxAndDiscount) || storedSubtotal - storedDiscount;
+            const storedTax = Number(initialData.totalTaxValue) || 0;
             const storedTotal = Number(initialData.totalAmount) || 0;
-
-            // "khi view thì giá trị thuế lấy theo (totalAmount - totalFeeBeforeTax) / totalFeeBeforeTax"
-            // The user likely meant: Tax Value = Total Amount - Net Fee.
-            // (The formula in prompt was division, usually implication of Rate, but context says "giá trị thuế" -> Value).
-            // Let's assume they want Tax Value = storedTotal - storedNet.
-            const storedTax = storedTotal - storedNet;
 
             return {
                 subtotal: storedSubtotal,
@@ -367,33 +361,48 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             };
         }
 
-        let subtotal = 0;
-        let totalTax = 0;
+        let totalFeeBeforeTax = 0; // Sum of Analysis Net Prices (after item discount)
+        let sumVAT = 0; // Sum of Analysis VATs (calculated on item net price)
 
         samples.forEach((sample) => {
             sample.analyses.forEach((analysis) => {
-                const lineSubtotal = (analysis.unitPrice || 0) * (analysis.quantity || 1);
-                subtotal += lineSubtotal;
-                totalTax += lineSubtotal * ((analysis.taxRate || 0) / 100);
+                const quantity = Number(analysis.quantity || 1);
+                const unitPrice = Number(analysis.unitPrice || 0); // List Price per unit
+                const lineDiscountRate = Number(analysis.discountRate || 0);
+                const taxRate = Number(analysis.taxRate || 0);
+
+                const lineTotalGross = unitPrice * quantity;
+                // Net Price for this analysis line
+                const lineTotalNet = lineTotalGross * (1 - lineDiscountRate / 100);
+
+                totalFeeBeforeTax += lineTotalNet;
+
+                // VAT for this analysis line
+                const lineVAT = lineTotalNet * (taxRate / 100);
+                sumVAT += lineVAT;
             });
         });
 
-        const discountAmount = (subtotal * discount) / 100;
-        const subtotalAfterDiscount = subtotal - discountAmount;
+        // Order Level Discount (applied to the Sum of Net Prices)
+        const discountAmount = totalFeeBeforeTax * (discountRate / 100);
 
-        // "taxRate ... tính bằng Tổng tiền thuế tất cả chỉ tiêu / tổng giá trị trước thuế toàn bộ chỉ tiêu * 100"
-        // This implies effective tax calculation might be needed if we were saving a single rate.
-        // But for display of 'Tax Value', we typically just sum the tax.
-        // However, if the Tax is also discounted?:
-        // Previous logic: const taxAfterDiscount = totalTax * (1 - discount / 100);
-        // If the user wants specific logic, we stick to standard: Tax is usually calculated on the discounted base if the discount is "pre-tax".
-        // Let's assume standard behavior unless the user's formula implies otherwise.
-        // The user says "Total Tax Value ... (after discount)".
+        // Fee After Order Discount (The new "Net" for the Order)
+        const totalFeeBeforeTaxAndDiscount = totalFeeBeforeTax - discountAmount;
 
-        const taxAfterDiscount = totalTax * (1 - discount / 100);
-        const total = subtotalAfterDiscount + taxAfterDiscount;
+        // Final VAT (Sum of Analysis VATs, reduced by Order Discount Rate)
+        // Formula: SumVAT * (1 - OrderDiscount%)
+        const totalTax = sumVAT * (1 - discountRate / 100);
 
-        return { subtotal, discountAmount, feeBeforeTax: subtotalAfterDiscount, tax: taxAfterDiscount, total };
+        // Grand Total
+        const total = totalFeeBeforeTaxAndDiscount + totalTax;
+
+        return {
+            subtotal: totalFeeBeforeTax,
+            discountAmount,
+            feeBeforeTax: totalFeeBeforeTaxAndDiscount,
+            tax: totalTax,
+            total,
+        };
     };
 
     const pricing = calculatePricing();
@@ -452,20 +461,31 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 sampleMatrix: s.sampleMatrix || "",
                 sampleNote: s.sampleNote || "",
                 analyses: s.analyses.map((a) => {
-                    const feeAfter = a.feeAfterTax || (a.unitPrice || 0) * (a.quantity || 1) * (1 + (a.taxRate || 0) / 100);
-                    const feeBefore = a.feeBeforeTax || (a.unitPrice || 0) * (a.quantity || 1) || feeAfter / (1 + (a.taxRate || 0) / 100);
+                    const unitPrice = Number(a.unitPrice) || 0;
+                    const quantity = Number(a.quantity) || 1;
+                    const taxRate = Number(a.taxRate) || 0;
+                    const discountRate = Number(a.discountRate) || 0;
+
+                    const feeBeforeTaxAndDiscount = unitPrice * quantity;
+                    const feeBeforeTax = feeBeforeTaxAndDiscount * (1 - discountRate / 100);
+                    const feeAfterTax = feeBeforeTax * (1 + taxRate / 100);
+
                     return {
                         parameterName: a.parameterName,
                         parameterId: a.parameterId,
-                        feeBeforeTax: feeBefore,
-                        taxRate: a.taxRate || 0,
-                        feeAfterTax: feeAfter,
+                        feeBeforeTax: feeBeforeTax,
+                        feeBeforeTaxAndDiscount: feeBeforeTaxAndDiscount,
+                        taxRate: taxRate,
+                        feeAfterTax: a.feeAfterTax || feeAfterTax,
+                        discountRate: discountRate,
+                        quantity: quantity,
+                        unitPrice: unitPrice,
                     };
                 }),
             })),
 
             pricing,
-            discount,
+            discountRate,
         };
         setPreviewData(data);
         setIsPreviewOpen(true);
@@ -637,8 +657,12 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     : [],
             };
 
+            // Exclude legacy 'discount' field if it exists in initialData
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { discount, ...restInitialData } = initialData || {};
+
             const orderData = {
-                ...(initialData || {}), // Keep existing fields if edit, but overwrite with new
+                ...restInitialData, // Keep existing fields if edit, but overwrite with new
                 // orderId: mode === "create" ? undefined : initialData?.orderId, // Exclude orderId on create
                 ...(mode === "create" ? {} : { orderId: initialData?.orderId }), // Only include if edit
                 orderStatus: mode === "create" ? "pending" : initialData?.orderStatus || "pending",
@@ -654,17 +678,20 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     return {
                         ...rest,
                         analyses: s.analyses.map((a) => ({
+                            ...a, // Preserve all original properties from quote/loaded data
                             parameterName: a.parameterName,
                             parameterId: a.parameterId,
-                            unitPrice: Number(a.unitPrice) || 0, // Ensure unitPrice is saved
-                            feeBeforeTax: (a.unitPrice || 0) * (a.quantity || 1),
+                            unitPrice: Number(a.unitPrice) || 0,
+                            discountRate: Number(a.discountRate) || 0,
+                            feeBeforeTax: (Number(a.unitPrice) || 0) * (Number(a.quantity) || 1) * (1 - (Number(a.discountRate) || 0) / 100),
+                            feeBeforeTaxAndDiscount: (Number(a.unitPrice) || 0) * (Number(a.quantity) || 1),
                             taxRate: a.taxRate || 0,
-                            feeAfterTax: (a.unitPrice || 0) * (a.quantity || 1) * (1 + (a.taxRate || 0) / 100),
+                            feeAfterTax: (Number(a.unitPrice) || 0) * (Number(a.quantity) || 1) * (1 - (Number(a.discountRate) || 0) / 100) * (1 + (a.taxRate || 0) / 100),
                         })),
                     };
                 }),
 
-                discount,
+                discountRate,
                 commission,
 
                 totalFeeBeforeTax: pricing.subtotal,
@@ -805,16 +832,16 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
                     {samples.length > 0 && (
                         <div className="flex justify-end">
-                            <div className="w-96">
+                            <div className="w-[600px]">
                                 <PricingSummary
                                     subtotal={pricing.subtotal}
-                                    discount={discount}
+                                    discountRate={discountRate}
                                     discountAmount={pricing.discountAmount}
                                     feeBeforeTax={pricing.feeBeforeTax}
                                     tax={pricing.tax}
                                     total={pricing.total}
                                     commission={commission}
-                                    onDiscountChange={setDiscount}
+                                    onDiscountRateChange={setDiscountRate}
                                     onCommissionChange={setCommission}
                                     isReadOnly={isReadOnly}
                                 />

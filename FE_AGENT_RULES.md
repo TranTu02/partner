@@ -50,7 +50,7 @@
     -   `module.submodule.key` (e.g., `quote.print.title`).
 -   **Organization Info**: Never hardcode company name/address. Use `t("organization.data.*")`.
 
-## 5. Coding Patterns
+## 6. Coding Patterns
 
 -   **Hooks**: Use `useAuth` for user context (handles `checkSessionStatus` internally), `useTheme` for theme switching.
 -   **Pagination**: Use the shared `Pagination` component in `src/components/common/`.
@@ -63,7 +63,14 @@
     -   Use `OrderPrintPreviewModal` or `QuotePrintPreviewModal`.
     -   Templates must support A4 sizing (`210mm` width).
 
-## 6. Implementation Checklist
+### Input Fields (Numbers)
+
+-   **No Default 0**: Do not initialize number inputs with 0 unless strictly required (e.g., Tax Rate = 5 or 8). Allow empty states (initialize as `""` or `undefined`).
+-   **No Spinners**: Hide browser default spin buttons (up/down arrows) for a cleaner UI.
+    -   Use the following Tailwind classes: `[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`.
+-   **Type Safety**: State should support `number | string` to allow empty inputs. Always cast to `Number()` safely before performing calculations.
+
+## 7. Implementation Checklist
 
 Before marking a task as done, verify:
 

@@ -46,6 +46,7 @@ This directory contains the top-level Page components that correspond to routes 
     -   **Editor Mode**: Renders the `QuoteEditor` component for creating/modifying quotes.
     -   **Navigation**: Handles redirects after Save (to Detail view) or Back events.
     -   **Features**: Includes "Create Order" button in Detail view to convert a quote to an order.
+    -   **Pricing Logic**: Ensures "Total Before Tax" represents sum of Net Prices (custom requirement).
 
 ### `OrdersListPage.tsx`
 
@@ -57,6 +58,7 @@ This directory contains the top-level Page components that correspond to routes 
     -   **List Mode**: Renders `OrderTable` (or internal table structure).
     -   **Editor Mode**: Renders `OrderEditor`.
     -   **Navigation**: Redirects to Detail view upon successful Save.
+    -   **Pricing Logic**: Ensures "Total Before Tax" represents sum of Net Prices.
 
 ### `ParametersPage.tsx`
 

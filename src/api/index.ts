@@ -177,6 +177,30 @@ export const deleteSampleType = async ({ headers, body, query }: ApiInput): Prom
 };
 
 // =============================================================================
+// PARAMETER GROUPS
+// =============================================================================
+
+export const getParameterGroups = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return api.get("/v1/parameter-group/get/list", { headers, query: query || body });
+};
+
+export const createParameterGroup = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return api.post("/v1/parameter-group/create", { headers, body, query });
+};
+
+export const getParameterGroupDetail = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return api.get("/v1/parameter-group/get/detail", { headers, query: query || body });
+};
+
+export const updateParameterGroup = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return api.post("/v1/parameter-group/edit", { headers, body, query });
+};
+
+export const deleteParameterGroup = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return api.post("/v1/parameter-group/delete", { headers, body, query });
+};
+
+// =============================================================================
 // EXPORT
 // =============================================================================
 
@@ -188,6 +212,7 @@ const apis = {
     parameters: { getParameters, createParameter, getParameterDetail, updateParameter, deleteParameter },
     matrices: { getMatrices, createMatrix, getMatrixDetail, updateMatrix, deleteMatrix, searchMatrices },
     sampleTypes: { getSampleTypes, createSampleType, getSampleTypeDetail, updateSampleType, deleteSampleType },
+    parameterGroups: { getParameterGroups, createParameterGroup, getParameterGroupDetail, updateParameterGroup, deleteParameterGroup },
 };
 
 export default apis;

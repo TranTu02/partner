@@ -2,18 +2,18 @@ import { useTranslation } from "react-i18next";
 
 interface PricingSummaryProps {
     subtotal: number;
-    discount: number;
+    discountRate: number;
     discountAmount: number;
     feeBeforeTax: number;
     tax: number;
     total: number;
     commission: number;
-    onDiscountChange: (discount: number) => void;
+    onDiscountRateChange: (discountRate: number) => void;
     onCommissionChange: (commission: number) => void;
     isReadOnly?: boolean;
 }
 
-export function PricingSummary({ subtotal, discount, discountAmount, feeBeforeTax, tax, total, commission, onDiscountChange, onCommissionChange, isReadOnly = false }: PricingSummaryProps) {
+export function PricingSummary({ subtotal, discountRate, discountAmount, feeBeforeTax, tax, total, commission, onDiscountRateChange, onCommissionChange, isReadOnly = false }: PricingSummaryProps) {
     const { t } = useTranslation();
 
     return (
@@ -27,21 +27,21 @@ export function PricingSummary({ subtotal, discount, discountAmount, feeBeforeTa
                 </div>
 
                 <div className="flex justify-between items-center gap-4">
-                    <label className="text-sm text-muted-foreground">{t("order.discount")} (%):</label>
+                    <label className="text-sm text-muted-foreground">{t("order.print.discount")} (%):</label>
                     <input
                         type="number"
                         min="0"
                         max="100"
                         step="0.1"
                         className="w-24 px-3 py-1 border border-border rounded-lg text-right focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                        value={discount}
-                        onChange={(e) => onDiscountChange(parseFloat(e.target.value) || 0)}
+                        value={discountRate}
+                        onChange={(e) => onDiscountRateChange(parseFloat(e.target.value) || 0)}
                         disabled={isReadOnly}
                     />
                 </div>
 
                 <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">{t("order.pricing.discountAmount")}:</span>
+                    <span className="text-sm text-muted-foreground">{t("order.pricing.discountMoney", "Tiền chiết khấu")}:</span>
                     <span className="text-sm font-medium text-success">-{discountAmount.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ</span>
                 </div>
 
