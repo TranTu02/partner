@@ -70,7 +70,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
     const [contactPhone, setContactPhone] = useState("");
     const [contactIdentity, setContactIdentity] = useState("");
     const [contactEmail, setContactEmail] = useState("");
-    const [contactPosition, setContactPosition] = useState("");
     const [contactAddress, setContactAddress] = useState("");
     const [reportEmail, setReportEmail] = useState("");
 
@@ -117,7 +116,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 setContactPhone(contact.contactPhone || (contact as any).phone || "");
                 setContactIdentity(contact.identityId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
-                setContactPosition(contact.contactPosition || (contact as any).position || "");
                 setContactAddress(contact.contactAddress || "");
                 setReportEmail(contact.contactEmail || (contact as any).email || "");
             }
@@ -175,7 +173,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 setContactPhone(contact.contactPhone || (contact as any).phone || "");
                 setContactIdentity(contact.identityId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
-                setContactPosition(contact.contactPosition || (contact as any).position || "");
                 setContactAddress(contact.contactAddress || "");
                 setReportEmail(contact.contactEmail || (contact as any).email || "");
             } else {
@@ -183,7 +180,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 setContactPhone("");
                 setContactIdentity("");
                 setContactEmail("");
-                setContactPosition("");
                 setContactAddress("");
                 setReportEmail("");
             }
@@ -204,7 +200,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 setContactPhone(contact.contactPhone || (contact as any).phone || "");
                 setContactIdentity(contact.identityId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
-                setContactPosition(contact.contactPosition || (contact as any).position || "");
                 setContactAddress(contact.contactAddress || "");
                 setReportEmail(contact.contactEmail || (contact as any).email || "");
             }
@@ -414,7 +409,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                               contactName: contactPerson,
                               contactPhone: contactPhone,
                               contactEmail: contactEmail,
-                              contactPosition: contactPosition,
                               contactAddress: contactAddress,
                               identityId: contactIdentity,
                           },
@@ -509,7 +503,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                                 contactName: contactPerson,
                                 contactPhone: contactPhone,
                                 contactEmail: contactEmail,
-                                contactPosition: contactPosition,
                                 contactAddress: contactAddress,
                                 identityId: contactIdentity,
                             },
@@ -527,7 +520,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             contactIdentity,
             reportEmail,
             contactEmail,
-            contactPosition,
             contactAddress,
 
             clientAddress,
@@ -590,7 +582,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                             contactPhone={contactPhone}
                             contactIdentity={contactIdentity}
                             contactEmail={contactEmail}
-                            contactPosition={contactPosition}
                             contactAddress={contactAddress}
                             reportEmail={reportEmail}
                             taxName={taxName}
@@ -604,7 +595,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                             onContactIdentityChange={setContactIdentity}
                             onReportEmailChange={setReportEmail}
                             onContactEmailChange={setContactEmail}
-                            onContactPositionChange={setContactPosition}
                             onContactAddressChange={setContactAddress}
                             onClientPhoneChange={setClientPhone}
                             onClientEmailChange={setClientEmail}
@@ -708,7 +698,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                                     setContactPhone(contact.contactPhone || "");
                                     setContactIdentity(contact.identityId || "");
                                     setContactEmail(contact.contactEmail || "");
-                                    setContactPosition(contact.contactPosition || "");
                                     setContactAddress(contact.contactAddress || "");
                                     setReportEmail(contact.contactEmail || "");
                                 }

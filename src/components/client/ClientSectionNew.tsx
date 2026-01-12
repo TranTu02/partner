@@ -20,7 +20,6 @@ interface ClientSectionNewProps {
     contactPhone: string;
     contactIdentity: string;
     contactEmail?: string;
-    contactPosition?: string;
     contactAddress?: string;
     reportEmail: string;
 
@@ -41,7 +40,6 @@ interface ClientSectionNewProps {
     onContactPhoneChange: (phone: string) => void;
     onContactIdentityChange: (identity: string) => void;
     onContactEmailChange?: (val: string) => void;
-    onContactPositionChange?: (val: string) => void;
     onContactAddressChange?: (val: string) => void;
     onReportEmailChange: (email: string) => void;
 
@@ -65,7 +63,6 @@ export function ClientSectionNew({
     contactId = "",
     contactPhone,
     contactEmail = "",
-    contactPosition = "",
     reportEmail,
     taxName = "",
     taxCode = "",
@@ -79,7 +76,6 @@ export function ClientSectionNew({
     onContactIdChange,
     onContactPhoneChange,
     onContactEmailChange,
-    onContactPositionChange,
     onReportEmailChange,
     onTaxNameChange,
     onTaxCodeChange,

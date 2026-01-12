@@ -77,7 +77,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     const [contactPhone, setContactPhone] = useState("");
     const [contactIdentity, setContactIdentity] = useState("");
     const [contactEmail, setContactEmail] = useState("");
-    const [contactPosition, setContactPosition] = useState("");
     const [contactAddress, setContactAddress] = useState("");
     const [reportEmail, setReportEmail] = useState("");
 
@@ -130,7 +129,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 setContactId(contact.contactId || "");
                 setContactIdentity(contact.identityId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
-                setContactPosition(contact.contactPosition || (contact as any).position || "");
                 setContactAddress(contact.contactAddress || "");
                 setReportEmail(contact.contactEmail || (contact as any).email || "");
             }
@@ -237,7 +235,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 setContactId(contact.contactId || "");
                 setContactIdentity(contact.identityId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
-                setContactPosition(contact.contactPosition || (contact as any).position || "");
                 setContactAddress(contact.contactAddress || "");
                 setReportEmail(contact.contactEmail || (contact as any).email || "");
             } else {
@@ -247,7 +244,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 setContactPhone("");
                 setContactIdentity("");
                 setContactEmail("");
-                setContactPosition("");
                 setContactAddress("");
                 setReportEmail("");
             }
@@ -268,7 +264,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 setContactPhone(contact.contactPhone || (contact as any).phone || "");
                 setContactIdentity(contact.identityId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
-                setContactPosition(contact.contactPosition || (contact as any).position || "");
                 setContactAddress(contact.contactAddress || "");
                 setReportEmail(contact.contactEmail || (contact as any).email || "");
             }
@@ -309,7 +304,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         setContactId(contact.contactId || "");
                         setContactIdentity(contact.identityId || "");
                         setContactEmail(contact.contactEmail || (contact as any).email || "");
-                        setContactPosition(contact.contactPosition || (contact as any).position || "");
                         setContactAddress(contact.contactAddress || "");
                         setReportEmail(contact.contactEmail || (contact as any).email || "");
                     }
@@ -435,7 +429,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                 contactName: contactPerson,
                                 contactPhone: contactPhone,
                                 contactEmail: contactEmail,
-                                contactPosition: contactPosition,
                                 contactAddress: contactAddress,
                                 contactId: contactId,
                                 identityId: contactIdentity,
@@ -456,7 +449,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             contactIdentity,
             reportEmail,
             contactEmail,
-            contactPosition,
             contactAddress,
 
             clientAddress,
@@ -657,7 +649,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                               contactName: contactPerson,
                               contactPhone: contactPhone,
                               contactEmail: contactEmail,
-                              contactPosition: contactPosition,
                               contactAddress: contactAddress,
                               contactId: contactId,
                               identityId: contactIdentity,
@@ -783,7 +774,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         contactPhone={contactPhone}
                         contactIdentity={contactIdentity}
                         contactEmail={contactEmail}
-                        contactPosition={contactPosition}
                         contactAddress={contactAddress}
                         reportEmail={reportEmail}
                         taxName={taxName}
@@ -798,7 +788,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         onContactIdentityChange={setContactIdentity}
                         onReportEmailChange={setReportEmail}
                         onContactEmailChange={setContactEmail}
-                        onContactPositionChange={setContactPosition}
                         onContactAddressChange={setContactAddress}
                         onClientPhoneChange={setClientPhone}
                         onClientEmailChange={setClientEmail}
@@ -908,7 +897,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                     setContactId(contact.contactId || "");
                                     setContactIdentity(contact.identityId || "");
                                     setContactEmail(contact.contactEmail || "");
-                                    setContactPosition(contact.contactPosition || "");
                                     setContactAddress(contact.contactAddress || "");
                                     setReportEmail(contact.contactEmail || "");
                                 }
