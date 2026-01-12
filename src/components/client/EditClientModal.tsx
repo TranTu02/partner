@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Plus, Trash2, Copy } from "lucide-react";
 import type { Client } from "@/types/client";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { getClientDetail } from "@/api/index";
 
 interface EditClientModalProps {
@@ -16,7 +17,7 @@ export function EditClientModal({ isOpen, onClose, client, onConfirm }: EditClie
     const [clientName, setClientName] = useState(client.clientName);
     const [legalId, setLegalId] = useState(client.legalId);
     const [clientAddress, setClientAddress] = useState(client.clientAddress);
-    const [invoiceEmail, setInvoiceEmail] = useState(client.invoiceEmail);
+    const [clientEmail, setClientEmail] = useState(client.clientEmail);
 
     // Deconstruct invoiceInfo or initialize default
     const [invoiceInfo, setInvoiceInfo] = useState<{
@@ -30,30 +31,42 @@ export function EditClientModal({ isOpen, onClose, client, onConfirm }: EditClie
 
     const [clientSaleScope, setClientSaleScope] = useState<"public" | "private">(client.clientSaleScope);
 
-    // Fetch Details on Open
+    // Sync state with props and Fetch Details on Open
     useEffect(() => {
-        if (isOpen && client.clientId) {
-            getClientDetail({ query: { clientId: client.clientId } })
-                .then((res) => {
-                    if (res.success && res.data) {
-                        const detailed = res.data as Client;
-                        setClientName(detailed.clientName);
-                        setLegalId(detailed.legalId);
-                        setClientAddress(detailed.clientAddress);
-                        setInvoiceEmail(detailed.invoiceEmail);
-                        setInvoiceInfo(detailed.invoiceInfo || {});
-                        setClientContacts(detailed.clientContacts || []);
-                        setClientSaleScope(detailed.clientSaleScope as "public" | "private");
-                    }
-                })
-                .catch((err) => console.error("Failed to fetch client detail", err));
+        if (isOpen) {
+            // First, sync with the passed client prop (essential if component stays mounted)
+            setClientName(client.clientName || "");
+            setLegalId(client.legalId || "");
+            setClientAddress(client.clientAddress || "");
+            setClientEmail(client.clientEmail || "");
+            setInvoiceInfo(client.invoiceInfo || {});
+            setClientContacts(client.clientContacts || []);
+            setClientSaleScope(client.clientSaleScope || "private");
+
+            // Then fetch detailed data
+            if (client.clientId) {
+                getClientDetail({ query: { clientId: client.clientId } })
+                    .then((res) => {
+                        if (res.success && res.data) {
+                            const detailed = res.data as Client;
+                            setClientName(detailed.clientName);
+                            setLegalId(detailed.legalId);
+                            setClientAddress(detailed.clientAddress);
+                            setClientEmail(detailed.clientEmail);
+                            setInvoiceInfo(detailed.invoiceInfo || {});
+                            setClientContacts(detailed.clientContacts || []);
+                            setClientSaleScope((detailed.clientSaleScope as "public" | "private") || "private");
+                        }
+                    })
+                    .catch((err) => console.error("Failed to fetch client detail", err));
+            }
         }
-    }, [isOpen, client.clientId]);
+    }, [isOpen, client]);
 
     if (!isOpen) return null;
 
     const handleAddContact = () => {
-        setClientContacts([...clientContacts, { contactName: "", contactPhone: "", contactEmail: "", contactPosition: "", contactAddress: "", contactId: undefined }]);
+        setClientContacts([...clientContacts, { contactName: "", contactPhone: "", contactEmail: "", contactAddress: "", contactId: undefined }]);
     };
 
     const handleRemoveContact = (index: number) => {
@@ -73,14 +86,22 @@ export function EditClientModal({ isOpen, onClose, client, onConfirm }: EditClie
             taxName: clientName,
             taxCode: legalId,
             taxAddress: clientAddress,
-            taxEmail: invoiceEmail,
+            taxEmail: clientEmail,
         });
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!clientName || !legalId || !clientAddress) {
-            alert(t("validation.fillAll"));
+        if (!clientName) {
+            toast.error(t("validation.required") + ": " + t("client.name"));
+            return;
+        }
+        if (!legalId) {
+            toast.error(t("validation.required") + ": " + t("client.taxCode"));
+            return;
+        }
+        if (!clientAddress) {
+            toast.error(t("validation.required") + ": " + t("client.address"));
             return;
         }
 
@@ -91,7 +112,8 @@ export function EditClientModal({ isOpen, onClose, client, onConfirm }: EditClie
             clientName,
             legalId,
             clientAddress,
-            invoiceEmail,
+            clientEmail,
+            invoiceEmail: clientEmail, // Mapping clientEmail to invoiceEmail for backend if needed
             invoiceInfo, // Now passed as object
             clientContacts,
             clientSaleScope,
@@ -163,13 +185,13 @@ export function EditClientModal({ isOpen, onClose, client, onConfirm }: EditClie
                                 </div>
 
                                 <div className="col-span-2">
-                                    <label className="block mb-2 text-sm font-medium text-foreground">{t("client.invoiceEmail")}</label>
+                                    <label className="block mb-2 text-sm font-medium text-foreground">{t("client.email")}</label>
                                     <input
                                         type="email"
                                         className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm"
-                                        value={invoiceEmail}
-                                        onChange={(e) => setInvoiceEmail(e.target.value)}
-                                        placeholder="email@company.com"
+                                        value={clientEmail}
+                                        onChange={(e) => setClientEmail(e.target.value)}
+                                        placeholder={t("client.emailPlaceholder", "Email")}
                                     />
                                 </div>
                             </div>
@@ -264,11 +286,12 @@ export function EditClientModal({ isOpen, onClose, client, onConfirm }: EditClie
                                                 <input
                                                     type="text"
                                                     className="w-full px-2 py-1.5 border border-border rounded text-sm bg-background"
-                                                    placeholder={t("client.position")}
-                                                    value={contact.contactPosition || ""}
-                                                    onChange={(e) => handleContactChange(idx, "contactPosition", e.target.value)}
+                                                    placeholder={t("client.contactIdentity")}
+                                                    value={contact.contactId || ""}
+                                                    onChange={(e) => handleContactChange(idx, "contactId", e.target.value)}
                                                 />
                                             </div>
+
                                             <div>
                                                 <input
                                                     type="text"

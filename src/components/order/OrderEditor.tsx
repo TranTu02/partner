@@ -5,6 +5,7 @@ import { SampleCard } from "@/components/order/SampleCard";
 import { PricingSummary } from "@/components/quote/PricingSummary";
 import { AnalysisModalNew } from "@/components/parameter/AnalysisModalNew";
 import { AddClientModal } from "@/components/client/AddClientModal";
+import { EditClientModal } from "@/components/client/EditClientModal";
 import type { Client } from "@/types/client";
 import type { Matrix } from "@/types/parameter";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
@@ -72,6 +73,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
     // Contact Info
     const [contactPerson, setContactPerson] = useState("");
+    const [contactId, setContactId] = useState("");
     const [contactPhone, setContactPhone] = useState("");
     const [contactIdentity, setContactIdentity] = useState("");
     const [contactEmail, setContactEmail] = useState("");
@@ -125,6 +127,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 const contact = initialData.client.clientContacts[0];
                 setContactPerson(contact.contactName || (contact as any).name || "");
                 setContactPhone(contact.contactPhone || (contact as any).phone || "");
+                setContactId(contact.contactId || "");
                 setContactIdentity(contact.identityId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
                 setContactPosition(contact.contactPosition || (contact as any).position || "");
@@ -190,6 +193,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     const [isSampleRequestPreviewOpen, setIsSampleRequestPreviewOpen] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+    const [isEditClientModalOpen, setIsEditClientModalOpen] = useState(false);
     const [currentSampleIndex, setCurrentSampleIndex] = useState<number | null>(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -230,6 +234,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 const contact = selectedClient.clientContacts[0];
                 setContactPerson(contact.contactName || (contact as any).name || "");
                 setContactPhone(contact.contactPhone || (contact as any).phone || "");
+                setContactId(contact.contactId || "");
                 setContactIdentity(contact.identityId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
                 setContactPosition(contact.contactPosition || (contact as any).position || "");
@@ -238,6 +243,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             } else {
                 // Clear contact fields if no contact
                 setContactPerson("");
+                setContactId("");
                 setContactPhone("");
                 setContactIdentity("");
                 setContactEmail("");
@@ -300,6 +306,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         const contact = qClient.clientContacts[0];
                         setContactPerson(contact.contactName || (contact as any).name || "");
                         setContactPhone(contact.contactPhone || (contact as any).phone || "");
+                        setContactId(contact.contactId || "");
                         setContactIdentity(contact.identityId || "");
                         setContactEmail(contact.contactEmail || (contact as any).email || "");
                         setContactPosition(contact.contactPosition || (contact as any).position || "");
@@ -430,6 +437,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                 contactEmail: contactEmail,
                                 contactPosition: contactPosition,
                                 contactAddress: contactAddress,
+                                contactId: contactId,
                                 identityId: contactIdentity,
                             },
                         ]
@@ -651,6 +659,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                               contactEmail: contactEmail,
                               contactPosition: contactPosition,
                               contactAddress: contactAddress,
+                              contactId: contactId,
                               identityId: contactIdentity,
                           },
                       ]
@@ -770,6 +779,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         clientPhone={clientPhone}
                         clientEmail={clientEmail}
                         contactPerson={contactPerson}
+                        contactId={contactId}
                         contactPhone={contactPhone}
                         contactIdentity={contactIdentity}
                         contactEmail={contactEmail}
@@ -783,6 +793,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         onClientChange={setSelectedClient}
                         onAddressChange={setClientAddress}
                         onContactPersonChange={setContactPerson}
+                        onContactIdChange={setContactId}
                         onContactPhoneChange={setContactPhone}
                         onContactIdentityChange={setContactIdentity}
                         onReportEmailChange={setReportEmail}
@@ -796,6 +807,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         onTaxAddressChange={setTaxAddress}
                         onTaxEmailChange={setTaxEmail}
                         onAddNewClient={() => setIsClientModalOpen(true)}
+                        onEditClient={() => setIsEditClientModalOpen(true)}
                         isReadOnly={isReadOnly}
                     />
 
@@ -859,6 +871,58 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 currentIdentityId={user?.identityId}
                 currentIdentityName={user?.identityName}
             />
+            {selectedClient && (
+                <EditClientModal
+                    isOpen={isEditClientModalOpen}
+                    onClose={() => setIsEditClientModalOpen(false)}
+                    client={selectedClient}
+                    onConfirm={async (updatedClient) => {
+                        try {
+                            const { updateClient } = await import("@/api/index");
+                            const response = await updateClient({ body: updatedClient });
+                            if (response.success) {
+                                toast.success("Client updated");
+                                // Update local client list
+                                const updated = response.data as Client;
+                                setClients((prev) => prev.map((c) => (c.clientId === updated.clientId ? updated : c)));
+
+                                // Update selected client and form fields
+                                setSelectedClient(updated);
+
+                                // Explicitly update form fields to reflect changes immediately
+                                setClientAddress(updated.clientAddress || "");
+                                setClientPhone(updated.clientPhone || "");
+                                setClientEmail(updated.clientEmail || "");
+
+                                // Update Invoice Info
+                                setTaxName(updated.invoiceInfo?.taxName || updated.clientName);
+                                setTaxCode(updated.invoiceInfo?.taxCode || updated.legalId);
+                                setTaxAddress(updated.invoiceInfo?.taxAddress || updated.clientAddress);
+                                setTaxEmail(updated.invoiceInfo?.taxEmail || "");
+
+                                // Update Contact Info
+                                if (updated.clientContacts?.[0]) {
+                                    const contact = updated.clientContacts[0];
+                                    setContactPerson(contact.contactName || "");
+                                    setContactPhone(contact.contactPhone || "");
+                                    setContactId(contact.contactId || "");
+                                    setContactIdentity(contact.identityId || "");
+                                    setContactEmail(contact.contactEmail || "");
+                                    setContactPosition(contact.contactPosition || "");
+                                    setContactAddress(contact.contactAddress || "");
+                                    setReportEmail(contact.contactEmail || "");
+                                }
+
+                                setIsEditClientModalOpen(false);
+                            } else {
+                                toast.error("Failed to update client");
+                            }
+                        } catch {
+                            toast.error("Error updating client");
+                        }
+                    }}
+                />
+            )}
             {previewData && <OrderPrintPreviewModal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} data={previewData} />}
             {previewData && <SampleRequestPrintPreviewModal isOpen={isSampleRequestPreviewOpen} onClose={() => setIsSampleRequestPreviewOpen(false)} data={previewData} />}
         </div>

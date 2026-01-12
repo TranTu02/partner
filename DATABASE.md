@@ -11,21 +11,21 @@
 
 ### 1. Kiến trúc lưu trữ (Storage Architecture)
 
--   **Engine**: PostgreSQL 16+.
--   **Multi-tenancy**: Mô hình **Schema-per-Tenant**.
-    -   `public`: Lưu trữ quản lý hệ thống (Tenants, Subscriptions, Global Configs).
-    -   `tenant_{tenantId}`: Chứa toàn bộ dữ liệu nghiệp vụ riêng biệt của từng Lab.
--   **Khóa chính (PK)**: Sử dụng **Custom Text ID** (VD: `MAT-0001`, `REC2412-001`) thay cho UUID/Serial để tối ưu hóa việc đọc hiểu và tính duy nhất trên toàn hệ thống.
+- **Engine**: PostgreSQL 16+.
+- **Multi-tenancy**: Mô hình **Schema-per-Tenant**.
+  - `public`: Lưu trữ quản lý hệ thống (Tenants, Subscriptions, Global Configs).
+  - `tenant_{tenantId}`: Chứa toàn bộ dữ liệu nghiệp vụ riêng biệt của từng Lab.
+- **Khóa chính (PK)**: Sử dụng **Custom Text ID** (VD: `MAT-0001`, `REC2412-001`) thay cho UUID/Serial để tối ưu hóa việc đọc hiểu và tính duy nhất trên toàn hệ thống.
 
 ### 2. Quy tắc Audit & Soft Delete
 
 Tất cả các bảng (ngoại trừ bảng trung gian thuần túy) phải bao gồm các cột:
 
--   `createdAt` (timestamp): Thời điểm tạo.
--   `createdById` (text): ID người tạo.
--   `modifiedAt` (timestamp): Thời điểm cập nhật cuối.
--   `modifiedById` (text): ID người cập nhật cuối.
--   `deletedAt` (timestamp): Dùng cho **Soft Delete**. Mặc định là `NULL`.
+- `createdAt` (timestamp): Thời điểm tạo.
+- `createdById` (text): ID người tạo.
+- `modifiedAt` (timestamp): Thời điểm cập nhật cuối.
+- `modifiedById` (text): ID người cập nhật cuối.
+- `deletedAt` (timestamp): Dùng cho **Soft Delete**. Mặc định là `NULL`.
 
 ---
 
@@ -38,7 +38,7 @@ Chứa thông tin danh tính và phiên làm việc.
 #### 1. Bảng `identities` (Danh tính User)
 
 | Column Name      | Type    | Key    | Description                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| :--------------- | :------ | :----- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|:---------------- |:------- |:------ |:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `identityId`     | `text`  | **PK** | Custom Text ID.                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `email`          | `text`  | **UQ** | Email.                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `identityName`   | `text`  |        | Tên hiển thị.                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -52,7 +52,7 @@ Chứa thông tin danh tính và phiên làm việc.
 #### 2. Bảng `sessions` (Phiên đăng nhập)
 
 | Column Name     | Type        | Key    | Description                               |
-| :-------------- | :---------- | :----- | :---------------------------------------- |
+|:--------------- |:----------- |:------ |:----------------------------------------- |
 | `sessionId`     | `text`      | **PK** | Custom Text ID.                           |
 | `identityId`    | `text`      | **FK** | Tham chiếu `identities`.                  |
 | `sessionExpiry` | `timestamp` |        | Thời gian hết hạn phiên.                  |
@@ -71,7 +71,7 @@ Chứa thông tin khách hàng và bán hàng.
 #### 1. Bảng `clients` (Danh sách Khách hàng)
 
 | Column Name        | Type      | Key    | Description                                                                                                                                 |
-| :----------------- | :-------- | :----- | :------------------------------------------------------------------------------------------------------------------------------------------ |
+|:------------------ |:--------- |:------ |:------------------------------------------------------------------------------------------------------------------------------------------- |
 | `clientId`         | `text`    | **PK** | Custom Text ID.                                                                                                                             |
 | `clientName`       | `text`    |        | Tên công ty / Cá nhân.                                                                                                                      |
 | `legalId`          | `text`    |        | Mã số thuế / CMND.                                                                                                                          |
@@ -89,7 +89,7 @@ Chứa thông tin khách hàng và bán hàng.
 #### 2. Bảng `orders` (Đơn hàng)
 
 | Column Name                    | Type      | Key    | Description                                                                                                                                                                                            |
-| :----------------------------- | :-------- | :----- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|:------------------------------ |:--------- |:------ |:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `orderId`                      | `text`    | **PK** | Custom Text ID.                                                                                                                                                                                        |
 | `quoteId`                      | `text`    | **FK** | Tham chiếu báo giá nguồn (nếu có).                                                                                                                                                                     |
 | `clientId`                     | `text`    | **FK** |                                                                                                                                                                                                        |
@@ -116,7 +116,7 @@ Chứa thông tin khách hàng và bán hàng.
 Bảng này cập nhật logic sử dụng `matrixId` để tham chiếu giá và phương pháp.
 
 | Column Name                    | Type      | Key    | Description                                         |
-| :----------------------------- | :-------- | :----- | :-------------------------------------------------- |
+|:------------------------------ |:--------- |:------ |:--------------------------------------------------- |
 | `quoteId`                      | `text`    | **PK** | Custom Text ID.                                     |
 | `quoteCode`                    | `text`    |        | Mã báo giá (Readable).                              |
 | `clientId`                     | `text`    | **FK** |                                                     |
@@ -146,7 +146,7 @@ Chứa các bảng danh mục cấu hình.
 Bảng trung gian quan trọng nhất, kết hợp 3 bảng trên để tạo ra đơn giá và ngưỡng kỹ thuật.
 
 | Column Name             | Type      | Key    | Description                                            |
-| :---------------------- | :-------- | :----- | :----------------------------------------------------- |
+|:----------------------- |:--------- |:------ |:------------------------------------------------------ |
 | `matrixId`              | `text`    | **PK** | ID tùy chỉnh (VD: `MAT001`).                           |
 | `parameterId`           | `text`    |        | (Optional) Tham chiếu `parameters` nếu có.             |
 | `protocolId`            | `text`    |        | (Optional) Tham chiếu `protocols` nếu có.              |
@@ -171,7 +171,7 @@ Bảng trung gian quan trọng nhất, kết hợp 3 bảng trên để tạo ra
 Danh mục các tiêu chuẩn áp dụng (TCVN, ISO, ASTM...).
 
 | Column Name             | Type    | Key    | Description                                                             |
-| :---------------------- | :------ | :----- | :---------------------------------------------------------------------- |
+|:----------------------- |:------- |:------ |:----------------------------------------------------------------------- |
 | `protocolId`            | `text`  | **PK** | ID tùy chỉnh (VD: `PRO001`).                                            |
 | `protocolCode`          | `text`  |        | Mã hiệu (VD: `TCVN 6661-1:2011`).                                       |
 | `protocolSource`        | `text`  |        | Nguồn ban hành (ISO, AOAC, EPA...).                                     |
@@ -183,7 +183,7 @@ Danh mục các tiêu chuẩn áp dụng (TCVN, ISO, ASTM...).
 Lưu trữ danh tính của các chỉ tiêu hóa/lý/vi sinh.
 
 | Column Name       | Type    | Key    | Description                                    |
-| :---------------- | :------ | :----- | :--------------------------------------------- |
+|:----------------- |:------- |:------ |:---------------------------------------------- |
 | `parameterId`     | `text`  | **PK** | ID tùy chỉnh (VD: `PAR001`).                   |
 | `parameterName`   | `text`  |        | Tên chỉ tiêu (VD: `Chì (Pb)`, `Tổng số VSV`).  |
 | `displayStyle`    | `jsonb` |        | Cấu hình hiển thị (Định dạng số thập phân...). |
@@ -195,7 +195,7 @@ Lưu trữ danh tính của các chỉ tiêu hóa/lý/vi sinh.
 Phân loại mẫu để áp dụng đơn giá và ngưỡng quy chuẩn.
 
 | Column Name        | Type    | Key    | Description                                         |
-| :----------------- | :------ | :----- | :-------------------------------------------------- |
+|:------------------ |:------- |:------ |:--------------------------------------------------- |
 | `sampleTypeId`     | `text`  | **PK** | ID tùy chỉnh (VD: `ST001`).                         |
 | `sampleTypeName`   | `text`  |        | Tên (VD: `Thực phẩm bảo vệ sức khỏe`, `Nước thải`). |
 | `displayTypeStyle` | `jsonb` |        | {eng: <tên tiếng anh>, default: <tên tiếng Việt>}   |
@@ -206,7 +206,7 @@ Phân loại mẫu để áp dụng đơn giá và ngưỡng quy chuẩn.
 Bảng định nghĩa các gói/nhóm chỉ tiêu để tư vấn bán hàng và báo giá nhanh.
 
 | Column Name               | Type            | Key    | Description                                                        |
-| :------------------------ | :-------------- | :----- | :----------------------------------------------------------------- |
+|:------------------------- |:--------------- |:------ |:------------------------------------------------------------------ |
 | `groupId`                 | `text`          | **PK** | Mã nhóm chỉ tiêu (Custom Text ID).                                 |
 | `groupName`               | `text`          |        | Tên nhóm chỉ tiêu (VD: Gói kiểm nhanh thực phẩm).                  |
 | `matrixIds`               | `text[]`        |        | Mảng mã liên kết với bảng `library.matrices`. (GIN Index support). |
@@ -222,8 +222,8 @@ Bảng định nghĩa các gói/nhóm chỉ tiêu để tư vấn bán hàng và
 
 **Indexes:**
 
--   `idx_paramgroup_sampletype` on `sampleTypeId` (Lọc gói theo ngành hàng).
--   `idx_paramgroup_matrices` (GIN) on `matrixIds` (Tìm gói chứa matrixId cụ thể).
+- `idx_paramgroup_sampletype` on `sampleTypeId` (Lọc gói theo ngành hàng).
+- `idx_paramgroup_matrices` (GIN) on `matrixIds` (Tìm gói chứa matrixId cụ thể).
 
 ---
 
@@ -234,9 +234,10 @@ Các bảng vận hành phòng thí nghiệm.
 #### 1. Bảng `receipts` (Phiếu nhận mẫu)
 
 | Column Name      | Type        | Key    | Description                                |
-| :--------------- | :---------- | :----- | :----------------------------------------- |
+|:---------------- |:----------- |:------ |:------------------------------------------ |
 | `receiptId`      | `text`      | **PK** |                                            |
 | `receiptCode`    | `text`      | **UQ** | Mã phiếu in: `TNM2501-001`.                |
+| `clientId`       | `text`      |        | Mã khách hàng                              |
 | `client`         | `jsonb`     |        | Snapshot thông tin khách hàng.             |
 | `receiptStatus`  | `text`      |        | `Pending`, `Processing`, `Done`, `Cancel`. |
 | `receiptDate`    | `timestamp` |        | Ngày nhận mẫu thực tế.                     |
@@ -249,7 +250,7 @@ Các bảng vận hành phòng thí nghiệm.
 #### 2. Bảng `samples` (Mẫu phân tích)
 
 | Column Name    | Type    | Key    | Description                                            |
-| :------------- | :------ | :----- | :----------------------------------------------------- |
+|:-------------- |:------- |:------ |:------------------------------------------------------ |
 | `sampleId`     | `text`  | **PK** |                                                        |
 | `receiptId`    | `text`  | **FK** | Thuộc phiếu nhận nào.                                  |
 | `sampleTypeId` | `text`  | **FK** | Loại mẫu (Thực phẩm, Dược liệu...).                    |
@@ -262,10 +263,11 @@ Các bảng vận hành phòng thí nghiệm.
 #### 3. Bảng `analyses` (Chỉ tiêu trên mẫu)
 
 | Column Name      | Type    | Key    | Description                                 |
-| :--------------- | :------ | :----- | :------------------------------------------ |
+|:---------------- |:------- |:------ |:------------------------------------------- |
 | `analysisId`     | `text`  | **PK** |                                             |
 | `sampleId`       | `text`  | **FK** | Thuộc mẫu nào.                              |
 | `matrixId`       | `text`  | **FK** | Link tới cấu hình Matrix đã chọn.           |
+| `parameterId`    | `text`  |        | Mã chỉ tiêu                                 |
 | `parameterName`  | `text`  |        | Snapshot tên chỉ tiêu.                      |
 | `protocolCode`   | `text`  |        | Snapshot mã phương pháp.                    |
 | `resultValue`    | `text`  |        | Giá trị kết quả thực tế.                    |
@@ -284,7 +286,7 @@ Liên quan đến file và tài liệu.
 #### 1. Bảng `files` (Quản lý File vật lý)
 
 | Column Name  | Type     | Key    | Description                                             |
-| :----------- | :------- | :----- | :------------------------------------------------------ |
+|:------------ |:-------- |:------ |:------------------------------------------------------- |
 | `fileId`     | `text`   | **PK** | Custom Text ID.                                         |
 | `fileName`   | `text`   |        | Tên file gốc.                                           |
 | `mimeType`   | `text`   |        | Loại file (pdf, image/png...).                          |
@@ -297,7 +299,7 @@ Liên quan đến file và tài liệu.
 #### 2. Bảng `documents` (Tài liệu nghiệp vụ)
 
 | Column Name   | Type    | Key    | Description                                               |
-| :------------ | :------ | :----- | :-------------------------------------------------------- |
+|:------------- |:------- |:------ |:--------------------------------------------------------- |
 | `documentId`  | `text`  | **PK** | Custom Text ID.                                           |
 | `fileId`      | `text`  | **FK** | Link tới file vật lý.                                     |
 | `refId`       | `text`  |        | ID tham chiếu (receiptId, orderId...).                    |
@@ -308,7 +310,7 @@ Liên quan đến file và tài liệu.
 #### 3. Bảng `reports` (Báo cáo Kết quả)
 
 | Column Name  | Type   | Key    | Description                  |
-| :----------- | :----- | :----- | :--------------------------- |
+|:------------ |:------ |:------ |:---------------------------- |
 | `reportId`   | `text` | **PK** | Custom Text ID.              |
 | `receiptId`  | `text` | **FK** |                              |
 | `sampleId`   | `text` | **FK** |                              |
@@ -326,7 +328,7 @@ Liên quan đến các dịch vụ ngoài và hỗ trợ.
 #### 1. Bảng `opai` (OpenAI Logs)
 
 | Column Name     | Type    | Key    | Description                                              |
-| :-------------- | :------ | :----- | :------------------------------------------------------- |
+|:--------------- |:------- |:------ |:-------------------------------------------------------- |
 | `messageOpaiId` | `text`  | **PK** | Custom Text ID.                                          |
 | `role`          | `text`  |        | `user`, `assistant`, `system`.                           |
 | `content`       | `text`  |        | Nội dung trao đổi.                                       |
@@ -337,7 +339,7 @@ Liên quan đến các dịch vụ ngoài và hỗ trợ.
 #### 2. Bảng `shipments` (Giao nhận)
 
 | Column Name      | Type    | Key    | Description                               |
-| :--------------- | :------ | :----- | :---------------------------------------- |
+|:---------------- |:------- |:------ |:----------------------------------------- |
 | `shipmentId`     | `text`  | **PK** | Custom Text ID.                           |
 | `trackingNumber` | `text`  |        | Mã vận đơn.                               |
 | `provider`       | `text`  |        | Đơn vị vận chuyển (ViettelPost, Grab...). |
@@ -347,9 +349,9 @@ Liên quan đến các dịch vụ ngoài và hỗ trợ.
 
 #### 3. Các bảng khác (Placeholder)
 
--   **inventories**: Quản lý hóa chất, vật tư tiêu hao.
--   **suppliers**: Nhà cung cấp vật tư.
--   **subcontractors**: Nhà thầu phụ phân tích mẫu gửi ngoài.
+- **inventories**: Quản lý hóa chất, vật tư tiêu hao.
+- **suppliers**: Nhà cung cấp vật tư.
+- **subcontractors**: Nhà thầu phụ phân tích mẫu gửi ngoài.
 
 ---
 
@@ -413,25 +415,25 @@ interface ClientSnapshot {
 
 ### 1. Naming Convention
 
--   **Table Name**: Luôn là số nhiều, `camelCase` (VD: `sampleTypes`, `parameterProtocols`).
--   **Column Name**: `camelCase` (VD: `isDeleted`, `totalAmount`).
--   **Foreign Key**: `tableName` (số ít) + `Id` (VD: `sampleId`, `receiptId`).
+- **Table Name**: Luôn là số nhiều, `camelCase` (VD: `sampleTypes`, `parameterProtocols`).
+- **Column Name**: `camelCase` (VD: `isDeleted`, `totalAmount`).
+- **Foreign Key**: `tableName` (số ít) + `Id` (VD: `sampleId`, `receiptId`).
 
 ### 2. Chiến \ `lược Indexing
 
--   **Bắt buộc**: Index cho tất cả các cột Foreign Key.
--   **Bắt buộc**: Index cho cột `deletedAt` (vì hầu hết các query đều filter `deletedAt IS NULL`).
--   **Tối ưu**: Sử dụng `GIN Index` cho các cột `jsonb` nếu có nhu cầu search sâu vào object.
+- **Bắt buộc**: Index cho tất cả các cột Foreign Key.
+- **Bắt buộc**: Index cho cột `deletedAt` (vì hầu hết các query đều filter `deletedAt IS NULL`).
+- **Tối ưu**: Sử dụng `GIN Index` cho các cột `jsonb` nếu có nhu cầu search sâu vào object.
 
 ### 3. Ràng buộc toàn vẹn (Constraints)
 
--   Sử dụng `ON DELETE RESTRICT` cho các bảng danh mục (Parameters, Protocols, Matrix) để tránh mất dữ liệu lịch sử khi một danh mục đang được sử dụng trong phiếu phân tích.
--   Check Constraint cho các trường trạng thái (`status`) để đảm bảo đúng tập dữ liệu cho phép.
+- Sử dụng `ON DELETE RESTRICT` cho các bảng danh mục (Parameters, Protocols, Matrix) để tránh mất dữ liệu lịch sử khi một danh mục đang được sử dụng trong phiếu phân tích.
+- Check Constraint cho các trường trạng thái (`status`) để đảm bảo đúng tập dữ liệu cho phép.
 
 ### 4. Schema Evolution
 
--   Mọi thay đổi Schema phải được thực hiện qua **Migration Scripts**.
--   Khi thêm cột mới, phải đảm bảo có giá trị Default hoặc cho phép Null để không làm gãy các Tenant đang hoạt động.
+- Mọi thay đổi Schema phải được thực hiện qua **Migration Scripts**.
+- Khi thêm cột mới, phải đảm bảo có giá trị Default hoặc cho phép Null để không làm gãy các Tenant đang hoạt động.
 
 ---
 

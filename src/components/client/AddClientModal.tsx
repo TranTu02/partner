@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, Copy } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import type { Client, ClientContact, InvoiceInfo } from "@/types/client";
 
 interface AddClientModalProps {
@@ -19,7 +20,7 @@ export function AddClientModal({ isOpen, onClose, onConfirm, currentIdentityId =
     const [legalId, setLegalId] = useState("");
     const [clientAddress, setClientAddress] = useState("");
     const [clientPhone, setClientPhone] = useState("");
-    const [invoiceEmail, setInvoiceEmail] = useState("");
+    const [clientEmail, setClientEmail] = useState("");
 
     // Invoice Info
     const [taxName, setTaxName] = useState("");
@@ -29,22 +30,27 @@ export function AddClientModal({ isOpen, onClose, onConfirm, currentIdentityId =
 
     // Contact Info (Primary)
     const [contactName, setContactName] = useState("");
+    const [contactId, setContactId] = useState("");
     const [contactPhone, setContactPhone] = useState("");
     const [contactEmail, setContactEmail] = useState("");
-    const [contactPosition, setContactPosition] = useState("");
     const [contactAddress, setContactAddress] = useState("");
 
     const handleCopyBasicInfo = () => {
         setTaxName(clientName);
         setTaxCode(legalId);
         setTaxAddress(clientAddress);
-        setTaxEmail(invoiceEmail);
+        setTaxEmail(clientEmail);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!clientName || !clientAddress) {
-            alert(t("validation.fillAll"));
+        // Add proper import at the top
+        if (!clientName) {
+            toast.error(t("validation.required") + ": " + t("client.name"));
+            return;
+        }
+        if (!clientAddress) {
+            toast.error(t("validation.required") + ": " + t("client.address"));
             return;
         }
 
@@ -52,15 +58,14 @@ export function AddClientModal({ isOpen, onClose, onConfirm, currentIdentityId =
             taxName: taxName || clientName,
             taxCode: taxCode || legalId,
             taxAddress: taxAddress || clientAddress,
-            taxEmail: taxEmail || invoiceEmail || "", // Use taxEmail, fallback to invoiceEmail
+            taxEmail: taxEmail || clientEmail || "",
         };
 
         const primaryContact: ClientContact = {
-            contactId: undefined,
+            contactId: contactId,
             contactName: contactName,
             contactPhone: contactPhone,
             contactEmail: contactEmail,
-            contactPosition: contactPosition,
             contactAddress: contactAddress,
             identityId: currentIdentityId,
         };
@@ -70,7 +75,8 @@ export function AddClientModal({ isOpen, onClose, onConfirm, currentIdentityId =
             legalId,
             clientAddress,
             clientPhone,
-            invoiceEmail: invoiceEmail || contactEmail || "",
+            clientEmail: clientEmail,
+            invoiceEmail: clientEmail || contactEmail || "",
             invoiceInfo,
             clientSaleScope: "private",
             availableByIds: [currentIdentityId],
@@ -89,15 +95,15 @@ export function AddClientModal({ isOpen, onClose, onConfirm, currentIdentityId =
         setLegalId("");
         setClientAddress("");
         setClientPhone("");
-        setInvoiceEmail("");
+        setClientEmail("");
         setTaxName("");
         setTaxCode("");
         setTaxAddress("");
         setTaxEmail("");
         setContactName("");
+        setContactId("");
         setContactPhone("");
         setContactEmail("");
-        setContactPosition("");
         setContactAddress("");
 
         onClose();
@@ -166,13 +172,13 @@ export function AddClientModal({ isOpen, onClose, onConfirm, currentIdentityId =
                                 />
                             </div>
                             <div className="col-span-2">
-                                <label className="block mb-2 text-sm font-medium text-foreground">{t("client.invoiceEmail")}</label>
+                                <label className="block mb-2 text-sm font-medium text-foreground">{t("client.email")}</label>
                                 <input
                                     type="email"
                                     className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground text-sm"
-                                    value={invoiceEmail}
-                                    onChange={(e) => setInvoiceEmail(e.target.value)}
-                                    placeholder="email@company.com"
+                                    value={clientEmail}
+                                    onChange={(e) => setClientEmail(e.target.value)}
+                                    placeholder={t("client.emailPlaceholder", "Email")}
                                 />
                             </div>
                         </div>
@@ -195,15 +201,16 @@ export function AddClientModal({ isOpen, onClose, onConfirm, currentIdentityId =
                                 />
                             </div>
                             <div>
-                                <label className="block mb-2 text-sm font-medium text-foreground">{t("client.position")}</label>
+                                <label className="block mb-2 text-sm font-medium text-foreground">{t("client.contactIdentity")}</label>
                                 <input
                                     type="text"
                                     className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground text-sm"
-                                    value={contactPosition}
-                                    onChange={(e) => setContactPosition(e.target.value)}
-                                    placeholder={t("client.position")}
+                                    value={contactId}
+                                    onChange={(e) => setContactId(e.target.value)}
+                                    placeholder={t("client.contactIdentity")}
                                 />
                             </div>
+
                             <div>
                                 <label className="block mb-2 text-sm font-medium text-foreground">{t("client.contactPhone")}</label>
                                 <input

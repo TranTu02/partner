@@ -5,6 +5,7 @@ import { SampleCard } from "@/components/order/SampleCard";
 import { PricingSummary } from "@/components/quote/PricingSummary";
 import { AnalysisModalNew } from "@/components/parameter/AnalysisModalNew";
 import { AddClientModal } from "@/components/client/AddClientModal";
+import { EditClientModal } from "@/components/client/EditClientModal";
 import { QuotePrintPreviewModal } from "@/components/quote/QuotePrintPreviewModal";
 import type { QuotePrintData } from "@/components/quote/QuotePrintTemplate";
 import type { Client } from "@/types/client";
@@ -88,6 +89,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
     const [printData, setPrintData] = useState<QuotePrintData | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+    const [isEditClientModalOpen, setIsEditClientModalOpen] = useState(false);
     const [currentSampleIndex, setCurrentSampleIndex] = useState<number | null>(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -611,6 +613,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                             onTaxAddressChange={setTaxAddress}
                             onTaxEmailChange={setTaxEmail}
                             onAddNewClient={() => setIsClientModalOpen(true)}
+                            onEditClient={() => setIsEditClientModalOpen(true)}
                             isReadOnly={isReadOnly}
                         />
                     </div>
@@ -675,6 +678,51 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 currentIdentityId={user?.identityId}
                 currentIdentityName={user?.identityName}
             />
+            {selectedClient && (
+                <EditClientModal
+                    isOpen={isEditClientModalOpen}
+                    onClose={() => setIsEditClientModalOpen(false)}
+                    client={selectedClient}
+                    onConfirm={async (updatedClient) => {
+                        try {
+                            const { updateClient } = await import("@/api/index");
+                            const response = await updateClient({ body: updatedClient });
+                            if (response.success) {
+                                toast.success("Client updated");
+                                const updated = response.data as Client;
+                                setClients((prev) => prev.map((c) => (c.clientId === updated.clientId ? updated : c)));
+                                setSelectedClient(updated);
+
+                                setClientAddress(updated.clientAddress || "");
+                                setClientPhone(updated.clientPhone || "");
+                                setClientEmail(updated.clientEmail || "");
+
+                                setTaxName(updated.invoiceInfo?.taxName || updated.clientName);
+                                setTaxCode(updated.invoiceInfo?.taxCode || updated.legalId);
+                                setTaxAddress(updated.invoiceInfo?.taxAddress || updated.clientAddress);
+                                setTaxEmail(updated.invoiceInfo?.taxEmail || "");
+
+                                if (updated.clientContacts?.[0]) {
+                                    const contact = updated.clientContacts[0];
+                                    setContactPerson(contact.contactName || "");
+                                    setContactPhone(contact.contactPhone || "");
+                                    setContactIdentity(contact.identityId || "");
+                                    setContactEmail(contact.contactEmail || "");
+                                    setContactPosition(contact.contactPosition || "");
+                                    setContactAddress(contact.contactAddress || "");
+                                    setReportEmail(contact.contactEmail || "");
+                                }
+
+                                setIsEditClientModalOpen(false);
+                            } else {
+                                toast.error("Failed to update client");
+                            }
+                        } catch {
+                            toast.error("Error updating client");
+                        }
+                    }}
+                />
+            )}
             {printData && <QuotePrintPreviewModal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} data={printData} />}
         </div>
     );

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Search, Plus, Loader2, Copy } from "lucide-react";
+import { Search, Plus, Loader2, Copy, Edit2 } from "lucide-react";
 import type { Client } from "@/types/client";
 import { useTranslation } from "react-i18next";
 import { getClients } from "@/api";
@@ -16,6 +16,7 @@ interface ClientSectionNewProps {
 
     // Contact Info
     contactPerson: string;
+    contactId?: string;
     contactPhone: string;
     contactIdentity: string;
     contactEmail?: string;
@@ -36,6 +37,7 @@ interface ClientSectionNewProps {
     onClientEmailChange?: (val: string) => void;
 
     onContactPersonChange: (name: string) => void;
+    onContactIdChange?: (val: string) => void;
     onContactPhoneChange: (phone: string) => void;
     onContactIdentityChange: (identity: string) => void;
     onContactEmailChange?: (val: string) => void;
@@ -49,6 +51,7 @@ interface ClientSectionNewProps {
     onTaxEmailChange?: (val: string) => void;
 
     onAddNewClient: () => void;
+    onEditClient?: () => void;
     isReadOnly?: boolean;
 }
 
@@ -59,6 +62,7 @@ export function ClientSectionNew({
     clientPhone = "",
     clientEmail = "",
     contactPerson,
+    contactId = "",
     contactPhone,
     contactEmail = "",
     contactPosition = "",
@@ -72,6 +76,7 @@ export function ClientSectionNew({
     onClientPhoneChange,
     onClientEmailChange,
     onContactPersonChange,
+    onContactIdChange,
     onContactPhoneChange,
     onContactEmailChange,
     onContactPositionChange,
@@ -81,6 +86,7 @@ export function ClientSectionNew({
     onTaxAddressChange,
     onTaxEmailChange,
     onAddNewClient,
+    onEditClient,
     isReadOnly = false,
 }: ClientSectionNewProps) {
     const { t } = useTranslation();
@@ -172,7 +178,15 @@ export function ClientSectionNew({
         <div className="bg-card rounded-lg border border-border p-6 space-y-6">
             {/* Section 1: Basic Client Info */}
             <div>
-                <h3 className="mb-4 text-base font-semibold text-primary border-b border-border pb-2">{t("client.basicInfo")}</h3>
+                <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
+                    <h3 className="text-base font-semibold text-primary">{t("client.basicInfo")}</h3>
+                    {selectedClient && onEditClient && !isReadOnly && (
+                        <button type="button" onClick={onEditClient} className="text-xs text-primary hover:underline flex items-center gap-1">
+                            <Edit2 className="w-3 h-3" />
+                            {t("common.edit")}
+                        </button>
+                    )}
+                </div>
                 <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="relative">
@@ -323,16 +337,17 @@ export function ClientSectionNew({
                         />
                     </div>
                     <div>
-                        <label className="block mb-2 text-sm font-medium text-foreground">{t("client.position")}</label>
+                        <label className="block mb-2 text-sm font-medium text-foreground">{t("client.contactIdentity")}</label>
                         <input
                             type="text"
                             className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            value={contactPosition}
-                            onChange={(e) => onContactPositionChange?.(e.target.value)}
-                            placeholder={t("client.position")}
+                            value={contactId || ""}
+                            onChange={(e) => onContactIdChange?.(e.target.value)}
+                            placeholder={t("client.contactIdentity")}
                             disabled={isReadOnly}
                         />
                     </div>
+
                     <div>
                         <label className="block mb-2 text-sm font-medium text-foreground">
                             {t("client.contactPhone")} <span className="text-destructive">*</span>
@@ -346,6 +361,7 @@ export function ClientSectionNew({
                             disabled={isReadOnly}
                         />
                     </div>
+
                     <div>
                         <label className="block mb-2 text-sm font-medium text-foreground">{t("client.contactEmail")}</label>
                         <input
