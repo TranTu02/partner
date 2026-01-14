@@ -365,119 +365,191 @@ export default {
             successMessage: "Hóa đơn cho đơn hàng {{orderId}} đã được tạo thành công!",
         },
 
-        validation: {
-            required: "Trường này là bắt buộc",
-            invalidEmail: "Email không hợp lệ",
-            fillAll: "Vui lòng điền đầy đủ thông tin!",
-        },
-        theme: {
-            light: "Sáng",
-            dark: "Tối",
-            system: "Hệ thống",
-            toggle: "Chuyển đổi giao diện",
-        },
-        dashboard: {
-            title: "Dashboard",
-            subtitle: "Tổng quan hệ thống quản lý phòng thí nghiệm",
-            stats: {
-                totalClients: "Tổng khách hàng",
-                quotesThisMonth: "Báo giá tháng này",
-                ordersInProgress: "Đơn hàng đang xử lý",
-                revenueThisMonth: "Doanh thu tháng này",
-                comparedToLastMonth: "so với tháng trước",
-            },
-            recentActivity: {
-                title: "Hoạt động gần đây",
-                newQuote: "Báo giá mới",
-                orderCompleted: "Đơn hàng hoàn thành",
-                newClient: "Khách hàng mới",
-            },
-            popularParameters: {
-                title: "Chỉ tiêu phổ biến",
-            },
-        },
-        organization: {
-            name: "Tên tổ chức",
-            address: "Địa chỉ",
-            email: "Email",
-            phone: "Số điện thoại",
-            taxId: "Mã số thuế",
-            data: {
-                organizationName: "Viện nghiên cứu và phát triển sản phẩm thiên nhiên",
-                address: "176 Phùng Khoang, Phường Đại Mỗ, Thành phố Hà Nội",
-                email: "kiemnghiem@irdop.org",
-                phone: "0943 863 355 - 0912 359 499",
-                taxId: "0107149919",
-            },
-        },
-        branch: {
-            name: "Tên chi nhánh",
-            address: "Địa chỉ",
-            email: "Email",
-            phone: "Số điện thoại",
-            branches: [
-                {
-                    branchName: "VP1",
-                    address: "12 Phùng Khoang 2, Trung Văn, Nam Từ Liêm, Hà Nội",
-                    email: "",
-                    phone: "",
-                },
-                {
-                    branchName: "VP2",
-                    address: "Lô I-4B-2.1, Đường N3 Khu Công nghệ cao TP. HCM Phường Long Thạnh Mỹ TP. Thủ Đức, TP. Hồ Chí Minh",
-                    email: "",
-                    phone: "",
-                },
-                {
-                    branchName: "VP3",
-                    address: "Số 015A Nguyễn Huệ - Phường Lào Cai - Tp. Lào Cai - Tỉnh Lào Cai",
-                    email: "",
-                    phone: "",
-                },
-            ],
-        },
-        sampleRequest: {
-            title: "PHIẾU GỬI MẪU THỬ NGHIỆM",
-            section1: {
-                title: "1. Thông tin:",
-                clientInfo: "1.1 Thông tin khách hàng:",
-                contactInfo: "1.2 Thông tin người liên hệ:",
-            },
-            section2: {
-                title: "2. Nơi nhận kết quả:",
-            },
-            section3: {
-                title: "3. Thông tin đăng ký thử nghiệm (mẫu):",
-            },
-            section4: {
-                title: "4. Thông tin liên hệ:",
-            },
-            clientName: "Tên khách hàng:",
-            address: "Địa chỉ:",
-            phone: "Số điện thoại:",
-            contactPhone: "Điện thoại:",
-            invoiceInfo: "Thông tin xuất hóa đơn (nếu khác thông tin trên):",
-            taxId: "MST/CCCD:",
-            invoiceEmail: "Email HĐ:",
-            contactPerson: "Tên người liên hệ:",
-            identity: "CCCD:",
-            email: "Email:",
-            hardCopy: "Bản cứng:",
-            softCopy: "Bản mềm (Email):",
-            table: {
-                sampleDesc: "Mô tả mẫu",
-                parameters: "Chỉ tiêu yêu cầu kiểm nghiệm",
-            },
-            note1: "Mẫu gửi bắt buộc phải có tên mẫu, mô tả mẫu.",
-            note2: "Thông tin mẫu trên phiếu gửi mẫu phải khớp với thông tin thực tế trên mẫu.",
-            note3: "Khách hàng đồng ý với phương pháp thử do IRDOP tự lựa chọn nếu không có yêu cầu cụ thể.",
-            note4: "Không nhận khiếu nại trong trường hợp không có mẫu lưu hoặc hết thời hạn lưu theo quy định.",
-            disclaimer:
-                "Khách hàng hiểu rằng các kết quả thử nghiệm và phiếu kết quả do phòng thử nghiệm cung cấp dựa trên mẫu gửi chỉ được sử dụng cho các mục đích hợp pháp, phù hợp với quy định pháp luật hiện hành, và phòng thử nghiệm không chịu trách nhiệm đối với bất kỳ việc sử dụng kết quả thử nghiệm ngoài mục đích đã thỏa thuận hoặc các chỉ tiêu không thuộc phạm vi công nhận (trừ trường hợp do lỗi của phòng thử nghiệm) và sẽ không có khiếu nại.",
-            receiver: "Người tiếp nhận",
-            sign1: "Ký, ghi rõ họ tên",
-            customer: "Khách hàng",
-            sign2: "Ký, đóng dấu, ghi rõ họ tên",
-        },
+    validation: {
+      required: "Trường này là bắt buộc",
+      invalidEmail: "Email không hợp lệ",
+      fillAll: "Vui lòng điền đầy đủ thông tin!",
     },
+    theme: {
+      light: "Sáng",
+      dark: "Tối",
+      system: "Hệ thống",
+      toggle: "Chuyển đổi giao diện",
+    },
+    dashboard: {
+      title: "Dashboard",
+      subtitle: "Tổng quan hệ thống quản lý phòng thí nghiệm",
+      stats: {
+        totalClients: "Tổng khách hàng",
+        quotesThisMonth: "Báo giá tháng này",
+        ordersInProgress: "Đơn hàng đang xử lý",
+        revenueThisMonth: "Doanh thu tháng này",
+        comparedToLastMonth: "so với tháng trước",
+      },
+      recentActivity: {
+        title: "Hoạt động gần đây",
+        newQuote: "Báo giá mới",
+        orderCompleted: "Đơn hàng hoàn thành",
+        newClient: "Khách hàng mới",
+      },
+      popularParameters: {
+        title: "Chỉ tiêu phổ biến",
+      },
+    },
+    organization: {
+      name: "Tên tổ chức",
+      address: "Địa chỉ",
+      email: "Email",
+      phone: "Số điện thoại",
+      taxId: "Mã số thuế",
+      data: {
+        organizationName: "Viện nghiên cứu và phát triển sản phẩm thiên nhiên",
+        address: "176 Phùng Khoang, Phường Đại Mỗ, Thành phố Hà Nội",
+        email: "kiemnghiem@irdop.org",
+        phone: "0943 863 355 - 0912 359 499",
+        taxId: "0107149919",
+      },
+    },
+    branch: {
+      name: "Tên chi nhánh",
+      address: "Địa chỉ",
+      email: "Email",
+      phone: "Số điện thoại",
+      branches: [
+        {
+          branchName: "VP1",
+          address: "12 Phùng Khoang 2, Trung Văn, Nam Từ Liêm, Hà Nội",
+          email: "",
+          phone: "",
+        },
+        {
+          branchName: "VP2",
+          address:
+            "Lô I-4B-2.1, Đường N3 Khu Công nghệ cao TP. HCM Phường Long Thạnh Mỹ TP. Thủ Đức, TP. Hồ Chí Minh",
+          email: "",
+          phone: "",
+        },
+        {
+          branchName: "VP3",
+          address:
+            "Số 015A Nguyễn Huệ - Phường Lào Cai - Tp. Lào Cai - Tỉnh Lào Cai",
+          email: "",
+          phone: "",
+        },
+      ],
+    },
+    sampleRequest: {
+      header: "Phiếu gửi mẫu thử nghiệm",
+      title: "PHIẾU GỬI MẪU",
+      order: "ĐƠN HÀNG:",
+      section1: {
+        title: "GỬI MẪU THỬ NGHIỆM (Phần dành riêng cho khách hàng)",
+        title2: " THÔNG TIN THỂ HIỆN TRÊN KẾT QUẢ:",
+        subtitle:
+          "(Thông tin này sẽ được in trên Phiếu kết quả thử nghiệm và xác lập chủ sở hữu KQTN)",
+      },
+      section2: {
+        title: " THÔNG TIN NGƯỜI LIÊN HỆ:",
+        contactPerson: "Người liên hệ:",
+      },
+      section3: {
+        title: " THÔNG TIN NHẬN KẾT QUẢ:",
+        clientPhone: "SĐT:",
+      },
+      section4: {
+        title: " THÔNG TIN XUẤT HÓA ĐƠN:",
+        taxName: "Tên công ty:",
+        contactPhone: "Số điện thoại (KH):",
+        request: "Yêu cầu Viện IRDOP thử nghiệm theo các nội dung dưới đây:",
+        quote:
+          "(Trường hợp Khách hàng không xác định được phương pháp thử, vui lòng thông báo với IRDOP)",
+      },
+      signer: {
+        customer: "KHÁCH HÀNG",
+        confirm:
+          "Tôi xác nhận đã đọc và đồng ý với các quy định chung đính kèm",
+        receiptTitle: "BIÊN NHẬN",
+        labOnly: "Phần dành riêng cho PTN",
+        receivedDate: "Ngày nhận mẫu:",
+        receivedLocation: "Địa điểm nhận mẫu:",
+        atInstitute: "Tại Viện IRDOP",
+        other: "Khác:",
+        retention: "Lưu mẫu:",
+        noRetention: "Không lưu mẫu",
+        retainSample: "Lưu mẫu",
+        receiverTitle: "NGƯỜI NHẬN MẪU",
+      },
+
+      rules: {
+        header: {
+          title: "QUY ĐỊNH CHUNG",
+          attached: "(Kèm theo Phiếu gửi mẫu",
+          archived: "bản điện tử dự trữ tại https://irdop.org/quydinhchung/)",
+        },
+        items: [
+          "Chủ sở hữu Kết quả thử nghiệm (KQTN) là tên khách hàng được thể hiện trên KQTN, chỉ chủ sở hữu mới có quyền yêu cầu điều chỉnh hay thay đổi thông tin hợp lý trên KQTN theo quy định của IRDOP.",
+          "Trong trường hợp Khách hàng không ghi tên phương pháp thử nghiệm, không xác định được phương pháp thử nghiệm thì phải thống nhất với IRDOP và ghi dòng chữ “Đã thống nhất với IRDOP về phương pháp thử” trong phiếu gửi mẫu.",
+          "Chỉ tiêu thử nghiệm có thể phải sử dụng nhà thầu phụ trong trường hợp cần thiết, IRDOP sẽ thông báo cho Khách hàng trước khi áp dụng.",
+          "Phiếu KQTN do IRDOP phát hành đến Khách hàng chỉ có giá trị trên đối tượng thử nghiệm tại thời điểm thử nghiệm và không làm giảm trách nhiệm cũng như nghĩa vụ thuộc hợp đồng thương mại hoặc trách nhiệm pháp lý của Khách hàng hay bên cung cấp đối tượng thử nghiệm. Việc trích sao một phần Phiếu KQTN chỉ được thực hiện khi có sự đồng ý bằng văn bản của IRDOP; mọi hành vi vi phạm quy định này, khách hàng phải tự chịu trách nhiệm theo quy định pháp luật.",
+          "Khách hàng không được tự ý sửa đổi Phiếu KQTN của IRDOP dưới bất cứ hình thức nào; mọi hành vi vi phạm quy định này, khách hàng phải tự chịu trách nhiệm theo quy định pháp luật.",
+          "IRDOP không chịu trách nhiệm về các thông tin do Khách hàng cung cấp tại Phiếu gửi mẫu, bao gồm nhưng không giới hạn: tên mẫu, ký hiệu, nguồn gốc mẫu, tên khách hàng, các chỉ tiêu yêu cầu thử nghiệm.",
+          "Trong trường hợp việc thử nghiệm có trở ngại hay cần thay đổi, hai bên sẽ thông báo, bàn bạc để cùng nhau giải quyết.",
+          "IRDOP thực hiện đúng nội dung thử nghiệm đã thỏa thuận với Khách hàng dựa trên kiến thức, năng lực kỹ thuật hiện có để cung cấp tốt nhất dịch vụ thử nghiệm cho Khách hàng với đầy đủ trách nhiệm của mình theo đúng các quy định hiện hành.",
+          "IRDOP giữ quyền từ chối yêu cầu thử nghiệm khi IRDOP không nhận đủ thông tin hoặc thông tin không xác thực về đối tượng thử nghiệm hoặc khi đối tượng thử nghiệm không đáp ứng yêu cầu thử nghiệm. IRDOP không nhận khiếu nại trong trường hợp không có mẫu lưu hoặc hết thời hạn lưu theo mẫu quy định.",
+          "IRDOP thực hiện bảo mật kết quả thử nghiệm cho Khách hàng, không cung cấp thông tin về công việc thử nghiệm cho bên thứ ba nào biết nếu không có sự đồng ý bằng văn bản của Khách hàng, ngoại trừ các quy định khác của pháp luật.",
+        ],
+        contact: {
+          title: "Thông tin liên hệ:",
+          orgName: "Viện nghiên cứu và phát triển sản phẩm thiên nhiên (IRDOP)",
+          address: "Địa chỉ: 12 Phùng Khoang 2 – Phường Đại Mỗ - TP. Hà Nội",
+          phone: "SĐT: 024 355 35 355",
+          email: "Email: Cskh@irdop.org",
+        },
+      },
+
+      //   section1: {
+      //     title: "1. Thông tin:",
+      //     clientInfo: "1.1 Thông tin khách hàng:",
+      //     contactInfo: "1.2 Thông tin người liên hệ:",
+      //   },
+      //   section2: {
+      //     title: "2. Nơi nhận kết quả:",
+      //   },
+      //   section3: {
+      //     title: "3. Thông tin đăng ký thử nghiệm (mẫu):",
+      //   },
+      //   section4: {
+      //     title: "4. Thông tin liên hệ:",
+      //   },
+      clientName: "Tên khách hàng:",
+      address: "Địa chỉ:",
+      phone: "Số điện thoại:",
+      contactPhone: "Điện thoại:",
+      invoiceInfo: "Thông tin xuất hóa đơn (nếu khác thông tin trên):",
+      taxId: "MST/CCCD:",
+      invoiceEmail: "Email HĐ:",
+      contactPerson: "Tên người liên hệ:",
+      identity: "CCCD:",
+      email: "Email:",
+      hardCopy: "Bản cứng:",
+      softCopy: "Bản mềm (Email):",
+      table: {
+        sampleDesc: "Mô tả mẫu",
+        parameters: "Chỉ tiêu yêu cầu kiểm nghiệm",
+      },
+      note1: "Mẫu gửi bắt buộc phải có tên mẫu, mô tả mẫu.",
+      note2:
+        "Thông tin mẫu trên phiếu gửi mẫu phải khớp với thông tin thực tế trên mẫu.",
+      note3:
+        "Khách hàng đồng ý với phương pháp thử do IRDOP tự lựa chọn nếu không có yêu cầu cụ thể.",
+      note4:
+        "Không nhận khiếu nại trong trường hợp không có mẫu lưu hoặc hết thời hạn lưu theo quy định.",
+      disclaimer:
+        "Khách hàng hiểu rằng các kết quả thử nghiệm và phiếu kết quả do phòng thử nghiệm cung cấp dựa trên mẫu gửi chỉ được sử dụng cho các mục đích hợp pháp, phù hợp với quy định pháp luật hiện hành, và phòng thử nghiệm không chịu trách nhiệm đối với bất kỳ việc sử dụng kết quả thử nghiệm ngoài mục đích đã thỏa thuận hoặc các chỉ tiêu không thuộc phạm vi công nhận (trừ trường hợp do lỗi của phòng thử nghiệm) và sẽ không có khiếu nại.",
+      receiver: "Người tiếp nhận",
+      sign1: "Ký, ghi rõ họ tên",
+      customer: "Khách hàng",
+      sign2: "Ký, đóng dấu, ghi rõ họ tên",
+    },
+  },
 };

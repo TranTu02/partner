@@ -50,15 +50,28 @@ This directory contains the top-level Page components that correspond to routes 
 
 ### `OrdersListPage.tsx`
 
--   **Route**: `/orders`, `/orders/create`, `/orders/edit`, `/orders/detail`
--   **Purpose**: Management and Editor interface for Orders.
--   **Key Logic**:
-    -   **Routing**: Similar to Quotes, handles `list`, `create`, `edit`, `view` modes.
-    -   **Query Params**: Handles `quoteId` in `create` mode to pre-fill order data from an existing quote.
-    -   **List Mode**: Renders `OrderTable` (or internal table structure).
-    -   **Editor Mode**: Renders `OrderEditor`.
-    -   **Navigation**: Redirects to Detail view upon successful Save.
-    -   **Pricing Logic**: Ensures "Total Before Tax" represents sum of Net Prices.
+- **Route**: `/orders`, `/orders/create`, `/orders/edit`, `/orders/detail`
+- **Purpose**: Management and Editor interface for Orders.
+- **Key Logic**:
+  - **Routing**: Similar to Quotes, handles `list`, `create`, `edit`, `view` modes.
+  - **Query Params**: Handles `quoteId` in `create` mode to pre-fill order data from an existing quote.
+  - **List Mode**: Renders `OrderTable` (or internal table structure).
+  - **Editor Mode**: Renders `OrderEditor`.
+  - **Navigation**: Redirects to Detail view upon successful Save.
+    - **Pricing Logic**: Ensures "Total Before Tax" represents sum of Net Prices.
+
+### `SampleRequestFormPage.tsx`
+
+- **Route**: `orders/form/request?orderId`
+- **Purpose**: Generates the Sample Submission Form for an Order with rich-text preview and PDF export..
+- **Key Logic**:
+  - **Query Params**: Reads orderId from the URL (useSearchParams). If missing, shows a Toast error and stops.
+  - **Data Fetching**: Calls getOrderDetail({ query: { orderId } }) to retrieve full Order information.
+  - **Normalization**: Maps the API response into OrderPrintData via mapOrderDetailResponseToPrintData (handles nested response shapes).
+  - **Template Rendering**: Generates initial HTML using generateSampleRequestHtml(data, t) and renders it inside tinymce-react.
+  - **Editor Guard**: Uses editorReady overlay + visibility: hidden to prevent raw HTML flash before TinyMCE init completes.
+  - **Protected Blocks**: Uses TinyMCE noneditable plugin and intercepts Backspace/Delete to prevent accidental removal of .mceNonEditable sections.
+  - **PDF Preview/Export**: Supports Preview (open new tab) and Export (download file).
 
 ### `ParametersPage.tsx`
 

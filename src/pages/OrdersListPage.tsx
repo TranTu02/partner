@@ -11,6 +11,7 @@ import type { Order } from "@/types/order";
 import { toast } from "sonner";
 import { Pagination } from "@/components/common/Pagination";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { SampleRequestFormPage } from "./SampleRequestFormPage";
 import { OrderPrintPreviewModal } from "@/components/order/OrderPrintPreviewModal";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 
@@ -51,9 +52,10 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
     const quoteId = searchParams.get("quoteId");
     const duplicateId = searchParams.get("duplicateId");
 
-    const isEditorActive = isCreate || isDetail || isEdit;
-    const initialViewMode = isCreate ? "create" : isEdit ? "edit" : "view";
-    const [localViewMode, setLocalViewMode] = useState(initialViewMode);
+  const isEditorActive = isCreate || isDetail || isEdit;
+  const isSampleRequestForm = location.pathname.endsWith("/form/request");
+  const initialViewMode = isCreate ? "create" : isEdit ? "edit" : "view";
+  const [localViewMode, setLocalViewMode] = useState(initialViewMode);
 
     useEffect(() => {
         setLocalViewMode(initialViewMode);
@@ -271,9 +273,13 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
         }
     };
 
-    const handleSaveTrigger = () => {
-        editorRef.current?.save();
-    };
+  const handleSaveTrigger = () => {
+    editorRef.current?.save();
+  };
+
+  if (isSampleRequestForm) {
+    return <SampleRequestFormPage />;
+  }
 
     if (isEditorActive) {
         return (
@@ -303,35 +309,43 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                             </button>
                         )}
 
-                        {localViewMode === "view" && (
-                            <>
-                                <button
-                                    onClick={() => editorRef.current?.export()}
-                                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
-                                >
-                                    <FileDown className="w-4 h-4" />
-                                    <span className="hidden sm:inline">{t("order.printButton", "In Đơn hàng")}</span>
-                                </button>
-                                <button
-                                    onClick={() => editorRef.current?.exportSampleRequest()}
-                                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
-                                >
-                                    <FileText className="w-4 h-4" />
-                                    <span className="hidden sm:inline">{t("order.print.sampleRequest", "Phiếu gửi mẫu")}</span>
-                                </button>
-                            </>
-                        )}
-                        {localViewMode !== "view" && (
-                            <button
-                                onClick={handleSaveTrigger}
-                                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-                            >
-                                <Save className="w-4 h-4" />
-                                {t("common.save")}
-                            </button>
-                        )}
-                    </div>
-                </div>
+            {localViewMode === "view" && (
+              <>
+                <button
+                  onClick={() => editorRef.current?.export()}
+                  className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
+                  <FileDown className="w-4 h-4" />
+                  <span className="hidden sm:inline">
+                    {t("order.printButton", "In Đơn hàng")}
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    const id = selectedOrder?.orderId || orderId;
+                    if (!id) return;
+                    navigate(
+                      `/orders/form/request?orderId=${encodeURIComponent(id)}`
+                    );
+                  }}
+                  // onClick={() => editorRef.current?.exportSampleRequest()}
+                  className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
+                  <FileText className="w-4 h-4" />
+                  <span className="hidden sm:inline">
+                    {t("order.print.sampleRequest", "Phiếu gửi mẫu")}
+                  </span>
+                </button>
+              </>
+            )}
+            {localViewMode !== "view" && (
+              <button
+                onClick={handleSaveTrigger}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium">
+                <Save className="w-4 h-4" />
+                {t("common.save")}
+              </button>
+            )}
+          </div>
+        </div>
 
                 {/* Editor Content */}
                 <div className="flex-1 overflow-hidden">
