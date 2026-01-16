@@ -13,7 +13,14 @@ export interface Quote {
     discountRate: number;
     totalAmount: number;
     quoteStatus: "Draft" | "Sent" | "Approved" | "Expired";
-    contactPerson: { identityId: string; identityName: string }; // jsonb
+    contactPerson?: {
+        contactId?: string;
+        contactName: string;
+        contactPhone?: string;
+        contactEmail?: string;
+        contactAddress?: string;
+        identityId?: string;
+    }; // jsonb (Contact Snapshot)
     // Audit columns
     createdAt: string;
     createdById: string;

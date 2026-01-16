@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { LogIn, UserCircle } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { useSearchParams } from "react-router-dom";
 import LogoFull from "@/assets/LOGO-FULL.png";
 
 export function LoginPage() {
     const { login, loginAsGuest } = useAuth();
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
+    const [searchParams] = useSearchParams();
+    const [error, setError] = useState(() => {
+        return searchParams.get("reason") === "401" ? "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại." : "";
+    });
     const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async (e: React.FormEvent) => {

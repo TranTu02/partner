@@ -62,9 +62,25 @@ axiosInstance.interceptors.response.use(
 
         // Custom Error Handling based on status
         if (status === 401) {
-            toast.error("Unauthorized: Please login again.");
-            // Optional logic for redirecting to login page
-            // window.location.href = '/login';
+            // Don't redirect if we're already on the login page or if it's a login request
+            const isLoginRequest = error.config?.url?.includes("/v1/auth/login");
+
+            if (!isLoginRequest) {
+                toast.error("Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.");
+
+                // Clear auth data
+                Cookies.remove("authToken");
+                localStorage.removeItem("user");
+                localStorage.removeItem("sessionId");
+
+                // Redirect to login (root)
+                if (window.location.pathname !== "/") {
+                    // Use a small delay to allow the toast to be noticed
+                    setTimeout(() => {
+                        window.location.href = "/?reason=401";
+                    }, 1000);
+                }
+            }
         } else if (status === 403) {
             toast.error("Forbidden: You do not have permission.");
         } else if (status >= 500) {

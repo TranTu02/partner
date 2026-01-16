@@ -110,8 +110,9 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 setTaxEmail(initialData.client.invoiceInfo.taxEmail || "");
             }
 
-            if (initialData.client?.clientContacts?.[0]) {
-                const contact = initialData.client.clientContacts[0];
+            // Populate Contact from top-level contactPerson (Restructured) or fallback to Legacy Snapshot
+            const contact = initialData.contactPerson || initialData.client?.clientContacts?.[0];
+            if (contact) {
                 setContactPerson(contact.contactName || (contact as any).name || "");
                 setContactPhone(contact.contactPhone || (contact as any).phone || "");
                 setContactIdentity(contact.identityId || "");
@@ -233,23 +234,30 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             sampleMatrix: "",
             sampleNote: "",
             analyses: [],
+            quantity: 1,
         };
         setSamples([...samples, newSample]);
     };
 
-    const handleDuplicateSample = (sampleId: string) => {
+    const handleDuplicateSample = (sampleId: string, count: number = 1) => {
         if (isReadOnly) return;
         const sampleToDuplicate = samples.find((s) => s.id === sampleId);
         if (!sampleToDuplicate) return;
 
-        const timestamp = Date.now();
-        const duplicatedSample: SampleWithQuantity = {
-            ...sampleToDuplicate,
-            id: `S${timestamp}`,
-            sampleId: undefined,
-            analyses: sampleToDuplicate.analyses.map((a, idx) => ({ ...a, id: `${a.parameterId}_copy_${timestamp}_${idx}` })),
-        };
-        setSamples([...samples, duplicatedSample]);
+        const newSamples: SampleWithQuantity[] = [];
+        for (let i = 0; i < count; i++) {
+            const timestamp = Date.now() + i;
+            newSamples.push({
+                ...sampleToDuplicate,
+                id: `S${timestamp}`,
+                sampleId: undefined,
+                analyses: sampleToDuplicate.analyses.map((a, idx) => ({
+                    ...a,
+                    id: `${a.parameterId}_copy_${timestamp}_${idx}`,
+                })),
+            });
+        }
+        setSamples([...samples, ...newSamples]);
     };
 
     const handleRemoveSample = (sampleId: string) => {
@@ -341,6 +349,9 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
         let sumVAT = 0; // Sum of Analysis VATs
 
         samples.forEach((sample) => {
+            let sampleSubtotal = 0;
+            let sampleVAT = 0;
+
             sample.analyses.forEach((analysis) => {
                 const quantity = Number(analysis.quantity || 1);
                 const unitPrice = Number(analysis.unitPrice || 0);
@@ -350,11 +361,15 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 const lineTotalGross = unitPrice * quantity;
                 const lineTotalNet = lineTotalGross * (1 - lineDiscountRate / 100);
 
-                totalFeeBeforeTax += lineTotalNet;
+                sampleSubtotal += lineTotalNet;
 
                 const lineVAT = lineTotalNet * (taxRate / 100);
-                sumVAT += lineVAT;
+                sampleVAT += lineVAT;
             });
+
+            const sampleQty = Number(sample.quantity || 1);
+            totalFeeBeforeTax += sampleSubtotal * sampleQty;
+            sumVAT += sampleVAT * sampleQty;
         });
 
         const discountAmount = totalFeeBeforeTax * (discountRate / 100);
@@ -392,28 +407,26 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             const { createQuote, updateQuote } = await import("@/api/index");
 
             const clientSnapshot = {
-                ...selectedClient,
+                clientId: selectedClient.clientId,
+                clientName: selectedClient.clientName,
                 clientAddress,
                 clientPhone,
                 clientEmail,
+                legalId: selectedClient.legalId,
                 invoiceInfo: {
                     taxName,
                     taxCode,
                     taxAddress,
                     taxEmail,
                 },
-                clientContacts: selectedClient.clientContacts
-                    ? [
-                          {
-                              ...(selectedClient.clientContacts[0] || {}),
-                              contactName: contactPerson,
-                              contactPhone: contactPhone,
-                              contactEmail: contactEmail,
-                              contactAddress: contactAddress,
-                              identityId: contactIdentity,
-                          },
-                      ]
-                    : [],
+            };
+
+            const contactData = {
+                contactName: contactPerson,
+                contactPhone: contactPhone,
+                contactEmail: contactEmail,
+                contactAddress: contactAddress,
+                identityId: contactIdentity,
             };
 
             // Exclude legacy 'discount' field if it exists in initialData
@@ -427,7 +440,8 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 salePersonId: mode === "create" ? user?.identityId : initialData?.salePersonId,
                 salePerson: mode === "create" ? user?.identityName : initialData?.salePerson,
                 clientId: selectedClient.clientId,
-                client: clientSnapshot,
+                client: clientSnapshot as any,
+                contactPerson: contactData,
 
                 samples: samples.map((s) => ({
                     ...s,
@@ -486,34 +500,24 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
         // Construct a client snapshot with updated fields for print
         const clientSnapshot = selectedClient
             ? {
-                  ...selectedClient,
+                  clientId: selectedClient.clientId,
+                  clientName: selectedClient.clientName,
                   clientAddress,
                   clientPhone,
                   clientEmail,
+                  legalId: selectedClient.legalId,
                   invoiceInfo: {
                       taxName,
                       taxCode,
                       taxAddress,
                       taxEmail,
                   },
-                  clientContacts: selectedClient.clientContacts
-                      ? [
-                            {
-                                ...selectedClient.clientContacts[0],
-                                contactName: contactPerson,
-                                contactPhone: contactPhone,
-                                contactEmail: contactEmail,
-                                contactAddress: contactAddress,
-                                identityId: contactIdentity,
-                            },
-                        ]
-                      : [],
               }
             : null;
 
         const data: QuotePrintData = {
             quoteId,
-            client: clientSnapshot,
+            client: clientSnapshot as any,
 
             contactPerson,
             contactPhone,
@@ -531,6 +535,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 sampleName: s.sampleName || "",
                 sampleMatrix: s.sampleMatrix || "",
                 sampleNote: s.sampleNote || "",
+                quantity: s.quantity || 1,
                 analyses: s.analyses.map((a) => {
                     const quantity = a.quantity || 1;
                     const unitPrice = a.unitPrice || 0;
@@ -618,11 +623,12 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                                         sample={sample}
                                         sampleIndex={index}
                                         onRemoveSample={() => handleRemoveSample(sample.id)}
-                                        onDuplicateSample={() => handleDuplicateSample(sample.id)}
+                                        onDuplicateSample={(count) => handleDuplicateSample(sample.id, count)}
                                         onUpdateSample={(updates) => handleUpdateSample(sample.id, updates)}
                                         onAddAnalysis={() => handleOpenModal(index)}
                                         onRemoveAnalysis={(analysisId) => handleRemoveAnalysis(sample.id, analysisId)}
                                         isReadOnly={isReadOnly}
+                                        showSampleQuantity={true}
                                     />
                                 </div>
                             ))}

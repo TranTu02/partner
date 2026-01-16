@@ -10,7 +10,7 @@ export default defineConfig({
             "@": path.resolve(__dirname, "./src"),
         },
     },
-    assetsInclude: ["**/*.png", "**/*.jpg", "**/*.svg"], // file ảnh
+    assetsInclude: ["**/*.png", "**/*.jpg", "**/*.svg", "**/*.otf", "**/*.ttf"], // file ảnh, font 
     define: {
         __WS_TOKEN__: JSON.stringify("abc"),
         global: "globalThis", // Định nghĩa `global` thành `globalThis`

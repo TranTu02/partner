@@ -15,6 +15,11 @@ interface PricingSummaryProps {
 
 export function PricingSummary({ subtotal, discountRate, discountAmount, feeBeforeTax, tax, total, commission, onDiscountRateChange, onCommissionChange, isReadOnly = false }: PricingSummaryProps) {
     const { t } = useTranslation();
+    const handleNumberKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+            e.preventDefault();
+        }
+    };
 
     return (
         <div className="bg-card rounded-lg border border-border p-6">
@@ -36,6 +41,8 @@ export function PricingSummary({ subtotal, discountRate, discountAmount, feeBefo
                         className="w-24 px-3 py-1 border border-border rounded-lg text-right focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         value={discountRate}
                         onChange={(e) => onDiscountRateChange(parseFloat(e.target.value) || 0)}
+                        onKeyDown={handleNumberKeyDown}
+                        onWheel={(e) => e.currentTarget.blur()}
                         disabled={isReadOnly}
                     />
                 </div>
@@ -73,6 +80,8 @@ export function PricingSummary({ subtotal, discountRate, discountAmount, feeBefo
                             className="w-24 px-3 py-1 border border-border rounded-lg text-right focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             value={commission}
                             onChange={(e) => onCommissionChange(parseFloat(e.target.value) || 0)}
+                            onKeyDown={handleNumberKeyDown}
+                            onWheel={(e) => e.currentTarget.blur()}
                             disabled={isReadOnly}
                         />
                     </div>

@@ -27,6 +27,12 @@ export function AccountingDetailModal({ order, open, onClose, onRefresh }: Accou
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
+    const handleNumberKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+            e.preventDefault();
+        }
+    };
+
     useEffect(() => {
         if (order) {
             setOrderStatus(order.orderStatus);
@@ -242,6 +248,8 @@ export function AccountingDetailModal({ order, open, onClose, onRefresh }: Accou
                                                     className="w-full px-2 py-1 border border-border rounded bg-background text-sm"
                                                     value={trans.amount}
                                                     onChange={(e) => handleTransactionChange(idx, "amount", parseFloat(e.target.value) || 0)}
+                                                    onKeyDown={handleNumberKeyDown}
+                                                    onWheel={(e) => e.currentTarget.blur()}
                                                 />
                                             </div>
                                             <div>

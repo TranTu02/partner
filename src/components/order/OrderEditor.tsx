@@ -121,9 +121,9 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 setTaxEmail(initialData.client.invoiceInfo.taxEmail || "");
             }
 
-            // Populate Contact from Snapshot
-            if (initialData.client?.clientContacts?.[0]) {
-                const contact = initialData.client.clientContacts[0];
+            // Populate Contact from top-level contactPerson (Restructured) or fallback to Legacy Snapshot
+            const contact = initialData.contactPerson || initialData.client?.clientContacts?.[0];
+            if (contact) {
                 setContactPerson(contact.contactName || (contact as any).name || "");
                 setContactPhone(contact.contactPhone || (contact as any).phone || "");
                 setContactId(contact.contactId || "");
@@ -297,8 +297,9 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     setTaxAddress(qClient.invoiceInfo?.taxAddress || qClient.clientAddress);
                     setTaxEmail(qClient.invoiceInfo?.taxEmail || "");
 
-                    if (qClient.clientContacts?.[0]) {
-                        const contact = qClient.clientContacts[0];
+                    // Populate Contact from top-level or snapshot
+                    const contact = foundQuote.contactPerson || qClient.clientContacts?.[0];
+                    if (contact) {
                         setContactPerson(contact.contactName || (contact as any).name || "");
                         setContactPhone(contact.contactPhone || (contact as any).phone || "");
                         setContactId(contact.contactId || "");
@@ -310,25 +311,29 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
                     setDiscountRate(foundQuote.discountRate || 0);
 
-                    const convertedSamples: SampleWithQuantity[] = (foundQuote.samples || []).map((s: any) => ({
-                        id: s.sampleId || `temp-sample-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                        sampleId: s.sampleId,
-                        sampleName: s.sampleName || s.name || "Sample",
-                        sampleMatrix: s.sampleMatrix || s.matrix || "Water",
-                        sampleNote: s.sampleNote || "",
-                        analyses: (s.analyses || []).map((a: any) => ({
-                            ...a,
-                            id: a.id || `temp-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                            // Maintain exact unitPrice from quote. Discount calculation should start fresh or maintain item discount?
-                            // Usually Quote Analysis has unitPrice (list price) and potentially discountRate
-                            unitPrice: Number(a.unitPrice) || Number(a.parameterPrice) || 0,
-                            quantity: Number(a.quantity) || 1,
-                            discountRate: Number(a.discountRate) || 0,
-                            taxRate: Number(a.taxRate) || Number(a.parameterTaxRate) || 0,
-                        })),
-                    }));
+                    const expandedSamples: SampleWithQuantity[] = [];
+                    (foundQuote.samples || []).forEach((s: any) => {
+                        const qty = Number(s.quantity) || 1;
+                        for (let i = 0; i < qty; i++) {
+                            expandedSamples.push({
+                                id: `temp-sample-${Date.now()}-${Math.random().toString(36).slice(2)}-${i}`,
+                                sampleId: undefined, // Create new sample for order
+                                sampleName: s.sampleName || s.name || "Sample",
+                                sampleMatrix: s.sampleMatrix || s.matrix || "Water",
+                                sampleNote: s.sampleNote || "",
+                                analyses: (s.analyses || []).map((a: any) => ({
+                                    ...a,
+                                    id: `temp-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}-${i}`,
+                                    unitPrice: Number(a.unitPrice) || Number(a.parameterPrice) || 0,
+                                    quantity: Number(a.quantity) || 1,
+                                    discountRate: Number(a.discountRate) || 0,
+                                    taxRate: Number(a.taxRate) || Number(a.parameterTaxRate) || 0,
+                                })),
+                            });
+                        }
+                    });
 
-                    setSamples(convertedSamples);
+                    setSamples(expandedSamples);
                     toast.success(t("order.loadQuoteSuccess"));
                 } else {
                     // Should not happen if data is detail, but good check
@@ -412,29 +417,18 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         // Construct a client snapshot with updated fields
         const clientSnapshot = selectedClient
             ? {
-                  ...selectedClient,
+                  clientId: selectedClient.clientId,
+                  clientName: selectedClient.clientName,
                   clientAddress,
                   clientPhone,
                   clientEmail,
+                  legalId: selectedClient.legalId,
                   invoiceInfo: {
                       taxName,
                       taxCode,
                       taxAddress,
                       taxEmail,
                   },
-                  clientContacts: selectedClient.clientContacts
-                      ? [
-                            {
-                                ...(selectedClient.clientContacts[0] || {}),
-                                contactName: contactPerson,
-                                contactPhone: contactPhone,
-                                contactEmail: contactEmail,
-                                contactAddress: contactAddress,
-                                contactId: contactId,
-                                identityId: contactIdentity,
-                            },
-                        ]
-                      : [],
               }
             : null;
 
@@ -442,7 +436,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             orderId,
             createdAt: initialData?.createdAt,
             salePerson: mode === "create" ? user?.identityName : initialData?.salePerson,
-            client: clientSnapshot,
+            client: clientSnapshot as any,
 
             contactPerson,
             contactPhone,
@@ -535,19 +529,26 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         setSamples([...samples, newSample]);
     };
 
-    const handleDuplicateSample = (sampleId: string) => {
+    const handleDuplicateSample = (sampleId: string, count: number = 1) => {
         if (isReadOnly) return;
         const sampleToDuplicate = samples.find((s) => s.id === sampleId);
         if (!sampleToDuplicate) return;
 
-        const newSampleId = `temp-sample-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        const duplicatedSample: SampleWithQuantity = {
-            ...sampleToDuplicate,
-            id: newSampleId,
-            sampleId: undefined,
-            analyses: sampleToDuplicate.analyses.map((a) => ({ ...a, id: `temp-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}` })),
-        };
-        setSamples([...samples, duplicatedSample]);
+        const newSamples: SampleWithQuantity[] = [];
+        for (let i = 0; i < count; i++) {
+            const timestamp = Date.now() + i;
+            const newSampleId = `temp-sample-${timestamp}-${Math.random().toString(36).slice(2)}`;
+            newSamples.push({
+                ...sampleToDuplicate,
+                id: newSampleId,
+                sampleId: undefined,
+                analyses: sampleToDuplicate.analyses.map((a, aIdx) => ({
+                    ...a,
+                    id: `temp-analysis-${timestamp}-${Math.random().toString(36).slice(2)}-${aIdx}`,
+                })),
+            });
+        }
+        setSamples([...samples, ...newSamples]);
     };
 
     const handleRemoveSample = (sampleId: string) => {
@@ -632,29 +633,27 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
             // Construct client snapshot
             const clientSnapshot = {
-                ...selectedClient,
-                clientAddress,
-                clientPhone,
-                clientEmail,
+                clientId: selectedClient.clientId,
+                clientName: selectedClient.clientName,
+                clientAddress: clientAddress,
+                clientPhone: clientPhone,
+                clientEmail: clientEmail,
+                legalId: selectedClient.legalId,
                 invoiceInfo: {
                     taxName,
                     taxCode,
                     taxAddress,
                     taxEmail,
                 },
-                clientContacts: selectedClient.clientContacts
-                    ? [
-                          {
-                              ...(selectedClient.clientContacts[0] || {}),
-                              contactName: contactPerson,
-                              contactPhone: contactPhone,
-                              contactEmail: contactEmail,
-                              contactAddress: contactAddress,
-                              contactId: contactId,
-                              identityId: contactIdentity,
-                          },
-                      ]
-                    : [],
+            };
+
+            const contactData = {
+                contactName: contactPerson,
+                contactPhone: contactPhone,
+                contactEmail: contactEmail,
+                contactAddress: contactAddress,
+                contactId: contactId,
+                identityId: contactIdentity,
             };
 
             // Exclude legacy 'discount' field if it exists in initialData
@@ -668,8 +667,9 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 orderStatus: mode === "create" ? "pending" : initialData?.orderStatus || "pending",
                 salePersonId: mode === "create" ? user?.identityId : initialData?.salePersonId,
                 salePerson: mode === "create" ? user?.identityName : initialData?.salePerson,
-                clientId: selectedClient.clientId || selectedClient.clientId,
-                client: clientSnapshot,
+                clientId: selectedClient.clientId,
+                client: clientSnapshot as any,
+                contactPerson: contactData,
                 quoteId,
 
                 samples: samples.map((s) => {
@@ -810,7 +810,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                         sample={sample}
                                         sampleIndex={index}
                                         onRemoveSample={() => handleRemoveSample(sample.id)}
-                                        onDuplicateSample={() => handleDuplicateSample(sample.id)}
+                                        onDuplicateSample={(count) => handleDuplicateSample(sample.id, count)}
                                         onUpdateSample={(updates) => handleUpdateSample(sample.id, updates)}
                                         onAddAnalysis={() => handleOpenModal(index)}
                                         onRemoveAnalysis={(analysisId) => handleRemoveAnalysis(sample.id, analysisId)}

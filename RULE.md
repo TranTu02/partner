@@ -110,6 +110,16 @@ partner/
 -   **Nội dung**: Phải mô tả Mục đích, Các Component chính, Props, Logic quan trọng.
 -   **Cập nhật**: Khi thay đổi tính năng core, phải cập nhật file tài liệu tương ứng.
 
+### G. Truy cập Công khai (Public Form Access)
+
+-   **Cơ chế**: Sử dụng `orderUri` (một token ngẫu nhiên được sinh cho mỗi Đơn hàng) để cho phép khách hàng truy cập trực tiếp vào `/form/request-sample` mà không cần đăng nhập Account Partner.
+-   **Luồng hoạt động**:
+    1. Partner (Nhân viên) bấm "Tạo Link" trong Preview.
+    2. Một link định dạng `.../form/request-sample?orderId=...&uri=...` được sinh ra.
+    3. Khách hàng mở link, điền form TinyMCE và bấm "Lưu".
+    4. Dữ liệu được lưu vào cột `requestForm` của bảng `orders`.
+-   **Xác thực**: Token `uri` phải match với `orderUri` trong DB để được phép đọc/ghi dữ liệu đơn hàng đó.
+
 ## 4. Quy trình Git & Công việc (Git & Workflow)
 
 1.  **Kiểm tra**: Luôn đảm bảo `npm run dev` chạy không lỗi trước khi commit.

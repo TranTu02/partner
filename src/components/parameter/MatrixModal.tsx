@@ -60,6 +60,12 @@ export function MatrixModal({ isOpen, onClose, onSuccess, initialData }: MatrixM
         }
     }, [isOpen, initialData]);
 
+    const handleNumberKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+            e.preventDefault();
+        }
+    };
+
     const fetchSampleTypesData = async () => {
         setIsLoading(true);
         try {
@@ -226,6 +232,8 @@ export function MatrixModal({ isOpen, onClose, onSuccess, initialData }: MatrixM
                                 className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none bg-input text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 value={formData.feeBeforeTax}
                                 onChange={(e) => handlePriceChange("before", Number(e.target.value))}
+                                onKeyDown={handleNumberKeyDown}
+                                onWheel={(e) => e.currentTarget.blur()}
                                 min={0}
                             />
                         </div>
@@ -238,6 +246,8 @@ export function MatrixModal({ isOpen, onClose, onSuccess, initialData }: MatrixM
                                 className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none bg-input text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 value={formData.taxRate}
                                 onChange={(e) => handlePriceChange("tax", Number(e.target.value))}
+                                onKeyDown={handleNumberKeyDown}
+                                onWheel={(e) => e.currentTarget.blur()}
                                 min={0}
                                 max={100}
                             />
@@ -251,6 +261,8 @@ export function MatrixModal({ isOpen, onClose, onSuccess, initialData }: MatrixM
                                 className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none bg-input text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 value={formData.feeAfterTax || 0}
                                 onChange={(e) => handlePriceChange("after", Number(e.target.value))}
+                                onKeyDown={handleNumberKeyDown}
+                                onWheel={(e) => e.currentTarget.blur()}
                                 min={0}
                             />
                         </div>

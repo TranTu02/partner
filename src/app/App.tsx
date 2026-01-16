@@ -9,14 +9,15 @@ import { OrdersListPage } from "@/pages/OrdersListPage";
 import { AccountingPage } from "@/pages/AccountingPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { SampleRequestFormPage } from "@/pages/SampleRequestFormPage";
 
 function AppRoutes() {
     const { user, isGuest, hasAccess } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
 
-    // Show login page if not authenticated
-    if (!user && !isGuest) {
+    // Show login page if not authenticated, unless accessing the public sample request form
+    if (!user && !isGuest && location.pathname !== "/form/request-sample") {
         return <LoginPage />;
     }
 
@@ -47,6 +48,7 @@ function AppRoutes() {
         <div className="flex flex-col h-screen bg-[#F0F2F5] overflow-hidden" style={{ fontFamily: "var(--font-family)" }}>
             <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/form/request-sample" element={<SampleRequestFormPage />} />
                 <Route path="/dashboard" element={<ProtectedRoute menuId="dashboard" element={<DashboardPage {...commonProps} />} />} />
                 <Route path="/clients" element={<ProtectedRoute menuId="clients" element={<ClientsPage {...commonProps} />} />} />
 

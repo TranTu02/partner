@@ -1,5 +1,8 @@
-import { X, Trash2, Copy, Unlink, GripVertical } from "lucide-react";
+﻿import { X, Trash2, Copy, Unlink, GripVertical, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { Matrix } from "@/types/parameter";
 
 // ... (interfaces remain same)
@@ -9,7 +12,7 @@ export interface AnalysisWithQuantity extends Omit<Matrix, "createdAt" | "create
     unitPrice: number;
     quantity: number;
     userQuantity?: number;
-    feeAfterTax?: number; // Renamed from totalFeeBeforeTax, represents the line total (Thành tiền)
+    feeAfterTax?: number; // Renamed from totalFeeBeforeTax, represents the line total (ThÃ nh tiá»n)
     taxRate?: number; // Ensure taxRate is also consistently typed as number
     groupId?: string;
     groupDiscount?: number;
@@ -61,20 +64,32 @@ export interface SampleWithQuantity {
     sampleMatrix: string;
     sampleNote?: string;
     analyses: AnalysisWithQuantity[];
+    quantity?: number;
 }
 
 interface SampleCardProps {
     sample: SampleWithQuantity;
     sampleIndex: number;
     onRemoveSample: () => void;
-    onDuplicateSample: () => void;
+    onDuplicateSample: (count: number) => void;
     onUpdateSample: (updates: Partial<SampleWithQuantity>) => void;
     onAddAnalysis: () => void;
     onRemoveAnalysis: (analysisId: string) => void;
     isReadOnly?: boolean;
+    showSampleQuantity?: boolean;
 }
 
-export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSample, onUpdateSample, onAddAnalysis, onRemoveAnalysis, isReadOnly = false }: SampleCardProps) {
+export function SampleCard({
+    sample,
+    sampleIndex,
+    onRemoveSample,
+    onDuplicateSample,
+    onUpdateSample,
+    onAddAnalysis,
+    onRemoveAnalysis,
+    isReadOnly = false,
+    showSampleQuantity = false,
+}: SampleCardProps) {
     const { t } = useTranslation();
 
     // Calculates the fee after tax for a line item.
@@ -98,6 +113,15 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
         const afterTax = afterDiscount * (1 + taxRate / 100);
 
         return afterTax;
+    };
+
+    const [duplicateCount, setDuplicateCount] = useState(1);
+    const [isDuplicatePopoverOpen, setIsDuplicatePopoverOpen] = useState(false);
+
+    const handleNumberKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+            e.preventDefault();
+        }
     };
 
     const handleAnalysisChange = (analysisIndex: number, field: keyof AnalysisWithQuantity, value: any) => {
@@ -137,7 +161,7 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
             updatedAnalysis.taxRate = newTaxRate;
 
             // Recalculate unitPrice to keep feeAfterTax constant?
-            // Previous logic: "đơn giá sẽ điều chỉnh".
+            // Previous logic: "Ä‘Æ¡n giÃ¡ sáº½ Ä‘iá»u chá»‰nh".
             // Let's stick to that: Maintain Total, adjust Unit Price.
             const currentFeeAfterTax = updatedAnalysis.feeAfterTax ?? calculateFeeAfterTax(updatedAnalysis);
             updatedAnalysis.feeAfterTax = currentFeeAfterTax;
@@ -220,18 +244,18 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
             const discountVal = feeRaw * (discountRate / 100);
             const feeNet = feeRaw - discountVal;
 
-            // "Tổng tiền sau thuế" = Sum(feeAfterTax)
             const lineAfterTax = a.feeAfterTax ?? feeNet * (1 + taxRate / 100);
 
             totalUnitPrice += feeRaw;
             totalDiscount += discountVal;
-            // "Tổng tiền trước thuế" = Sum(Net Price)
             totalBeforeTax += feeNet;
             totalAfterTax += lineAfterTax;
         });
 
-        return { totalUnitPrice, totalDiscount, totalBeforeTax, totalAfterTax };
-    }, [sample.analyses]);
+        const sampleQuantity = sample.quantity || 1;
+
+        return { totalUnitPrice, totalDiscount, totalBeforeTax, totalAfterTax, sampleQuantity };
+    }, [sample.analyses, sample.quantity]);
 
     const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
 
@@ -239,8 +263,8 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
         <div className="bg-card rounded-lg border border-border p-6">
             {/* Header */}
             <div className="flex items-start gap-4 mb-4">
-                <div className="flex-1 grid grid-cols-4 gap-4">
-                    <div className="col-span-3">
+                <div className={`flex-1 grid gap-4 ${showSampleQuantity ? "grid-cols-5" : "grid-cols-4"}`}>
+                    <div className={showSampleQuantity ? "col-span-2" : "col-span-3"}>
                         <label className="block mb-2 text-sm font-medium text-foreground">
                             {t("order.sampleName")} #{sampleIndex + 1} <span className="text-destructive">*</span>
                         </label>
@@ -253,7 +277,7 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
                             disabled={isReadOnly}
                         />
                     </div>
-                    <div>
+                    <div className={showSampleQuantity ? "col-span-2" : ""}>
                         <label className="block mb-2 text-sm font-medium text-foreground">{t("sample.note")}</label>
                         <input
                             type="text"
@@ -264,16 +288,64 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
                             disabled={isReadOnly}
                         />
                     </div>
+                    {showSampleQuantity && (
+                        <div>
+                            <label className="block mb-2 text-sm font-medium text-foreground">{t("order.print.quantity")}</label>
+                            <input
+                                type="number"
+                                className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                value={sample.quantity || 1}
+                                onChange={(e) => onUpdateSample({ quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                                onKeyDown={handleNumberKeyDown}
+                                onWheel={(e) => e.currentTarget.blur()}
+                                min={1}
+                                disabled={isReadOnly}
+                            />
+                        </div>
+                    )}
                 </div>
                 {!isReadOnly && (
                     <div className="flex gap-2 mt-8">
-                        <button
-                            onClick={onDuplicateSample}
-                            className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                            title={t("order.duplicateSample")}
-                        >
-                            <Copy className="w-5 h-5" />
-                        </button>
+                        <Popover open={isDuplicatePopoverOpen} onOpenChange={setIsDuplicatePopoverOpen}>
+                            <PopoverTrigger asChild>
+                                <button className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" title={t("order.duplicateSample")}>
+                                    <Copy className="w-5 h-5" />
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-48 p-3" align="end">
+                                <div className="space-y-3">
+                                    <div className="text-xs font-medium text-muted-foreground">{t("order.duplicateCount", "Sá»‘ lÆ°á»£ng nhÃ¢n báº£n")}</div>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            type="number"
+                                            value={duplicateCount}
+                                            onChange={(e) => setDuplicateCount(Math.max(1, parseInt(e.target.value) || 1))}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    onDuplicateSample(duplicateCount);
+                                                    setIsDuplicatePopoverOpen(false);
+                                                    setDuplicateCount(1);
+                                                }
+                                            }}
+                                            className="h-8 text-sm"
+                                            autoFocus
+                                            min={1}
+                                        />
+                                        <Button
+                                            size="sm"
+                                            className="h-8 w-8 p-0"
+                                            onClick={() => {
+                                                onDuplicateSample(duplicateCount);
+                                                setIsDuplicatePopoverOpen(false);
+                                                setDuplicateCount(1);
+                                            }}
+                                        >
+                                            <Check className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
                         <button
                             onClick={onRemoveSample}
                             className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
@@ -347,9 +419,13 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
                                                                 className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent text-right"
                                                                 value={analysis.unitPrice}
                                                                 onChange={(e) => handleAnalysisChange(index, "unitPrice", e.target.value)}
+                                                                onKeyDown={handleNumberKeyDown}
+                                                                onWheel={(e) => e.currentTarget.blur()}
                                                             />
                                                         )}
-                                                        {analysis.discountRate && analysis.discountRate > 0 && <span className="text-xs text-green-600 font-medium">(-{analysis.discountRate}%)</span>}
+                                                        {(Number(analysis.discountRate) || 0) > 0 && (
+                                                            <span className="text-xs text-green-600 font-medium leading-none block mt-1">(-{analysis.discountRate}%)</span>
+                                                        )}
                                                     </div>
                                                 </td>
                                                 <td className={`px-4 py-3 text-center text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
@@ -362,6 +438,8 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
                                                                 className="w-16 px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent text-center"
                                                                 value={analysis.taxRate}
                                                                 onChange={(e) => handleAnalysisChange(index, "taxRate", e.target.value)}
+                                                                onKeyDown={handleNumberKeyDown}
+                                                                onWheel={(e) => e.currentTarget.blur()}
                                                             />
                                                             <span className="ml-1">%</span>
                                                         </div>
@@ -381,6 +459,8 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
                                                                 className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent text-right"
                                                                 value={analysis.feeAfterTax ?? calculateFeeAfterTax(analysis)} // Display feeAfterTax, calculate if not set
                                                                 onChange={(e) => handleAnalysisChange(index, "feeAfterTax", e.target.value)}
+                                                                onKeyDown={handleNumberKeyDown}
+                                                                onWheel={(e) => e.currentTarget.blur()}
                                                             />
                                                         </div>
                                                     )}
@@ -456,6 +536,17 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
                             <td className="px-4 py-2 text-right border-t border-border font-bold text-primary">{summary.totalAfterTax.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ</td>
                             {!isReadOnly && <td className="border-t border-border"></td>}
                         </tr>
+                        {showSampleQuantity && (
+                            <tr>
+                                <td colSpan={isReadOnly ? 5 : 6} className="px-4 py-2 text-right border-t border-border font-bold">
+                                    {t("sample.grandTotal", "Tổng cộng (x{{qty}} mẫu)", { qty: summary.sampleQuantity })}:
+                                </td>
+                                <td className="px-4 py-2 text-right border-t border-border font-bold text-primary">
+                                    {(summary.totalAfterTax * summary.sampleQuantity).toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ
+                                </td>
+                                {!isReadOnly && <td className="border-t border-border"></td>}
+                            </tr>
+                        )}
                     </tfoot>
                 </table>
             </div>
@@ -467,7 +558,7 @@ export function SampleCard({ sample, sampleIndex, onRemoveSample, onDuplicateSam
                         + {t("order.addAnalysis")}
                     </button>
                     <button onClick={handleAddEmptyAnalysis} className="px-4 py-2 text-foreground border border-border rounded-lg hover:bg-muted transition-colors text-sm font-medium">
-                        + {t("order.addManualAnalysis", "Thêm chỉ tiêu")}
+                        + {t("order.addManualAnalysis", "ThÃªm chá»‰ tiÃªu")}
                     </button>
                 </div>
             )}

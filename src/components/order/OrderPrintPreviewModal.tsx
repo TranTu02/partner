@@ -61,11 +61,11 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                 <table class="data-table" style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr style="background-color: #e6e6e6;">
-                            <th style="border: 1px solid black; padding: 3px; text-align: center; width: 50px;">${t("order.print.stt")}</th>
-                            <th style="border: 1px solid black; padding: 3px; text-align: left;">${t("order.print.parameter")}</th>
-                            <th style="border: 1px solid black; padding: 3px; text-align: right;">${t("order.print.amount")}</th>
-                            <th style="border: 1px solid black; padding: 3px; text-align: center; width: 80px;">${t("order.print.tax", "Thuế")} (%)</th>
-                            <th style="border: 1px solid black; padding: 3px; text-align: right;">${t("order.print.total")}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; width: 50px; vertical-align: top;">${t("order.print.stt")}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: left; vertical-align: top;">${t("order.print.parameter")}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">${t("order.print.amount")}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; width: 80px; vertical-align: top;">${t("order.print.tax", "Thuế")} (%)</th>
+                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">${t("order.print.total")}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -75,16 +75,16 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
 
                                 return `
                             <tr>
-                                <td style="border: 1px solid black; padding: 3px; text-align: center;">${i + 1}</td>
-                                <td style="border: 1px solid black; padding: 3px;">${analysis.parameterName}</td>
-                                <td style="border: 1px solid black; padding: 3px; text-align: right;">
+                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top;">${i + 1}</td>
+                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; vertical-align: top;">${analysis.parameterName}</td>
+                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">
                                     ${price.toLocaleString("vi-VN", {
                                         minimumFractionDigits: 0,
                                         maximumFractionDigits: 2,
                                     })}
                                 </td>
-                                <td style="border: 1px solid black; padding: 3px; text-align: center;">${analysis.taxRate || 0}%</td>
-                                <td style="border: 1px solid black; padding: 3px; text-align: right;">
+                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top;">${analysis.taxRate || 0}%</td>
+                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">
                                     ${analysis.feeAfterTax.toLocaleString("vi-VN", {
                                         minimumFractionDigits: 0,
                                         maximumFractionDigits: 2,
@@ -95,8 +95,11 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                             })
                             .join("")}
                         <tr>
-                            <td colspan="4" style="border: 1px solid black; padding: 3px; text-align: right; font-weight: bold;">${t("parameter.sumAfterTax", "Tổng tiền")}</td>
-                            <td style="border: 1px solid black; padding: 3px; text-align: right; font-weight: bold;">${sampleTotalAfterTax.toLocaleString("vi-VN", {
+                            <td colspan="4" style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">${t(
+                                "parameter.sumAfterTax",
+                                "Tổng tiền",
+                            )}</td>
+                            <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">${sampleTotalAfterTax.toLocaleString("vi-VN", {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 2,
                             })} </td>
@@ -109,117 +112,86 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
             .join("");
 
         return `
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px; border: none;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 5px; border: none;">
                 <tr>
-                    <td style="width: 30%; vertical-align: top; border: none !important; padding: 0;">
-                        <img src="${logoFull}" alt="Logo" style="width: 100%; max-width: 150px;" />
+                    <td style="width: 20%; vertical-align: top; border: none !important; padding: 0;">
+                        <img src="${logoFull}" alt="Logo" style="height: 28px; width: auto;" />
                     </td>
                     <td style="vertical-align: top; text-align: left; padding-left: 10px; border: none !important;">
-                        <div style="font-weight: bold; font-size: 14px; margin-bottom: 2px; text-transform: uppercase;">
+                        <div style="font-weight: bold; font-size: 10px; margin-bottom: 1px; text-transform: uppercase;">
                             ${t("order.print.header.lines.line1")}
                         </div>
-                        <div style="margin-bottom: 1px;">
+                        <div style="font-size: 10px; margin-bottom: 0px;">
                             ${t("order.print.header.lines.line2")}
-                        </div>
-                        <div>
-                            ${t("order.print.header.lines.line3")}
                         </div>
                     </td>
                 </tr>
             </table>
 
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 5px;">${t("order.print.title")}</h1>
-                <p>Order ID: ${data.orderId}</p>
+            <div style="text-align: center; margin-bottom: 8px;">
+                <h1 style="font-size: 16px; font-weight: bold; margin-bottom: 1px;">${t("order.print.title")}</h1>
+                <p style="font-size: 12px;">${t("order.print.orderId")}: ${data.orderId}</p>
             </div>
 
-            <div style="margin-bottom: 20px;">
-                <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid black; padding-bottom: 5px; margin-bottom: 10px;">1. ${t("order.print.client")}</h3>
-                <table class="info-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+            <div style="margin-bottom: 12px;">
+                <h3 style="font-size: 14px; font-weight: bold; padding-bottom: 2px; margin-bottom: 6px;">1. ${t("order.print.client")}</h3>
+                <table class="info-table" style="width: 100%; border-collapse: collapse; margin-bottom: 3px;">
                     <tbody>
                         <tr>
-                            <td style="width: 150px; font-weight: bold; border: none !important;">${t("order.print.customer")}:</td>
-                            <td style="border: none !important;">${data.client?.clientName || ""}</td>
+                            <td style="width: 150px; font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("order.print.customer")}:</td>
+                            <td style="border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;" colspan="3">${data.client?.clientName || ""}</td>
                         </tr>
                         <tr>
-                            <td style="font-weight: bold; border: none !important;">${t("client.clientId")}:</td>
-                            <td style="border: none !important;">${data.client?.clientId || ""}</td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight: bold; border: none !important;">${t("order.print.address")}:</td>
-                            <td style="border: none !important;">${data.clientAddress}</td>
+                            <td style="font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("order.print.address")}:</td>
+                            <td style="border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;" colspan="3">${data.clientAddress}</td>
                         </tr>
                          <tr>
-                            <td style="font-weight: bold; border: none !important;">${t("order.print.taxCode")}:</td>
-                             <td style="border: none !important;">${data.client?.legalId || ""}</td>
-                        </tr>
-                         <tr>
-                            <td style="font-weight: bold; border: none !important;">${t("client.taxEmail")}:</td>
-                            <td style="border: none !important;">${data.client?.invoiceInfo?.taxEmail || ""}</td>
-                        </tr>
-                         <tr>
-                            <td style="font-weight: bold; border: none !important;">${t("order.print.contact")}:</td>
-                            <td style="border: none !important;">${data.contactPerson}</td>
+                            <td style="font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("order.print.taxCode")}:</td>
+                             <td style="border: none !important; width: 170px; padding: 2px 5px 8px 5px; vertical-align: top;">${data.client?.legalId || ""}</td>
+                            <td style="font-weight: bold; border: none !important; width: 130px; padding: 2px 5px 8px 5px; vertical-align: top;">${t("client.taxEmail")}:</td>
+                            <td style="border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${data.client?.invoiceInfo?.taxEmail || ""}</td>
                         </tr>
                         <tr>
-                            <td style="font-weight: bold; border: none !important;">${t("client.contactPhone")}:</td>
-                            <td style="border: none !important;">${data.contactPhone}</td>
+                            <td style="font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("order.print.contact")}:</td>
+                            <td style="border: none !important; width: 170px; padding: 2px 5px 8px 5px; vertical-align: top;">${data.contactPerson}</td>
+                            <td style="font-weight: bold; border: none !important; width: 130px; padding: 2px 5px 8px 5px; vertical-align: top;">${t("client.contactPhone")}:</td>
+                            <td style="border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${data.contactPhone}</td>
                         </tr>
-                        <tr>
-                            <td style="font-weight: bold; border: none !important;">${t("order.print.email")}:</td>
-                            <td style="border: none !important;">${data.reportEmail}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div style="margin-bottom: 20px;">
-                <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid black; padding-bottom: 5px; margin-bottom: 10px;">2. ${t("order.print.provider")}</h3>
-                <table class="info-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
-                     <tbody>
-                        <tr>
-                            <td style="font-weight: bold; width: 150px; border: none !important;">${t("order.print.unit")}:</td>
-                            <td style="border: none !important;">${t("organization.data.organizationName")}</td>
-                        </tr>
-                        <tr>
-                             <td style="font-weight: bold; border: none !important;">${t("order.print.address")}:</td>
-                             <td style="border: none !important;">${t("organization.data.address")}</td>
-                        </tr>
-                        <tr>
-                             <td style="font-weight: bold; border: none !important;">${t("organization.email")}:</td>
-                             <td style="border: none !important;">${t("organization.data.email")}</td>
-                        </tr>
-
-                        <tr>
-                             <td style="font-weight: bold; border: none !important;">${t("order.print.salePerson")}:</td>
-                             <td style="border: none !important;">${data.salePerson || ""}</td>
-                        </tr>
-
                     </tbody>
                 </table>
             </div>
 
             <div>
-                <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid black; padding-bottom: 5px; margin-bottom: 10px;">3. ${t("order.print.samplesAndAnalysis")}</h3>
+                <h3 style="font-size: 14px; font-weight: bold; padding-bottom: 2px; margin-bottom: 6px;">2. ${t("order.print.samplesAndAnalysis")}</h3>
                 ${samplesHtml}
             </div>
 
-             <div style="margin-top: 20px;">
-                <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid black; padding-bottom: 5px; margin-bottom: 10px;">4. ${t("order.print.total")}</h3>
-                 <table class="total-table" style="width: 100%; margin-top: 10px;">
+             <div style="margin-top: 12px;">
+                <h3 style="font-size: 14px; font-weight: bold; padding-bottom: 2px; margin-bottom: 6px;">3. ${t("order.print.total")}</h3>
+                 <table class="total-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
                     <tbody>
                         <tr>
-                            <td style="text-align: right; padding-right: 20px; border: none !important;">${t("parameter.sumUnitPrice", "Tổng đơn giá")}:</td>
-                            <td style="width: 150px; text-align: right; font-weight: bold; border: none !important;">${data.pricing.subtotal.toLocaleString("vi-VN", {
-                                minimumFractionDigits: 0,
-                                maximumFractionDigits: 2,
-                            })} </td>
+                            <td style="text-align: right; padding-right: 20px; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t(
+                                "parameter.sumUnitPrice",
+                                "Tổng đơn giá",
+                            )}:</td>
+                            <td style="width: 150px; text-align: right; font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${data.pricing.subtotal.toLocaleString(
+                                "vi-VN",
+                                {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 2,
+                                },
+                            )} </td>
                         </tr>
                         ${
                             (data.pricing.discountAmount || 0) > 0 || data.discountRate > 0
                                 ? `<tr>
-                            <td style="text-align: right; padding-right: 20px; border: none !important;">${t("parameter.totalDiscount", "Giảm giá")} (${data.discountRate}%):</td>
-                            <td style="text-align: right; border: none !important;">- ${(data.pricing.discountAmount || (data.pricing.subtotal * data.discountRate) / 100).toLocaleString("vi-VN", {
+                            <td style="text-align: right; padding-right: 20px; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("parameter.totalDiscount", "Giảm giá")} (${
+                                      data.discountRate
+                                  }%):</td>
+                            <td style="text-align: right; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">- ${(
+                                data.pricing.discountAmount || (data.pricing.subtotal * data.discountRate) / 100
+                            ).toLocaleString("vi-VN", {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 2,
                             })} </td>
@@ -227,25 +199,37 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                                 : ""
                         }
                         <tr>
-                            <td style="text-align: right; padding-right: 20px; border: none !important;">${t("parameter.sumBeforeTax", "Tiền trước thuế")}:</td>
-                            <td style="text-align: right; font-weight: bold; border: none !important;">${(data.pricing.feeBeforeTax || 0).toLocaleString("vi-VN", {
-                                minimumFractionDigits: 0,
-                                maximumFractionDigits: 2,
-                            })} </td>
+                            <td style="text-align: right; padding-right: 20px; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t(
+                                "parameter.sumBeforeTax",
+                                "Tiền trước thuế",
+                            )}:</td>
+                            <td style="text-align: right; font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${(data.pricing.feeBeforeTax || 0).toLocaleString(
+                                "vi-VN",
+                                {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 2,
+                                },
+                            )} </td>
                         </tr>
                         <tr>
-                            <td style="text-align: right; padding-right: 20px; border: none !important;">${t("order.print.vat")}:</td>
-                            <td style="text-align: right; border: none !important;">${data.pricing.tax.toLocaleString("vi-VN", {
+                            <td style="text-align: right; padding-right: 20px; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("order.print.vat")}:</td>
+                            <td style="text-align: right; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${data.pricing.tax.toLocaleString("vi-VN", {
                                 minimumFractionDigits: 0,
                                 maximumFractionDigits: 2,
                             })} </td>
                         </tr>
                         <tr style="font-size: 16px;">
-                            <td style="text-align: right; padding-right: 20px; font-weight: bold; border: none !important;">${t("order.total", "Tổng thanh toán")}:</td>
-                            <td style="text-align: right; font-weight: bold; border: none !important;">${Math.ceil(data.pricing.total).toLocaleString("vi-VN", {
-                                minimumFractionDigits: 0,
-                                maximumFractionDigits: 2,
-                            })} </td>
+                            <td style="text-align: right; padding-right: 20px; font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t(
+                                "order.total",
+                                "Tổng thanh toán",
+                            )}:</td>
+                            <td style="text-align: right; font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${Math.ceil(data.pricing.total).toLocaleString(
+                                "vi-VN",
+                                {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 2,
+                                },
+                            )} </td>
                         </tr>
                     </tbody>
                  </table>
@@ -278,11 +262,11 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                     </table>
                 </div>
             </div>
-            <div style="margin-top: 40px; display: flex; justify-content: flex-end;">
+            <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
                 <div style="text-align: center; width: 40%;">
                     <p style="font-weight: bold; margin-bottom: 5px;">${t("order.print.customerConfirmation")}</p>
                     <p style="font-style: italic;">(${t("order.print.signName")})</p>
-                    <div style="height: 30mm;"></div>
+                    <div style="height: 25mm;"></div>
                 </div>
             </div>
             </div>
@@ -302,37 +286,34 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
         style.innerHTML = `
             body { 
                 font-family: "Times New Roman", Times, serif; 
-                font-size: 13px; 
-                line-height: 1.4; 
+                font-size: 12px; 
+                line-height: 1.3; 
                 color: #000;
             }
             table { 
                 width: 100%; 
                 border-collapse: collapse; 
                 border-spacing: 0;
-                margin-bottom: 10px; 
-                font-size: 13px;
+                margin-bottom: 8px; 
+                font-size: 12px;
                 page-break-inside: auto;
             }
-            tr { page-break-inside: auto; page-break-after: auto; }
+            tr { page-break-inside: avoid !important; }
             th, td { 
-                padding: 4px !important; 
+                padding: 2px 5px 8px 5px !important; 
                 word-break: break-word; 
-                vertical-align: middle !important;
+                vertical-align: top !important;
                 font-family: "Times New Roman", Times, serif;
             }
             .data-table th, .data-table td {
                 border: 1px solid #000 !important;
-                vertical-align: middle !important;
-                padding-top: 5px !important;
-                padding-bottom: 5px !important;
             }
             .info-table td, .total-table td {
                 border: none !important;
             }
-            h1 { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
-            h3 { font-size: 16px; font-weight: bold; }
-            p { margin-bottom: 3px; }
+            h1 { font-size: 16px; font-weight: bold; margin-bottom: 2px; }
+            h3 { font-size: 14px; font-weight: bold; }
+            p { margin-bottom: 2px; }
         `;
         container.appendChild(style);
 
@@ -342,12 +323,12 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
         container.appendChild(contentDiv);
 
         const opt: any = {
-            margin: [10, 10, 20, 10],
+            margin: [10, 10, 12, 10],
             filename: `Order_${data.orderId}.pdf`,
             image: { type: "jpeg", quality: 0.98 },
             html2canvas: {
                 useCORS: true,
-                scale: 2, // Improve resolution
+                scale: 3, // Improve resolution
                 letterRendering: true,
                 windowWidth: 718, // 96 DPI Printable Width
             },
@@ -368,13 +349,13 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                     pdf.setFontSize(10);
                     pdf.setTextColor(0, 0, 0);
 
-                    // Left: Order ID
-                    pdf.text(`Order ID: ${data.orderId}`, 10, 297 - 10);
+                    // Left: Order ID (Use English label to avoid encoding issues with accents in jsPDF)
+                    pdf.text(`Order ID: ${data.orderId}`, 10, 297 - 8);
 
                     // Right: Page X/Y
                     const pageStr = `${t("common.page")} ${i}/${totalPages}`;
                     const textWidth = (pdf.getStringUnitWidth(pageStr) * 10) / pdf.internal.scaleFactor;
-                    pdf.text(pageStr, 210 - 10 - textWidth, 297 - 10);
+                    pdf.text(pageStr, 210 - 10 - textWidth, 297 - 8);
                 }
 
                 if (action === "save") {
@@ -433,31 +414,31 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                                 
                                 body { 
                                     width: 210mm; /* A4 width */
-                                    margin: 20px auto !important; 
+                                    margin: 15px auto !important; 
                                     padding: 10mm !important; 
                                     background-color: white; 
                                     font-family: "Times New Roman", Times, serif; 
-                                    font-size: 13px;
+                                    font-size: 12px;
                                     line-height: 1.3;
                                     min-height: 297mm; /* A4 height */
                                     box-shadow: 0 0 10px rgba(0,0,0,0.1);
                                 }
 
                                 /* 2. Paragraph spacing */
-                                p { margin-bottom: 3px !important; }
+                                p { margin-bottom: 2px !important; }
 
                                 /* 3. Table config */
                                 table { 
                                     width: 100% !important; 
                                     border-collapse: collapse; 
                                     page-break-inside: auto !important; 
-                                    margin-bottom: 10px;
+                                    margin-bottom: 8px;
                                 }
 
                                 th, td { 
-                                    padding: 4px !important; 
+                                    padding: 2px 5px 8px 5px !important; 
                                     word-break: break-word;
-                                    vertical-align: top;
+                                    vertical-align: top !important;
                                 }
                                 .data-table th, .data-table td {
                                     border: 1px solid black !important;
@@ -467,9 +448,11 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                                 }
 
                                 tr { 
-                                    page-break-inside: auto !important; 
-                                    page-break-after: auto !important; 
+                                    page-break-inside: avoid !important; 
                                 }
+
+                                h1 { font-size: 16px; font-weight: bold; margin-bottom: 5px;}
+                                h3 { font-size: 14px; font-weight: bold; }
 
                                 thead { 
                                     display: table-header-group !important; 

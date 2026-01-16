@@ -379,10 +379,54 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **POST /v1/order/edit**
 
--   **Description**: Update order (e.g., status change).
--   **Input**: `{ "orderId": "ORD-...", "orderStatus": "Processing" }`
+-   **Description**: Update order details or save/submit the Sample Request Form.
+-   **Input**:
+
+    -   Body:
+
+    ```json
+    {
+        "orderId": "ORD-...",
+        "orderStatus": "Processing",
+        "requestForm": "<html>...</html>",
+        "orderUri": "SC_..."
+    }
+    ```
+
+    -   `requestForm`: Optional. HTML content from the editor.
+    -   `orderUri`: Optional. For public access form submission (validates the token).
 
 -   **Output**: Updated Order object.
+
+### **POST /v1/order/generate-uri**
+
+-   **Description**: Generate a unique access URI for an order (used for public form access).
+-   **Input**: Body `{ "orderId": "ORD-..." }`
+-   **Output**:
+    ```json
+    {
+        "success": true,
+        "data": { "uri": "SC_..." }
+    }
+    ```
+
+### **POST /v1/order/check-uri**
+
+-   **Description**: Validate an order-specific URI and return order data (used for guest form access).
+-   **Input**: Body `{ "uri": "SC_...", "orderId": "ORD-..." }`
+-   **Output**:
+    ```json
+    {
+        "success": true,
+        "data": {
+            "orderId": "...",
+            "client": { ... },
+            "samples": [ ... ],
+            "requestForm": "...",
+            "..."
+        }
+    }
+    ```
 
 ### **GET /v1/order/stats/accounting**
 

@@ -1,10 +1,11 @@
 import { useRef } from "react";
-import { X, FileDown, Eye } from "lucide-react";
+import { X, Link as LinkIcon, Printer } from "lucide-react";
 import { Editor } from "@tinymce/tinymce-react";
 import type { OrderPrintData } from "./OrderPrintTemplate";
 import { useTranslation } from "react-i18next";
-// @ts-ignore
-import html2pdf from "html2pdf.js";
+import { generateOrderUri } from "@/api/index";
+import { toast } from "sonner";
+import logoFullUrl from "@/assets/LOGO-FULL.png";
 
 interface SampleRequestPrintPreviewModalProps {
     isOpen: boolean;
@@ -18,319 +19,61 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data }: Sample
 
     if (!isOpen) return null;
 
-    const generateSampleRequestHtml = (data: OrderPrintData) => {
-        let globalStt = 0;
-        const samplesHtml = data.samples
-            .map((sample) => {
-                const rowCount = sample.analyses && sample.analyses.length > 0 ? sample.analyses.length : 1;
-                const analyses = sample.analyses && sample.analyses.length > 0 ? sample.analyses : [{ parameterName: "", protocolCode: "", id: "dummy" }];
+    console.log("SampleRequestPrintPreviewModal rendering. Data:", data);
 
-                return analyses
-                    .map((analysis: any, index: number) => {
-                        globalStt++;
-                        const isFirst = index === 0;
+    let initialHtml = "";
+    try {
+        initialHtml = generateSampleRequestHtml(data, t);
+        console.log("Initial HTML generated length:", initialHtml.length);
+    } catch (error) {
+        console.error("Error generating HTML:", error);
+        return <div>Error generating preview: {String(error)}</div>;
+    }
 
-                        const sampleCells = isFirst
-                            ? `
-                            <td rowspan="${rowCount}" style="border: 1px solid black; padding: 5px; vertical-align: middle;"><span style="font-weight: 700;">${sample.sampleName}</span></td>
-                            <td rowspan="${rowCount}" style="border: 1px solid black; padding: 5px; vertical-align: middle;">
-                                <span>${t("sample.matrix")}:</span> <span style="font-weight: 700;">${sample.sampleMatrix}</span><br/>
-                                ${sample.sampleNote ? `<span>${t("sample.desc")}:</span> <span style="font-weight: 700;">${sample.sampleNote}</span>` : ""}
-                            </td>
-                        `
-                            : "";
-
-                        return `
-                        <tr>
-                            <td style="text-align: center; border: 1px solid black; padding: 5px;">${globalStt}</td>
-                            ${sampleCells}
-                            <td style="border: 1px solid black; padding: 5px;">${analysis.parameterName || ""}</td>
-                            <td style="border: 1px solid black; padding: 5px;">${analysis.protocolCode || ""}</td>
-                            <td style="border: 1px solid black; padding: 5px;"></td>
-                        </tr>
-                    `;
-                    })
-                    .join("");
-            })
-            .join("");
-
-        return `
-            <div style="font-family: 'Inter', sans-serif; color: #1e293b; max-width: 794px; margin: 0 auto; position: relative;">
-                <style>
-                    .field-dotted { 
-                        border-bottom: 1px dotted #64748b !important; 
-                        padding-bottom: 2px !important; 
-                        line-height: 1.6 !important;
-                        display: inline-block;
-                        min-width: 50px;
-                        font-weight: 700;
-                    }
-                    .section { margin-bottom: 25px; }
-                    .label-text { color: #64748b; font-weight: 400; white-space: nowrap; margin-right: 5px; }
-                </style>
-                <div style="position: absolute; top: 0; right: 0; font-size: 13px; font-weight: 700; color: #64748b;">${data.orderId}</div>
-
-                <div style="text-align: center; margin-bottom: 25px;">
-                    <h2 style="margin: 0; font-size: 14px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</h2>
-                    <p style="margin: 4px 0; font-size: 13px; font-weight: 600;">Độc lập - Tự do - Hạnh phúc</p>
-                    <div style="width: 160px; height: 1.5px; background: #1e293b; margin: 8px auto;"></div>
-                </div>
-
-                <div style="text-align: right; font-style: italic; font-size: 13px; margin-bottom: 15px; color: #64748b;">
-                    ..., Ngày ${new Date().getDate()} tháng ${new Date().getMonth() + 1} năm ${new Date().getFullYear()}
-                </div>
-
-                <h1 style="text-align: center; font-size: 24px; font-weight: 800; margin: 25px 0 35px; text-transform: uppercase; letter-spacing: 1px;">
-                    ${t("sampleRequest.title")}
-                </h1>
-
-                <div class="section">
-                    <div style="font-size: 15px; font-weight: 700; margin-bottom: 10px;">${t("sampleRequest.section1.title")}</div>
-                    
-                    <div style="font-size: 14px; font-weight: 700; margin: 10px 0 8px 20px;">${t("sampleRequest.section1.clientInfo")}</div>
-                    <div style="margin-left: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                        <div style="grid-column: span 2; display: flex; align-items: baseline; font-size: 13px; margin-bottom: 4px;">
-                            <span class="label-text">${t("sampleRequest.clientName")}</span>
-                            <span class="field-dotted" style="flex-grow: 1;">${data.client?.clientName || ""}</span>
-                        </div>
-                        <div style="grid-column: span 2; display: flex; align-items: baseline; font-size: 13px; margin-bottom: 4px;">
-                            <span class="label-text">${t("sampleRequest.address")}</span>
-                            <span class="field-dotted" style="flex-grow: 1;">${data.clientAddress}</span>
-                        </div>
-                        <div style="grid-column: span 2; display: flex; align-items: baseline; font-size: 13px; margin-bottom: 4px;">
-                            <span class="label-text">${t("sampleRequest.phone")}</span>
-                            <span class="field-dotted" style="flex-grow: 1;">${data.client?.clientContacts?.[0]?.contactPhone || ""}</span>
-                        </div>
-                        <div style="grid-column: span 2; display: flex; flex-direction: column; font-size: 13px; margin-bottom: 4px;">
-                            <span class="label-text" style="margin-bottom: 2px;">${t("sampleRequest.invoiceInfo")}</span>
-                            <span class="field-dotted" style="flex-grow: 1; margin-bottom: 4px;">${data.client?.invoiceInfo || ""}</span>
-                            <span class="field-dotted" style="flex-grow: 1;"></span>
-                        </div>
-                        <div style="display: flex; align-items: baseline; font-size: 13px; margin-bottom: 4px;">
-                            <span class="label-text">${t("sampleRequest.taxId")}</span>
-                            <span class="field-dotted" style="flex-grow: 1;">${data.client?.legalId || ""}</span>
-                        </div>
-                        <div style="display: flex; align-items: baseline; font-size: 13px; margin-bottom: 4px;">
-                            <span class="label-text">${t("sampleRequest.invoiceEmail")}</span>
-                            <span class="field-dotted" style="flex-grow: 1;">${data.client?.invoiceEmail || ""}</span>
-                        </div>
-                    </div>
-
-                    <div style="font-size: 14px; font-weight: 700; margin: 10px 0 8px 20px;">${t("sampleRequest.section1.contactInfo")}</div>
-                    <div style="margin-left: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                        <div style="display: flex; align-items: baseline; font-size: 13px; margin-bottom: 4px;">
-                            <span class="label-text">${t("sampleRequest.contactPerson")}</span>
-                            <span class="field-dotted" style="flex-grow: 1;">${data.contactPerson}</span>
-                        </div>
-                        <div style="display: flex; align-items: baseline; font-size: 13px; margin-bottom: 4px;">
-                            <span class="label-text">${t("sampleRequest.identity")}</span>
-                            <span class="field-dotted" style="flex-grow: 1;">${data.contactIdentity}</span>
-                        </div>
-                        <div style="display: flex; align-items: baseline; font-size: 13px; margin-bottom: 4px;">
-                            <span class="label-text">${t("sampleRequest.contactPhone")}</span>
-                            <span class="field-dotted" style="flex-grow: 1;">${data.contactPhone}</span>
-                        </div>
-                        <div style="display: flex; align-items: baseline; font-size: 13px; margin-bottom: 4px;">
-                            <span class="label-text">${t("sampleRequest.email")}</span>
-                            <span class="field-dotted" style="flex-grow: 1;">${data.reportEmail}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="section">
-                    <div style="font-size: 15px; font-weight: 700; margin-bottom: 10px;">${t("sampleRequest.section2.title")}</div>
-                    <div style="margin-left: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                        <div style="grid-column: span 2; display: flex; align-items: baseline; font-size: 13px; margin-bottom: 4px;">
-                            <span class="label-text">${t("sampleRequest.hardCopy")}</span>
-                            <span class="label-text" style="margin-left: 15px;">${t("sampleRequest.address")}</span>
-                            <span class="field-dotted" style="flex-grow: 1;">${data.clientAddress}</span>
-                        </div>
-                        <div style="display: flex; align-items: baseline; font-size: 13px; margin-bottom: 4px;">
-                            <span class="label-text" style="margin-left: 80px;">${t("sampleRequest.contactPhone")}</span>
-                            <span class="field-dotted" style="flex-grow: 1;"></span>
-                        </div>
-                        <div style="display: flex; align-items: baseline; font-size: 13px; margin-bottom: 4px;">
-                            <span class="label-text">${t("sampleRequest.email")}</span>
-                            <span class="field-dotted" style="flex-grow: 1;"></span>
-                        </div>
-                        <div style="grid-column: span 2; display: flex; align-items: baseline; font-size: 13px; margin-bottom: 4px;">
-                            <span class="label-text">${t("sampleRequest.softCopy")}</span>
-                            <span class="field-dotted" style="flex-grow: 1;">${data.reportEmail}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="section">
-                    <div style="font-size: 15px; font-weight: 700; margin-bottom: 10px;">${t("sampleRequest.section3.title")}</div>
-                    <table style="width: 100%; border-collapse: collapse; margin: 15px 0; table-layout: fixed;">
-                        <thead>
-                            <tr>
-                                <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 11.5px; background-color: #f8fafc; font-weight: 700; width: 30px;">${t("table.stt")}</th>
-                                <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 11.5px; background-color: #f8fafc; font-weight: 700; width: 130px;">${t("sample.name")}(*)</th>
-                                <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 11.5px; background-color: #f8fafc; font-weight: 700; width: 140px;">${t(
-                                    "sampleRequest.table.sampleDesc",
-                                )}(*)</th>
-                                <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 11.5px; background-color: #f8fafc; font-weight: 700;">${t("sampleRequest.table.parameters")}</th>
-                                <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 11.5px; background-color: #f8fafc; font-weight: 700; width: 100px;">${t("table.method")}</th>
-                                <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 11.5px; background-color: #f8fafc; font-weight: 700; width: 70px;">${t("sample.note")}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${samplesHtml}
-                        </tbody>
-                    </table>
-
-                    <div style="font-size: 11px; color: #475569; line-height: 1.6; margin-top: 15px;">
-                        <p><strong>${t("sample.note")}:</strong></p>
-                        <p>- ${t("sampleRequest.note1")}</p>
-                        <p>- ${t("sampleRequest.note2")}</p>
-                        <p>- ${t("sampleRequest.note3")}</p>
-                        <p>- ${t("sampleRequest.note4")}</p>
-                    </div>
-
-                    <div style="font-size: 11px; font-weight: 500; text-align: justify; margin-top: 15px; padding: 10px; background: #f8fafc; border-radius: 4px; border-left: 3px solid #64748b;">
-                        ${t("sampleRequest.disclaimer")}
-                    </div>
-                </div>
-
-                <div class="footer-section">
-                    <div style="margin-bottom: 20px;">
-                        <div style="font-size: 15px; font-weight: 700; margin-bottom: 10px;">${t("sampleRequest.section4.title")}</div>
-                        <div style="padding-top: 5px; font-size: 12px;">
-                            <div style="font-weight: 800; font-size: 13px; margin-bottom: 5px; text-transform: uppercase;">${t("organization.data.organizationName")}</div>
-                            <div style="margin-bottom: 3px;"><strong>${t("organization.address")}:</strong> ${t("organization.data.address")}</div>
-                            <div style="margin-bottom: 3px;"><strong>${t("organization.phone")}:</strong> ${t("organization.data.phone")}</div>
-                            <div style="margin-bottom: 3px;"><strong>${t("organization.email")}:</strong> ${t("organization.data.email")}</div>
-                        </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; margin-top: 40px;">
-                        <div style="text-align: center;">
-                            <div style="font-weight: 700; font-size: 14px; margin-bottom: 5px;">${t("sampleRequest.receiver")}</div>
-                            <div style="font-size: 11px; font-style: italic; color: #64748b; margin-bottom: 80px;">${t("sampleRequest.sign1")}</div>
-                            <div style="font-weight: 600; font-size: 13px;">................................................</div>
-                        </div>
-                        <div style="text-align: center;">
-                            <div style="font-weight: 700; font-size: 14px; margin-bottom: 5px;">${t("sampleRequest.customer")}</div>
-                            <div style="font-size: 11px; font-style: italic; color: #64748b; margin-bottom: 80px;">${t("sampleRequest.sign2")}</div>
-                            <div style="font-weight: 600; font-size: 13px;">................................................</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
+    const handlePrint = () => {
+        if (editorRef.current) {
+            editorRef.current.execCommand("mcePrint");
+        }
     };
 
-    const handleProcessPdf = (action: "save" | "view") => {
-        const content = editorRef.current.getContent();
-        const container = document.createElement("div");
-        container.style.width = "718px";
-        container.style.padding = "0";
-        container.style.backgroundColor = "white";
-
-        const style = document.createElement("style");
-        style.innerHTML = `
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-            body { 
-                font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-                font-size: 13px; 
-                line-height: 1.4; 
-                color: #1e293b;
+    const handleGenerateLink = async () => {
+        if (!data?.orderId) return;
+        try {
+            const res: any = await generateOrderUri({ body: { orderId: data.orderId } });
+            if (res?.success && res?.data?.uri) {
+                const link = `${window.location.origin}/form/request-sample?orderId=${data.orderId}&uri=${res.data.uri}`;
+                window.open(link, "_blank");
+                toast.success("Đã tạo liên kết thành công");
+            } else {
+                toast.error("Không thể tạo liên kết");
             }
-            table { 
-                width: 100%; 
-                border-collapse: collapse; 
-                border-spacing: 0;
-                margin-bottom: 10px; 
-                font-size: 12px;
-                page-break-inside: auto;
-            }
-            tr { page-break-inside: auto; page-break-after: auto; }
-            th, td { 
-                border: 1px solid #1e293b !important; 
-                padding: 6px 4px !important; 
-                word-break: break-word; 
-                vertical-align: top !important;
-            }
-            h1 { font-size: 24px; font-weight: 800; margin: 25px 0 35px; text-transform: uppercase; text-align: center; }
-            .field-dotted { 
-                border-bottom: 1px dotted #64748b !important; 
-                padding-bottom: 2px !important; 
-                line-height: 1.6 !important;
-                display: inline-block;
-                min-width: 50px;
-                font-weight: 700;
-            }
-            .label-text { color: #64748b; font-weight: 400; white-space: nowrap; margin-right: 5px; }
-        `;
-        container.appendChild(style);
-
-        const contentDiv = document.createElement("div");
-        contentDiv.innerHTML = content;
-        container.appendChild(contentDiv);
-
-        const opt: any = {
-            margin: [10, 10, 20, 10],
-            filename: `Phieu_Gui_Mau_${data.orderId}.pdf`,
-            image: { type: "jpeg", quality: 0.98 },
-            html2canvas: {
-                scale: 2,
-                useCORS: true,
-                letterRendering: true,
-                windowWidth: 718,
-            },
-            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-            pagebreak: { mode: ["css", "legacy"] },
-        };
-
-        html2pdf()
-            .from(container)
-            .set(opt)
-            .toPdf()
-            .get("pdf")
-            .then((pdf: any) => {
-                const totalPages = pdf.internal.getNumberOfPages();
-                for (let i = 1; i <= totalPages; i++) {
-                    pdf.setPage(i);
-                    pdf.setFont("helvetica", "normal");
-                    pdf.setFontSize(10);
-                    pdf.setTextColor(100, 116, 139);
-
-                    pdf.text(`Order ID: ${data.orderId}`, 10, 297 - 10);
-                    const pageStr = `${t("common.page")} ${i}/${totalPages}`;
-                    const textWidth = (pdf.getStringUnitWidth(pageStr) * 10) / pdf.internal.scaleFactor;
-                    pdf.text(pageStr, 210 - 10 - textWidth, 297 - 10);
-                }
-
-                if (action === "save") {
-                    pdf.save(opt.filename);
-                } else {
-                    const pdfBlob = pdf.output("blob");
-                    const pdfUrl = URL.createObjectURL(pdfBlob);
-                    window.open(pdfUrl, "_blank");
-                }
-            });
+        } catch (error) {
+            console.error(error);
+            toast.error("Lỗi khi tạo liên kết");
+        }
     };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
             <div className="bg-card w-full max-w-5xl min-w-[900px] h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-border">
                 <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
-                    <h2 className="text-lg font-bold text-foreground flex items-center gap-2">Phiếu gửi mẫu thử nghiệm</h2>
+                    <h2 className="text-lg font-bold text-foreground flex items-center gap-2">{t("sampleRequest.header", "Phiếu gửi mẫu thử nghiệm")}</h2>
                     <div className="flex items-center gap-2">
                         <button
-                            onClick={() => handleProcessPdf("view")}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-lg transition-colors font-medium text-sm"
+                            onClick={handlePrint}
+                            className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+                            title="In Phiếu"
                         >
-                            <Eye className="w-4 h-4" />
-                            {t("common.preview")}
+                            <Printer className="w-4 h-4" />
+                            <span>{t("common.print") || "In"}</span>
                         </button>
                         <button
-                            onClick={() => handleProcessPdf("save")}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-success/10 text-success hover:bg-success/20 rounded-lg transition-colors font-medium text-sm"
+                            onClick={handleGenerateLink}
+                            className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+                            title="Tạo Link Phiếu Gửi"
                         >
-                            <FileDown className="w-4 h-4" />
-                            {t("common.exportPdf")}
+                            <LinkIcon className="w-4 h-4" />
+                            {t("Tạo Link")}
                         </button>
                         <button onClick={onClose} className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors">
                             <X className="w-5 h-5" />
@@ -340,9 +83,10 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data }: Sample
 
                 <div className="flex-grow bg-muted/50 overflow-hidden p-4 flex justify-center">
                     <Editor
+                        key={data.orderId}
                         tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
                         onInit={(_evt: any, editor: any) => (editorRef.current = editor)}
-                        initialValue={generateSampleRequestHtml(data)}
+                        initialValue={initialHtml}
                         init={{
                             height: "100%",
                             width: "100%",
@@ -352,29 +96,46 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data }: Sample
                             toolbar: "table | bold italic | alignleft aligncenter alignright | code print",
                             noneditable_noneditable_class: "mceNonEditable",
                             noneditable_editable_class: "mceEditable",
+                            visual: false,
+                            visual_table_manager: false,
+                            table_toolbar: "",
+                            table_context_toolbar: "",
                             content_style: `
-                                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
                                 * { margin: 0; padding: 0; box-sizing: border-box; }
                                 body { 
                                     width: 210mm;
-                                    margin: 20px auto !important; 
-                                    padding: 10mm !important; 
+                                    margin: 10px auto !important; 
+                                    padding: 5mm !important; 
                                     background-color: white; 
-                                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
                                     font-size: 13px;
                                     line-height: 1.3;
                                     min-height: 297mm;
                                     box-shadow: 0 0 10px rgba(0,0,0,0.1);
                                 }
+                                table[data-mce-selected="1"] {
+                                    outline: none !important;
+                                    box-shadow: none !important;
+                                }
+                                .mce-resizehandle {
+                                    display: none !important;
+                                }   
                                 .mceNonEditable { color: #64748b; }
                                  .mceEditable { border-bottom: 1px dotted #64748b !important; padding-bottom: 2px !important; line-height: 1.6 !important; }
                                 table { width: 100% !important; border-collapse: collapse; margin-bottom: 10px; }
-                                th, td { border: 1px solid black !important; padding: 4px !important; vertical-align: top; }
+                                table:not(.layout-table) th, table:not(.layout-table) td { border: 1px solid black !important; padding: 4px !important; vertical-align: top; }
+                                
+                                /* Hide TinyMCE visual aids */
+                                .mce-visual-caret, .mce-visual-guide { display: none !important; }
+                                table[border="0"], table[style*="border: none"], table[style*="border:none"] { border: 0 !important; }
+                                table[border="0"] td, table[style*="border: none"] td { border: 0 !important; }
+                                
+                                .layout-table td, .layout-table th { border: none !important; }
+                                
                                 html { background-color: #f0f0f0; display: flex; justify-content: center; }
                                 @media print {
                                     body { margin: 0 !important; box-shadow: none !important; width: 100% !important; padding: 0 !important; }
                                     html { background: none; display: block; }
-                                    @page { margin: 10mm; size: A4 portrait; }
+                                    @page { margin: 5mm; size: A4 portrait; }
                                     .mceEditable { border-bottom: none !important; }
                                     .mceNonEditable { color: inherit; }
                                 }
@@ -385,4 +146,385 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data }: Sample
             </div>
         </div>
     );
+}
+
+function generateSampleRequestHtml(data: OrderPrintData, t: any) {
+    let globalStt = 0;
+
+    const rulesItems = t("sampleRequest.rules.items", {
+        returnObjects: true,
+    }) as string[];
+    const rulesListHtml = Array.isArray(rulesItems)
+        ? rulesItems
+              .map(
+                  (text, index) => `
+        <div style="display: flex; align-items: flex-start; margin-bottom: 6px;">
+            <div style="min-width: 26px; font-weight: 700;">${index + 1}.</div>
+            <div style="text-align: justify;">${text}</div>
+        </div>
+    `,
+              )
+              .join("")
+        : "";
+
+    const samplesHtml = data.samples
+        .map((sample, sampleIdx) => {
+            const analyses = sample.analyses && sample.analyses.length > 0 ? sample.analyses : [{ parameterName: "", protocolCode: "", id: "dummy" }];
+
+            const rowCount = analyses.length;
+
+            const rowsHtml = analyses
+                .map((analysis: any, index: number) => {
+                    globalStt++;
+
+                    const isFirst = index === 0;
+
+                    const sampleCell = isFirst
+                        ? `
+              <td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;">
+                <div style="font-weight:900; margin-bottom:2px;">${t("sampleRequest.sampleInfo.sampleName")}: ${sample.sampleName || ""}</div>
+                <div style="font-size:14px; line-height:1.2;">
+                  <div><span style="font-weight:900;">${t("sampleRequest.sampleInfo.lotNo")}</span></div>
+                  <div><span style="font-weight:900;">${t("sampleRequest.sampleInfo.mfgDate")}</span></div>
+                  <div><span style="font-weight:900;">${t("sampleRequest.sampleInfo.expDate")}</span></div>
+                  <div><span style="font-weight:900;">${t("sampleRequest.sampleInfo.placeOfOrigin")}</span></div>
+                </div>
+              </td>
+            `
+                        : "";
+
+                    const descCell = isFirst
+                        ? `
+              <td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;"> <!-- Changed from middle to top -->
+             
+              </td>
+            `
+                        : "";
+
+                    return `
+          <tr>
+            <td style="text-align:center; padding:5px; border: 1px solid #000 !important;">${globalStt}</td>
+            ${sampleCell}
+            ${descCell}
+            <td style="padding:5px; border: 1px solid #000 !important;">${analysis.parameterName || ""}</td>
+            <td style="padding:5px; border: 1px solid #000 !important;">${analysis.protocolCode || ""}</td>
+            <td style="padding:5px; border: 1px solid #000 !important;"></td>
+          </tr>
+        `;
+                })
+                .join("");
+
+            const groupClass = sampleIdx === 0 ? "sample-group first-sample-group" : "sample-group";
+
+            return `<tbody class="${groupClass}">${rowsHtml}</tbody>`;
+        })
+        .join("");
+
+    const headerHtml = `
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
+        <!-- Left: logo + info -->
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:7px; flex: 1;">
+          <img
+            src="${logoFullUrl}"
+            style="height:29px; width:auto; object-fit:contain;"
+            draggable="false"
+          />
+          <div style="font-size:10.5px; line-height:1.3; color:#0f172a; text-align:left; align-self: center;">
+            <div style="font-weight:900;">
+              ${t("sampleRequest.institute.name")}
+            </div>
+            <div>
+              ${t("sampleRequest.institute.address")} - ${t("sampleRequest.institute.tel")}   -   ${t("sampleRequest.institute.email")}
+            </div>
+          </div>
+          <div style="flex:1;">
+            <div style="text-align:right; font-size:9px; font-weight:700; white-space:nowrap; text-transform:uppercase;">
+              ${t("sampleRequest.title")}
+            </div>
+            <div style="text-align:right; font-size:9px; font-weight:700; margin-top:2px;">
+               ${data.orderId}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="border-top:1px solid #cbd5e1; margin-top:8px; margin-bottom: 10px;"></div>
+  `;
+
+    const bodyHtml = `
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom: 6px;">
+      <div style="flex:1;"></div>
+
+      <div style="width:100%; margin-bottom: 12px;">
+       <div style="text-align:center; font-size:20px; font-weight:900; white-space:nowrap; text-transform:uppercase;">
+         ${t("sampleRequest.title")}
+       </div>
+       <div style="text-align:right; font-size:14px; font-weight:900; margin-top:4px;">
+         ${t("sampleRequest.order")} ${data.orderId}
+       </div>
+     </div>
+      </div>
+
+      <div class="section">
+        <div style="font-size: 15px; font-weight: 900; margin-bottom: 6px;">
+            ${t("sampleRequest.section1.title")}
+        </div>
+
+        <div style="font-size: 14px; font-weight: 900; margin: 6px 0 2px;">
+            ${t("sampleRequest.section1.title2")}
+        </div>
+        <div style="font-size: 12px; font-style: italic; margin: 0 0 8px;">
+            ${t("sampleRequest.section1.subtitle")}
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="display: flex; align-items: baseline; font-size: 14px; margin-bottom: 2px;">
+            <span class="label-text" style="min-width: 120px;">  ${t("sampleRequest.clientName")}</span>
+            <span class="field-dotted" style="flex-grow: 1;">${data.client?.clientName || ""}</span>
+          </div>
+
+          <div style="display: flex; align-items: baseline; font-size: 14px; margin-bottom: 2px;">
+            <span class="label-text" style="min-width: 120px;">${t("sampleRequest.address")}</span>
+            <span class="field-dotted" style="flex-grow: 1;">${data.clientAddress || ""}</span>
+          </div>
+        </div>
+
+        <div style="font-size: 14px; font-weight: 900; margin: 8px 0 4px;">
+            ${t("sampleRequest.section2.title")}
+        </div>
+        
+        <table class="layout-table" style="width: 100%; border-collapse: collapse; margin-bottom: 2px; border: 0 !important;" border="0">
+             <colgroup>
+                <col style="width: 125px;">
+                <col style="width: 275px;">
+                <col style="width: 75px;">
+                <col style="width: 275px;">
+            </colgroup>
+            <tr>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.section2.contactPerson")}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.contactPerson || ""}</td>
+                
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 75px;" class="label-text">${t("sampleRequest.identity")}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.contactIdentity || ""}</td>
+            </tr>
+            <tr>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.contactPhone")}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
+                
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 75px;" class="label-text">${t("sampleRequest.email")}</td>
+                 <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.reportEmail || ""}</td>
+            </tr>
+        </table>
+
+        <div style="font-size: 14px; font-weight: 900; margin: 8px 0 4px;">
+        ${t("sampleRequest.section3.title")}
+        </div>
+
+        <table class="layout-table" style="width: 100%; border-collapse: collapse; margin-bottom: 2px; border: none !important;">
+             <colgroup>
+                <col style="width: 125px;">
+                <col style="width: 275px;">
+                <col style="width: 75px;">
+                <col style="width: 275px;">
+            </colgroup>
+             <tr>
+                <td style="white-space: nowrap; padding: 2px 5px; border: none !important; width: 125px;" class="label-text">${t("sampleRequest.address")}</td>
+                <td colspan="3" style="padding: 2px 5px; border: none !important; word-break: break-word;" class="field-dotted">${data.clientAddress || ""}</td>
+            </tr>
+            <tr>
+                <td style="white-space: nowrap; padding: 2px 5px; border: none !important; width: 125px;" class="label-text">${t("sampleRequest.contactPhone")}</td>
+                <td style="padding: 2px 5px; border: none !important; width: 275px; word-break: break-word;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
+                
+                <td style="white-space: nowrap; padding: 2px 5px; border: none !important; width: 75px;" class="label-text">${t("sampleRequest.email")}</td>
+                <td style="padding: 2px 5px; border: none !important; width: 275px; word-break: break-word;" class="field-dotted">${data.reportEmail || ""}</td>
+            </tr>
+        </table>
+
+        <div style="font-size: 14px; font-weight: 900; margin: 8px 0 4px;">
+        ${t("sampleRequest.section4.title")}
+        </div>
+
+        <table class="layout-table" style="width: 100%; border-collapse: collapse; margin-bottom: 2px; border: 0 !important;" border="0">
+            <colgroup>
+                <col style="width: 125px;">
+                <col style="width: 275px;">
+                <col style="width: 75px;">
+                <col style="width: 275px;">
+            </colgroup>
+            <tr>
+               <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.section4.taxName")}</td>
+               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word;" class="field-dotted">${data.client?.invoiceInfo?.taxName || ""}</td>
+            </tr>
+           <tr>
+               <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.address")}</td>
+               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word;" class="field-dotted">${
+                   (data.client as any)?.invoiceAddress || data.client?.invoiceInfo?.taxAddress || ""
+               }</td>
+            </tr>
+            <tr>
+               <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.taxId")}</td>
+               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word;" class="field-dotted">${data.client?.legalId || data.taxCode || ""}</td>
+            </tr>
+            <tr>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.contactPhone")}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
+                
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 75px;" class="label-text">${t("sampleRequest.email")}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${
+                    (data.client as any)?.invoiceEmail || data.client?.invoiceInfo?.taxEmail || ""
+                }</td>
+            </tr>
+        </table>
+      </div>
+
+
+      <div class="section">
+        <div style="font-size: 13px; margin-top: 8px;">
+        ${t("sampleRequest.section4.request")}
+        </div>
+        <table class="content-table" style="width: 100%; border-collapse: collapse; border: none; margin: 10px 0; table-layout: fixed;">
+          <thead>
+            <tr>
+              <th style="border: 1px solid #1e293b; padding: 8px 8px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 40px;">
+                ${t("table.stt")}
+              </th>
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 200px;">
+                ${t("sample.name")}(*)</th>
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 140px;">
+                ${t("sampleRequest.table.sampleDesc")}(*)</th>
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900;">
+                ${t("sampleRequest.table.parameters")}</th>
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 100px;">
+                ${t("table.method")}</th>
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 70px;">
+                ${t("sample.note")}</th>
+            </tr>
+          </thead>
+          ${samplesHtml}
+        </table>
+
+        <div style="font-size: 12px; font-style: italic;">
+        ${t("sampleRequest.section4.quote")}</div>
+
+       <div class="section sign-block" style="margin-top:15px; page-break-inside: avoid; break-inside: avoid;">
+        <!-- Cột Khách Hàng (Nằm trên) -->
+        <div style="width:100%; display:flex; justify-content:center; margin-bottom: 50px;">
+             <div style="width:80%; text-align:center;">
+                <div class="sign-title" style="font-weight: 900; font-size: 14px;">${t("sampleRequest.signer.customer")}</div>
+                <div class="sign-confirm" style="margin-top:4px; font-style:italic; font-size:12px;">${t("sampleRequest.signer.confirm")}</div>
+                <div class="sign-confirm" style="margin-top:2px; font-size: 12px;">${t("sampleRequest.signer.signNote")}</div>
+                <div class="sign-space" style="height:100px;"></div>
+             </div>
+        </div>
+
+        <!-- Cột IRDOP (Nằm dưới) -->
+        <table style="width:100%; border:1px solid #000; border-collapse:collapse;">
+          <tr>
+            <td style="width:55%; vertical-align:top; text-align:left; padding:8px; border-right:1px solid #000 !important; border-bottom:0 !important;">
+              <div style="font-size:13px; font-weight:900; text-transform:uppercase; margin-bottom:6px;">
+                ${t("sampleRequest.signer.receiptTitle")} - <span style="font-weight:900; text-transform:none;">${t("sampleRequest.signer.labOnly")}</span>
+              </div>
+              <div style="font-size:13px; line-height:1.5;">
+                <div>${t("sampleRequest.signer.receivedDate")} ..................................................</div>
+                <div>${t("sampleRequest.signer.receivedLocation")} &#9633; ${t("sampleRequest.signer.atInstitute")}</div>
+                <div>&#9633; ${t("sampleRequest.signer.other")} ....................................................................</div>
+                <div>${t("sampleRequest.signer.retention")} &#9633; ${t("sampleRequest.signer.noRetention")}&nbsp;&nbsp;&nbsp;&nbsp;&#9633; ${t("sampleRequest.signer.retainSample")}</div>
+              </div>
+            </td>
+             <td style="vertical-align:top; text-align:center; padding:8px; border-bottom:0 !important;">
+              <div style="font-size:13px; font-weight:900; text-transform:uppercase; margin-bottom:6px;">
+                ${t("sampleRequest.signer.receiver")}
+              </div>
+               <div style="height:80px;"></div>
+            </td>
+          </tr>
+        </table>
+       </div>
+
+
+       <div class="rules-section" style="page-break-before: always; break-before: page;">
+         <div style="text-align:center; font-weight:900; font-size:15px; text-transform:uppercase; margin-bottom:4px;">
+           ${t("sampleRequest.rules.header.title")}
+         </div>
+         <div style="text-align:center; font-style:italic; font-size:14px; margin-bottom:10px;">
+           ${t("sampleRequest.rules.header.attached")}<br/>
+           ${t("sampleRequest.rules.header.archived")}
+         </div>
+         <div class="rules-list" style="font-size:14px; line-height:1.3;">
+            ${rulesListHtml}
+         </div>
+          <div style="margin-top:16px; font-size:14px; line-height:1.3;">
+            <div style="font-weight:900; margin-bottom:4px;">
+              ${t("sampleRequest.rules.contact.title")}
+            </div>
+            <div style="font-weight:900;">
+              ${t("sampleRequest.rules.contact.orgName")}
+            </div>
+            <div>${t("sampleRequest.rules.contact.address")}</div>
+            <div>${t("sampleRequest.rules.contact.phone")}</div>
+            <div>${t("sampleRequest.rules.contact.email")}</div>
+          </div>
+       </div>
+    `;
+
+    return `
+    <div style="font-family: 'Reddit Mono', monospace !important; color: #1e293b; max-width: 794px; margin: 0 auto; position: relative;">
+       <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Reddit+Mono:wght@200..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
+    <style>
+        /* Global Font Settings */
+        body, div, table, td, th, span {
+            font-family: "Reddit Mono", monospace !important;
+            font-weight: 500;
+            line-height: 1.3;
+        }
+        b, strong, th, .bold, .font-weight-bold {
+            font-weight: 900 !important;
+        }
+
+        .layout-table, .layout-table th, .layout-table td { border: none; border-collapse: collapse; }
+        .field-dotted { 
+          border: none !important;
+          border-bottom: 1px dotted #64748b !important;
+          padding-bottom: 2px !important; 
+          line-height: 1.4 !important;
+          display: inline-block;
+          min-width: 50px;
+          font-weight: 900 !important;
+          width: 100%; /* added */
+        }
+        .section { margin-bottom: 25px; }
+        .label-text { color: #64748b; font-weight: 500 !important; white-space: nowrap; margin-right: 5px; }
+        
+        .rules-section {
+             margin-top: 40px;
+             page-break-before: always;
+             break-before: page;
+        }
+
+        /* Ensure content-table has borders */
+        table.content-table { border-collapse: collapse !important; border: 1px solid black !important; }
+        table.content-table th, table.content-table td { border: 1px solid black !important; padding: 5px !important; }
+        /* Remove focus outline for all elements */
+        *:focus { outline: none !important; }
+      </style>
+
+      <table class="layout-table" style="border: none !important;">
+        <thead>
+            <tr style="border: none !important;">
+                <th style="border: none !important;">
+                    ${headerHtml}
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr style="border: none !important;">
+                <td style="border: none !important;">
+                    ${bodyHtml}
+                </td>
+            </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
 }

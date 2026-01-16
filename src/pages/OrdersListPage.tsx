@@ -13,6 +13,7 @@ import { Pagination } from "@/components/common/Pagination";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { SampleRequestFormPage } from "./SampleRequestFormPage";
 import { OrderPrintPreviewModal } from "@/components/order/OrderPrintPreviewModal";
+import { SampleRequestPrintPreviewModal } from "@/components/order/SampleRequestPrintPreviewModal";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 
 interface OrdersListPageProps {
@@ -35,6 +36,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
 
     // Print State
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+    const [isSampleRequestModalOpen, setIsSampleRequestModalOpen] = useState(false);
     const [printData, setPrintData] = useState<OrderPrintData | null>(null);
 
     // Pagination State
@@ -52,10 +54,10 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
     const quoteId = searchParams.get("quoteId");
     const duplicateId = searchParams.get("duplicateId");
 
-  const isEditorActive = isCreate || isDetail || isEdit;
-  const isSampleRequestForm = location.pathname.endsWith("/form/request");
-  const initialViewMode = isCreate ? "create" : isEdit ? "edit" : "view";
-  const [localViewMode, setLocalViewMode] = useState(initialViewMode);
+    const isEditorActive = isCreate || isDetail || isEdit;
+    const isSampleRequestForm = location.pathname.endsWith("/form/request");
+    const initialViewMode = isCreate ? "create" : isEdit ? "edit" : "view";
+    const [localViewMode, setLocalViewMode] = useState(initialViewMode);
 
     useEffect(() => {
         setLocalViewMode(initialViewMode);
@@ -163,7 +165,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
         navigate(`/orders/create?duplicateId=${order.orderId}`);
     };
 
-    const handlePrint = async (order: Order) => {
+    const preparePrintData = async (order: Order) => {
         // We need full details to print comfortably, especially samples/analyses
         // Check if current order object has samples. Usually list response might be partial.
         let fullOrder = order;
@@ -177,7 +179,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
             } catch (e) {
                 console.error("Failed to fetch full order for print", e);
                 toast.error("Failed to load full order details for printing");
-                return;
+                return null;
             }
         }
 
@@ -236,6 +238,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                         feeBeforeTax: feeBefore,
                         taxRate: taxRate,
                         feeAfterTax: feeAfter,
+                        protocolCode: a.protocolCode,
                     };
                 }),
             })),
@@ -250,8 +253,35 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
             discountRate: fullOrder.discountRate || 0,
         };
 
-        setPrintData(data);
-        setIsPrintModalOpen(true);
+        return data;
+    };
+
+    const handlePrint = async (order: Order) => {
+        const data = await preparePrintData(order);
+        if (data) {
+            setPrintData(data);
+            setIsPrintModalOpen(true);
+        }
+    };
+
+    const handleSampleRequestPrint = async (order: Order) => {
+        console.log("handleSampleRequestPrint called for order:", order.orderId);
+        try {
+            const data = await preparePrintData(order);
+            console.log("preparePrintData result:", data);
+
+            if (data) {
+                setPrintData(data);
+                setIsSampleRequestModalOpen(true);
+                console.log("Modal state set to open");
+            } else {
+                console.error("preparePrintData returned null");
+                toast.error("Failed to prepare print data");
+            }
+        } catch (error) {
+            console.error("Error in handleSampleRequestPrint:", error);
+            toast.error("Error preparing print data");
+        }
     };
 
     const handleBack = () => {
@@ -273,13 +303,13 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
         }
     };
 
-  const handleSaveTrigger = () => {
-    editorRef.current?.save();
-  };
+    const handleSaveTrigger = () => {
+        editorRef.current?.save();
+    };
 
-  if (isSampleRequestForm) {
-    return <SampleRequestFormPage />;
-  }
+    if (isSampleRequestForm) {
+        return <SampleRequestFormPage />;
+    }
 
     if (isEditorActive) {
         return (
@@ -309,43 +339,43 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                             </button>
                         )}
 
-            {localViewMode === "view" && (
-              <>
-                <button
-                  onClick={() => editorRef.current?.export()}
-                  className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
-                  <FileDown className="w-4 h-4" />
-                  <span className="hidden sm:inline">
-                    {t("order.printButton", "In Đơn hàng")}
-                  </span>
-                </button>
-                <button
-                  onClick={() => {
-                    const id = selectedOrder?.orderId || orderId;
-                    if (!id) return;
-                    navigate(
-                      `/orders/form/request?orderId=${encodeURIComponent(id)}`
-                    );
-                  }}
-                  // onClick={() => editorRef.current?.exportSampleRequest()}
-                  className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
-                  <FileText className="w-4 h-4" />
-                  <span className="hidden sm:inline">
-                    {t("order.print.sampleRequest", "Phiếu gửi mẫu")}
-                  </span>
-                </button>
-              </>
-            )}
-            {localViewMode !== "view" && (
-              <button
-                onClick={handleSaveTrigger}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium">
-                <Save className="w-4 h-4" />
-                {t("common.save")}
-              </button>
-            )}
-          </div>
-        </div>
+                        {localViewMode === "view" && (
+                            <>
+                                <button
+                                    onClick={() => editorRef.current?.export()}
+                                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+                                >
+                                    <FileDown className="w-4 h-4" />
+                                    <span className="hidden sm:inline">{t("order.printButton", "In Đơn hàng")}</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        console.log("Clicked Sample Request Print");
+                                        console.log("Selected Order:", selectedOrder);
+                                        if (selectedOrder) {
+                                            handleSampleRequestPrint(selectedOrder);
+                                        } else {
+                                            toast.error("No order selected");
+                                        }
+                                    }}
+                                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+                                >
+                                    <FileText className="w-4 h-4" />
+                                    <span className="hidden sm:inline">{t("order.print.sampleRequest", "Phiếu gửi mẫu")}</span>
+                                </button>
+                            </>
+                        )}
+                        {localViewMode !== "view" && (
+                            <button
+                                onClick={handleSaveTrigger}
+                                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                            >
+                                <Save className="w-4 h-4" />
+                                {t("common.save")}
+                            </button>
+                        )}
+                    </div>
+                </div>
 
                 {/* Editor Content */}
                 <div className="flex-1 overflow-hidden">
@@ -359,6 +389,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                         initialQuoteId={quoteId || undefined}
                     />
                 </div>
+                {printData && <SampleRequestPrintPreviewModal isOpen={isSampleRequestModalOpen} onClose={() => setIsSampleRequestModalOpen(false)} data={printData} />}
             </div>
         );
     }
@@ -516,6 +547,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                 </div>
             </div>
             {printData && <OrderPrintPreviewModal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} data={printData} />}
+            {printData && <SampleRequestPrintPreviewModal isOpen={isSampleRequestModalOpen} onClose={() => setIsSampleRequestModalOpen(false)} data={printData} />}
         </MainLayout>
     );
 }

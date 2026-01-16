@@ -24,7 +24,14 @@ export interface Order {
     orderStatus: "Pending" | "Processing" | "Completed" | "Cancelled";
     paymentStatus: "Unpaid" | "Partial" | "Paid" | "Debt";
     transactions?: any[]; // jsonb[]
-    contactPerson?: any; // jsonb (Contact Snapshot)
+    contactPerson?: {
+        contactId?: string;
+        contactName: string;
+        contactPhone?: string;
+        contactEmail?: string;
+        contactAddress?: string;
+        identityId?: string;
+    }; // jsonb (Contact Snapshot)
     // Audit columns
     createdAt: string;
     createdById: string;

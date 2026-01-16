@@ -134,6 +134,12 @@ export function ParameterGroupModal({ isOpen, onClose, onSuccess, initialData }:
         }
     }, [isOpen, initialData]);
 
+    const handleNumberKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+            e.preventDefault();
+        }
+    };
+
     const fetchSampleTypes = async () => {
         setIsLoading(true);
         try {
@@ -442,6 +448,8 @@ export function ParameterGroupModal({ isOpen, onClose, onSuccess, initialData }:
                                         className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         value={formData.feeBeforeTaxAndDiscount}
                                         onChange={(e) => handlePriceChange("beforeAndDiscount", e.target.value)}
+                                        onKeyDown={handleNumberKeyDown}
+                                        onWheel={(e) => e.currentTarget.blur()}
                                         min={0}
                                     />
                                 </div>
@@ -452,6 +460,8 @@ export function ParameterGroupModal({ isOpen, onClose, onSuccess, initialData }:
                                         className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         value={formData.discountRate}
                                         onChange={(e) => handlePriceChange("discountRate", e.target.value)}
+                                        onKeyDown={handleNumberKeyDown}
+                                        onWheel={(e) => e.currentTarget.blur()}
                                         min={0}
                                         max={100}
                                     />
@@ -466,6 +476,8 @@ export function ParameterGroupModal({ isOpen, onClose, onSuccess, initialData }:
                                         className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         value={formData.feeBeforeTax}
                                         onChange={(e) => handlePriceChange("before", e.target.value)}
+                                        onKeyDown={handleNumberKeyDown}
+                                        onWheel={(e) => e.currentTarget.blur()}
                                         min={0}
                                     />
                                 </div>
@@ -476,6 +488,8 @@ export function ParameterGroupModal({ isOpen, onClose, onSuccess, initialData }:
                                         className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         value={formData.taxRate}
                                         onChange={(e) => handlePriceChange("tax", e.target.value)}
+                                        onKeyDown={handleNumberKeyDown}
+                                        onWheel={(e) => e.currentTarget.blur()}
                                         min={0}
                                         max={100}
                                     />
@@ -489,6 +503,8 @@ export function ParameterGroupModal({ isOpen, onClose, onSuccess, initialData }:
                                     className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     value={formData.feeAfterTax}
                                     onChange={(e) => handlePriceChange("after", e.target.value)}
+                                    onKeyDown={handleNumberKeyDown}
+                                    onWheel={(e) => e.currentTarget.blur()}
                                 />
                             </div>
                         </form>

@@ -48,6 +48,14 @@ export const deleteClient = async ({ headers, body, query }: ApiInput): Promise<
     return api.post("/v1/client/delete", { headers, body, query });
 };
 
+export const generateOrderUri = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return api.post("/v1/order/generate-uri", { headers, body, query });
+};
+
+export const checkOrderUri = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return api.post("/v1/order/check-uri", { headers, body, query });
+};
+
 // =============================================================================
 // ORDERS
 // =============================================================================
@@ -207,7 +215,7 @@ export const deleteParameterGroup = async ({ headers, body, query }: ApiInput): 
 const apis = {
     auth: { login, logout },
     clients: { getClients, createClient, getClientDetail, updateClient, deleteClient },
-    orders: { getOrders, createOrder, getOrderDetail, updateOrder, deleteOrder, getOrderStats },
+    orders: { getOrders, createOrder, getOrderDetail, updateOrder, deleteOrder, getOrderStats, generateOrderUri, checkOrderUri },
     quotes: { getQuotes, createQuote, getQuoteDetail, updateQuote, deleteQuote },
     parameters: { getParameters, createParameter, getParameterDetail, updateParameter, deleteParameter },
     matrices: { getMatrices, createMatrix, getMatrixDetail, updateMatrix, deleteMatrix, searchMatrices },

@@ -1,9 +1,10 @@
 import type { Client } from "@/types/client";
 import { useTranslation } from "react-i18next";
+import logoFull from "../../assets/LOGO-FULL.png";
 
 export interface QuotePrintData {
     quoteId: string;
-    createdAt?: string; // Add this
+    createdAt?: string;
     client: Client | null;
 
     // Contact Info Snapshot
@@ -24,6 +25,7 @@ export interface QuotePrintData {
         sampleName: string;
         sampleMatrix: string;
         sampleNote: string;
+        quantity?: number;
         analyses: {
             parameterName: string;
             parameterId?: string;
@@ -51,98 +53,94 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
     const { t } = useTranslation();
 
     return (
-        <div id="quote-print-template" style={{ width: "210mm", padding: "20mm", backgroundColor: "white", fontSize: "14px", fontFamily: "Arial, sans-serif" }}>
-            <div style={{ textAlign: "center", marginBottom: "20px" }}>
-                <h1 style={{ fontSize: "24px", fontWeight: "bold" }}>{t("quote.print.title")}</h1>
-                <p>Quote ID: {data.quoteId}</p>
+        <div id="quote-print-template" style={{ width: "210mm", padding: "10mm 10mm 12mm 10mm", backgroundColor: "white", fontSize: "12px", fontFamily: "Times New Roman, serif", lineHeight: "1.3" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "5px", border: "none" }}>
+                <tbody>
+                    <tr>
+                        <td style={{ width: "20%", verticalAlign: "top", border: "none" }}>
+                            <img src={logoFull} alt="Logo" style={{ height: "28px", width: "auto" }} />
+                        </td>
+                        <td style={{ verticalAlign: "top", textAlign: "left", paddingLeft: "10px", border: "none" }}>
+                            <div style={{ fontWeight: "bold", fontSize: "10px", marginBottom: "1px", textTransform: "uppercase" }}>{t("order.print.header.lines.line1")}</div>
+                            <div style={{ fontSize: "10px", marginBottom: "0px" }}>{t("order.print.header.lines.line2")}</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style={{ textAlign: "center", marginBottom: "8px" }}>
+                <h1 style={{ fontSize: "16px", fontWeight: "bold", marginBottom: "1px" }}>{t("quote.print.title")}</h1>
+                <p style={{ fontSize: "12px" }}>Quote ID: {data.quoteId}</p>
             </div>
 
-            <div style={{ marginBottom: "20px" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: "bold", borderBottom: "1px solid #000", paddingBottom: "5px" }}>1. {t("order.print.clientInfo")}</h3>
-                <table style={{ width: "100%", marginTop: "10px" }}>
+            <div style={{ marginBottom: "10px" }}>
+                <h3 style={{ fontSize: "14px", fontWeight: "bold", paddingBottom: "2px", marginBottom: "5px" }}>1. {t("order.print.clientInfo")}</h3>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <tbody>
                         <tr>
-                            <td style={{ width: "150px", fontWeight: "bold" }}>{t("order.print.customer")}:</td>
-                            <td>{data.client?.clientName}</td>
+                            <td style={{ width: "150px", fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.print.customer")}:</td>
+                            <td colSpan={3} style={{ padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
+                                {data.client?.clientName}
+                            </td>
                         </tr>
                         <tr>
-                            <td style={{ fontWeight: "bold" }}>{t("order.print.address")}:</td>
-                            <td>{data.clientAddress}</td>
+                            <td style={{ fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.print.address")}:</td>
+                            <td colSpan={3} style={{ padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
+                                {data.clientAddress}
+                            </td>
                         </tr>
                         <tr>
-                            <td style={{ fontWeight: "bold" }}>{t("order.print.taxCode")}:</td>
-                            <td>{data.client?.legalId}</td>
+                            <td style={{ fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.print.taxCode")}:</td>
+                            <td style={{ width: "170px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{data.client?.legalId}</td>
+                            <td style={{ fontWeight: "bold", width: "130px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("client.taxEmail")}:</td>
+                            <td style={{ padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{data.client?.invoiceInfo?.taxEmail || ""}</td>
                         </tr>
                         <tr>
-                            <td style={{ fontWeight: "bold" }}>{t("order.print.contact")}:</td>
-                            <td>{data.contactPerson}</td>
-                        </tr>
-                        <tr>
-                            <td style={{ fontWeight: "bold" }}>{t("order.print.email")}:</td>
-                            <td>{data.reportEmail}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            {/* SECTION 2: SERVICE PROVIDER */}
-            <div style={{ marginBottom: "20px" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: "bold", borderBottom: "1px solid #000", paddingBottom: "5px" }}>2. {t("order.print.provider")}</h3>
-                <table style={{ width: "100%", marginTop: "10px" }}>
-                    <tbody>
-                        <tr>
-                            <td style={{ width: "150px", fontWeight: "bold" }}>{t("organization.name")}:</td>
-                            <td>{t("organization.data.organizationName")}</td>
-                        </tr>
-                        <tr>
-                            <td style={{ fontWeight: "bold" }}>{t("organization.address")}:</td>
-                            <td>{t("organization.data.address")}</td>
-                        </tr>
-                        <tr>
-                            <td style={{ fontWeight: "bold" }}>{t("organization.taxId")}:</td>
-                            <td>{t("organization.data.taxId")}</td>
-                        </tr>
-                        <tr>
-                            <td style={{ fontWeight: "bold" }}>{t("organization.phone")}:</td>
-                            <td>{t("organization.data.phone")}</td>
-                        </tr>
-                        <tr>
-                            <td style={{ fontWeight: "bold" }}>{t("organization.email")}:</td>
-                            <td>{t("organization.data.email")}</td>
+                            <td style={{ fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.print.contact")}:</td>
+                            <td style={{ width: "170px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{data.contactPerson}</td>
+                            <td style={{ fontWeight: "bold", width: "130px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.print.phone")}:</td>
+                            <td style={{ padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{data.contactPhone}</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
             <div>
-                <h3 style={{ fontSize: "16px", fontWeight: "bold", borderBottom: "1px solid #000", paddingBottom: "5px", marginBottom: "10px" }}>3. {t("order.print.samplesAndAnalysis")}</h3>
+                <h3 style={{ fontSize: "14px", fontWeight: "bold", paddingBottom: "2px", marginBottom: "5px" }}>2. {t("order.print.samplesAndAnalysis")}</h3>
 
                 {data.samples.map((sample, index) => (
-                    <div key={index} style={{ marginBottom: "20px" }}>
-                        <div style={{ backgroundColor: "#f0f0f0", padding: "5px 10px", fontWeight: "bold", marginBottom: "5px" }}>
-                            {t("order.print.sample")} {index + 1}: {sample.sampleName} ({sample.sampleMatrix})
+                    <div key={index} style={{ marginBottom: "10px", pageBreakInside: "auto" }}>
+                        <div style={{ backgroundColor: "#f0f0f0", padding: "3px 8px", fontWeight: "bold", marginBottom: "3px", fontSize: "12px", display: "flex", justifyContent: "space-between" }}>
+                            <span>
+                                {t("order.print.sample")} {index + 1}: {sample.sampleName} ({sample.sampleMatrix})
+                            </span>
+                            {sample.quantity && sample.quantity > 1 ? (
+                                <span>
+                                    x {sample.quantity} {t("order.print.sample").toLowerCase()}
+                                </span>
+                            ) : null}
                         </div>
                         <table style={{ width: "100%", borderCollapse: "collapse" }}>
                             <thead>
                                 <tr style={{ backgroundColor: "#e6e6e6" }}>
-                                    <th style={{ border: "1px solid #ccc", padding: "8px", textAlign: "left" }}>{t("order.print.stt")}</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "8px", textAlign: "left" }}>{t("order.print.parameter")}</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right" }}>{t("order.print.amount")}</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center" }}>{t("order.print.tax")} (%)</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right" }}>{t("order.print.total")}</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "left", verticalAlign: "top" }}>{t("order.print.stt")}</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "left", verticalAlign: "top" }}>{t("order.print.parameter")}</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "right", verticalAlign: "top" }}>{t("order.print.amount")}</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "center", verticalAlign: "top" }}>{t("order.print.tax")} (%)</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "right", verticalAlign: "top" }}>{t("order.print.total")}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {sample.analyses.map((analysis, i) => (
-                                    <tr key={i}>
-                                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center", width: "50px" }}>{i + 1}</td>
-                                        <td style={{ border: "1px solid #ccc", padding: "8px" }}>{analysis.parameterName}</td>
-                                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right" }}>
-                                            {analysis.feeBeforeTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                                    <tr key={i} style={{ pageBreakInside: "avoid" }}>
+                                        <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "center", width: "40px", verticalAlign: "top" }}>{i + 1}</td>
+                                        <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{analysis.parameterName}</td>
+                                        <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "right", width: "100px", verticalAlign: "top" }}>
+                                            {analysis.feeBeforeTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                                         </td>
-                                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "center", width: "50px" }}>{analysis.taxRate}%</td>
-                                        <td style={{ border: "1px solid #ccc", padding: "8px", textAlign: "right" }}>
-                                            {analysis.feeAfterTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                                        <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "center", width: "70px", verticalAlign: "top" }}>{analysis.taxRate || 0}%</td>
+                                        <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "right", width: "120px", verticalAlign: "top" }}>
+                                            {analysis.feeAfterTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                                         </td>
                                     </tr>
                                 ))}
@@ -152,22 +150,22 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                 ))}
             </div>
 
-            <div style={{ marginTop: "20px" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: "bold", borderBottom: "1px solid #000", paddingBottom: "5px" }}>4. {t("order.print.total")}</h3>
-                <table style={{ width: "100%", marginTop: "10px" }}>
+            <div style={{ marginTop: "10px" }}>
+                <h3 style={{ fontSize: "14px", fontWeight: "bold", paddingBottom: "2px" }}>3. {t("order.print.total")}</h3>
+                <table style={{ width: "100%", marginTop: "5px", borderCollapse: "collapse" }}>
                     <tbody>
-                        <tr>
-                            <td style={{ textAlign: "right", paddingRight: "20px" }}>{t("order.print.subtotal")}:</td>
-                            <td style={{ width: "150px", textAlign: "right", fontWeight: "bold" }}>
+                        <tr style={{ pageBreakInside: "avoid" }}>
+                            <td style={{ textAlign: "right", paddingRight: "20px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.print.subtotal")}:</td>
+                            <td style={{ width: "150px", textAlign: "right", fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
                                 {data.pricing.subtotal.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
                             </td>
                         </tr>
                         {data.discountRate > 0 && (
-                            <tr>
-                                <td style={{ textAlign: "right", paddingRight: "20px" }}>
+                            <tr style={{ pageBreakInside: "avoid" }}>
+                                <td style={{ textAlign: "right", paddingRight: "20px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
                                     {t("order.print.discount")} ({data.discountRate}%):
                                 </td>
-                                <td style={{ textAlign: "right", color: "red" }}>
+                                <td style={{ textAlign: "right", color: "red", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
                                     -{" "}
                                     {(data.pricing.discountAmount || (data.pricing.subtotal * data.discountRate) / 100).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}{" "}
                                     đ
@@ -175,20 +173,22 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                             </tr>
                         )}
                         {data.pricing.feeBeforeTax !== undefined && (
-                            <tr>
-                                <td style={{ textAlign: "right", paddingRight: "20px" }}>{t("order.pricing.feeBeforeTax")}:</td>
-                                <td style={{ textAlign: "right", fontWeight: "bold" }}>
+                            <tr style={{ pageBreakInside: "avoid" }}>
+                                <td style={{ textAlign: "right", paddingRight: "20px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.pricing.feeBeforeTax")}:</td>
+                                <td style={{ textAlign: "right", fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
                                     {data.pricing.feeBeforeTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
                                 </td>
                             </tr>
                         )}
-                        <tr>
-                            <td style={{ textAlign: "right", paddingRight: "20px" }}>{t("order.print.vat")}:</td>
-                            <td style={{ textAlign: "right" }}>{data.pricing.tax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ</td>
+                        <tr style={{ pageBreakInside: "avoid" }}>
+                            <td style={{ textAlign: "right", paddingRight: "20px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.print.vat")}:</td>
+                            <td style={{ textAlign: "right", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
+                                {data.pricing.tax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                            </td>
                         </tr>
-                        <tr style={{ fontSize: "16px" }}>
-                            <td style={{ textAlign: "right", paddingRight: "20px", fontWeight: "bold" }}>{t("order.print.grandTotal")}:</td>
-                            <td style={{ textAlign: "right", fontWeight: "bold", color: "#1890FF" }}>
+                        <tr style={{ fontSize: "14px", pageBreakInside: "avoid" }}>
+                            <td style={{ textAlign: "right", paddingRight: "20px", fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.print.grandTotal")}:</td>
+                            <td style={{ textAlign: "right", fontWeight: "bold", color: "#1890FF", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
                                 {data.pricing.total.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
                             </td>
                         </tr>
@@ -196,17 +196,10 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                 </table>
             </div>
 
-            <div style={{ marginTop: "40px", display: "flex", justifyContent: "space-between" }}>
-                <div style={{ textAlign: "center", width: "40%" }}>
-                    <p style={{ fontWeight: "bold" }}>{t("order.print.clientRep")}</p>
-                    <p>({t("order.print.signName")})</p>
-                    <div style={{ height: "100px" }}></div>
-                </div>
-                <div style={{ textAlign: "center", width: "40%" }}>
-                    <p style={{ fontWeight: "bold" }}>{t("order.print.companyRep")}</p>
-                    <p>({t("order.print.signName")})</p>
-                    <div style={{ height: "100px" }}></div>
-                </div>
+            <div style={{ marginTop: "10px", textAlign: "center", height: "14px" }}>
+                <p style={{ fontStyle: "italic", fontSize: "12px" }}>
+                    {t("quote.print.validityNote")} {new Date().toLocaleDateString("vi-VN")}
+                </p>
             </div>
         </div>
     );
