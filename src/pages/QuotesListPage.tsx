@@ -162,10 +162,10 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
 
         // Contacts
         const contact = fullQuote.client?.clientContacts?.[0] || {};
-        const contactPerson = (fullQuote.contactPerson as any)?.identityName || contact.contactName || (contact as any).name || "";
-        const contactPhone = (fullQuote.contactPerson as any)?.phone || contact.contactPhone || (contact as any).phone || "";
-        const contactIdentity = (fullQuote.contactPerson as any)?.identityId || contact.identityId || "";
-        const contactEmail = (fullQuote.contactPerson as any)?.email || contact.contactEmail || (contact as any).email || "";
+        const contactPerson = fullQuote.contactPerson?.contactName || contact.contactName || (contact as any).name || "";
+        const contactPhone = fullQuote.contactPerson?.contactPhone || contact.contactPhone || (contact as any).phone || "";
+        const contactIdentity = fullQuote.contactPerson?.identityId || contact.identityId || "";
+        const contactEmail = fullQuote.contactPerson?.contactEmail || contact.contactEmail || (contact as any).email || "";
         const contactPosition = contact.contactPosition || (contact as any).position || "";
         const contactAddress = contact.contactAddress || "";
 
@@ -395,7 +395,7 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                                             </td>
                                             <td className="px-6 py-4 text-sm text-foreground">
                                                 <div>{quote.client?.clientName || "Unknown Client"}</div>
-                                                <div className="text-xs text-muted-foreground">{quote.contactPerson?.identityName || "N/A"}</div>
+                                                <div className="text-xs text-muted-foreground">{quote.contactPerson?.contactName || "N/A"}</div>
                                             </td>
                                             <td className="px-6 py-4 text-sm text-foreground">{quote.salePerson || "-"}</td>
                                             <td className="px-6 py-4 text-right text-sm font-medium text-foreground">{(quote.totalAmount || 0).toLocaleString("vi-VN")} đ</td>

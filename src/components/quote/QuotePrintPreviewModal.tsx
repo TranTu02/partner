@@ -7,7 +7,6 @@ import type { QuotePrintData } from "./QuotePrintTemplate";
 import { useTranslation } from "react-i18next";
 // @ts-ignore
 import html2pdf from "html2pdf.js";
-import { format } from "date-fns";
 
 import logoFull from "../../assets/LOGO-FULL.png";
 

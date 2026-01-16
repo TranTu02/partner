@@ -194,10 +194,10 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
 
         // Client & Contact Logic (Fallbacks)
         const contact = fullOrder.client?.clientContacts?.[0] || {};
-        const contactPerson = fullOrder.contactPerson?.identityName || contact.contactName || (contact as any).name || "";
-        const contactPhone = fullOrder.contactPerson?.phone || contact.contactPhone || (contact as any).phone || "";
+        const contactPerson = fullOrder.contactPerson?.contactName || contact.contactName || (contact as any).name || "";
+        const contactPhone = fullOrder.contactPerson?.contactPhone || contact.contactPhone || (contact as any).phone || "";
         const contactIdentity = fullOrder.contactPerson?.identityId || contact.identityId || "";
-        const contactEmail = fullOrder.contactPerson?.email || contact.contactEmail || (contact as any).email || "";
+        const contactEmail = fullOrder.contactPerson?.contactEmail || contact.contactEmail || (contact as any).email || "";
         const contactPosition = contact.contactPosition || (contact as any).position || "";
         const contactAddress = contact.contactAddress || "";
 
@@ -463,7 +463,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                                                 <div className="font-medium text-primary cursor-pointer hover:underline" onClick={() => navigate(`/clients`)}>
                                                     {order.client?.clientName || "Unknown Client"}
                                                 </div>
-                                                <div className="text-xs text-muted-foreground mt-0.5">{order.contactPerson?.identityName || "N/A"}</div>
+                                                <div className="text-xs text-muted-foreground mt-0.5">{order.contactPerson?.contactName || "N/A"}</div>
                                             </td>
                                             <td className="px-6 py-4 text-sm text-foreground align-top">{order.salePerson || "-"}</td>
                                             <td className="px-6 py-4 text-right text-sm font-medium text-foreground align-top">{(order.totalAmount || 0).toLocaleString("vi-VN")} đ</td>
