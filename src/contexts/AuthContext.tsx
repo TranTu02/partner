@@ -46,8 +46,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Role-based access control matrix
 const accessMatrix: Record<string, string[]> = {
     // Admin roles
-    admin: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters", "accounting", "settings"],
-    superAdmin: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters", "accounting", "settings"],
+    admin: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters", "accounting", "settings","admin"],
+    superAdmin: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters", "accounting", "settings","admin"],
     IT: ["dashboard", "clients", "quotes", "orders", "parameters", "accounting", "settings"],
 
     // Functional Roles

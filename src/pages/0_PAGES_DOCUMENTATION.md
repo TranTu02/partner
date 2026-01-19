@@ -101,3 +101,13 @@ This directory contains the top-level Page components that correspond to routes 
     -   Configuration for Theme (Light/Dark).
     -   Profile management (optional).
     -   Other system-wide preferences.
+
+
+### `AdminDashboard.tsx`
+
+-   **Route**: `/admin`
+-   **Purpose**: Main entry page for the Admin area. Provides the persistent admin shell layout and renders dashboard content.
+-   **Key Logic**:
+    -   Uses a full-screen flex layout: SideNav on the left and a content column on the right..
+    -   Wraps content with TopNav and a scrollable region.
+    -   Renders DashboardContent as the primary admin view.

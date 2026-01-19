@@ -59,7 +59,7 @@ function AppRoutes() {
                 <Route path="/parameters" element={<ProtectedRoute menuId="parameters" element={<ParametersPage {...commonProps} />} />} />
                 <Route path="/accounting" element={<ProtectedRoute menuId="accounting" element={<AccountingPage {...commonProps} />} />} />
                 <Route path="/settings" element={<ProtectedRoute menuId="settings" element={<SettingsPage {...commonProps} />} />} />
-
+                <Route path="/admin/*" element={<ProtectedRoute menuId="admin" element={<AdminDashboard />} />}/>
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
         </div>
@@ -67,6 +67,7 @@ function AppRoutes() {
 }
 
 import { Toaster } from "@/components/ui/sonner";
+import AdminDashboard from "@/pages/AdminDashboardPage";
 
 function App() {
     return (
