@@ -47,6 +47,8 @@ export interface OrderPrintData {
         total: number;
     };
     discountRate: number;
+    orderUri?: string;
+    requestForm?: string;
 }
 
 export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {

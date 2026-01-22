@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { Editor } from "@tinymce/tinymce-react";
-import { ArrowLeft, Save, Printer } from "lucide-react";
+import { Save, Printer, HelpCircle, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getOrderDetail, checkOrderUri, updateOrder } from "@/api/index";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
@@ -15,7 +15,6 @@ import logoFullUrl from "@/assets/LOGO-FULL.png";
 export function SampleRequestFormPage() {
     const { t } = useTranslation();
     const {} = useAuth();
-    const navigate = useNavigate();
     const [params] = useSearchParams();
     const orderId = params.get("orderId") || "";
     const uri = params.get("uri");
@@ -26,6 +25,10 @@ export function SampleRequestFormPage() {
     const [loading, setLoading] = useState(false);
     const [editorReady, setEditorReady] = useState(false);
     const [savedContent, setSavedContent] = useState<string>("");
+    const [showGuide, setShowGuide] = useState(false); // For mobile modal
+    const [showPrintConfirm, setShowPrintConfirm] = useState(false);
+
+    // Removed isLocked logic to allow editing at all times
 
     // Removed URI verification effect here, combined below
 
@@ -92,7 +95,7 @@ export function SampleRequestFormPage() {
     }, [data, t, savedContent]);
 
     const handleSave = async () => {
-        if (!editorRef.current) return;
+        if (!editorRef.current) return false;
 
         const content = editorRef.current.getContent();
         const toastId = toast.loading(t("common.saving") || "Đang lưu...");
@@ -109,17 +112,40 @@ export function SampleRequestFormPage() {
             if (res.success) {
                 toast.success(t("common.saveSuccess") || "Lưu thành công", { id: toastId });
                 setSavedContent(content);
+                return true;
             } else {
                 toast.error(res.error?.message || "Lỗi khi lưu", { id: toastId });
+                return false;
             }
         } catch (error: any) {
             toast.error(error.message || "Lỗi khi lưu", { id: toastId });
+            return false;
         }
     };
 
     const handlePrint = () => {
-        if (editorRef.current) {
+        if (!editorRef.current) return;
+
+        const currentContent = editorRef.current.getContent();
+        // Check if content has changed relative to the last saved content
+        if (currentContent !== savedContent) {
+            setShowPrintConfirm(true);
+        } else {
             editorRef.current.execCommand("mcePrint");
+        }
+    };
+
+    const confirmPrint = async (shouldSave: boolean) => {
+        setShowPrintConfirm(false);
+        if (shouldSave) {
+            const success = await handleSave();
+            if (success && editorRef.current) {
+                editorRef.current.execCommand("mcePrint");
+            }
+        } else {
+            if (editorRef.current) {
+                editorRef.current.execCommand("mcePrint");
+            }
         }
     };
 
@@ -129,10 +155,7 @@ export function SampleRequestFormPage() {
         <div className="h-screen flex flex-col bg-background">
             <div className="h-14 border-b border-border flex items-center justify-between px-4 bg-card">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => navigate(-1)} className="p-2 hover:bg-accent rounded-full text-muted-foreground transition-colors" title="Back">
-                        <ArrowLeft className="w-5 h-5" />
-                    </button>
-
+                    {/* Back button removed */}
                     <div className="flex flex-col">
                         <div className="text-lg font-semibold">{t("sampleRequest.header")}</div>
                         <div className="text-xs text-muted-foreground">{orderId ? `Order ID: ${orderId}` : "/orders/form/request?orderId=..."}</div>
@@ -140,62 +163,91 @@ export function SampleRequestFormPage() {
                 </div>
 
                 <div className="flex gap-2">
-                    <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors shadow-sm">
-                        <Printer className="w-4 h-4" />
-                        <span className="text-sm font-medium">{t("common.print") || "In"}</span>
-                    </button>
-                    <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-sm">
+                    <button
+                        onClick={handleSave}
+                        disabled={loading}
+                        className="flex items-center gap-2 px-4 py-2 rounded-md transition-colors shadow-sm bg-secondary text-secondary-foreground hover:bg-secondary/90 border border-border"
+                    >
                         <Save className="w-4 h-4" />
                         <span className="text-sm font-medium">{t("common.save") || "Lưu"}</span>
+                    </button>
+
+                    <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-sm">
+                        <Printer className="w-4 h-4" />
+                        <span className="text-sm font-medium">{t("common.print") || "In"}</span>
                     </button>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-hidden">
-                {loading && <div className="p-4">{t("common.loading")}</div>}
+            <div className="flex-1 overflow-hidden flex bg-gray-100/50 relative">
+                {/* Mobile Guide Button */}
+                <button
+                    onClick={() => setShowGuide(!showGuide)}
+                    className="fixed top-20 right-4 z-50 xl:hidden bg-primary text-primary-foreground p-3 rounded-full shadow-lg hover:bg-primary/90 transition-all"
+                    title="Hướng dẫn"
+                >
+                    <HelpCircle className="w-6 h-6" />
+                </button>
 
-                {data && (
-                    <div className="relative h-full">
-                        {!editorReady && <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted/50">{t("common.loading")}</div>}
+                {/* Main Content Area */}
+                <div className="flex-1 flex flex-col items-center overflow-y-auto h-full scroll-smooth">
+                    {/* Locked warning removed */}
+                    {loading && <div className="p-4">{t("common.loading")}</div>}
 
-                        <div
-                            style={{
-                                visibility: editorReady ? "visible" : "hidden",
-                                height: "100%",
-                            }}
-                        >
-                            <Editor
-                                key={data.orderId}
-                                tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
-                                onInit={(_evt: any, editor: any) => {
-                                    editorRef.current = editor;
-                                    setEditorReady(true);
-                                }}
-                                initialValue={initialHtml}
-                                init={{
+                    {data && (
+                        <div className="relative w-[794px] min-w-[794px] mx-auto bg-white shadow-lg">
+                            {!editorReady && <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted/50">{t("common.loading")}</div>}
+
+                            <div
+                                style={{
+                                    visibility: editorReady ? "visible" : "hidden",
                                     height: "100%",
-                                    width: "100%",
-                                    menubar: false,
-                                    statusbar: false,
-                                    plugins: "table lists code print noneditable",
-                                    toolbar: "table | bold italic | alignleft aligncenter alignright | code print",
-                                    noneditable_noneditable_class: "mceNonEditable",
-                                    noneditable_editable_class: "mceEditable",
-                                    visual: false,
-                                    visual_table_manager: false,
-                                    table_toolbar: "",
-                                    table_context_toolbar: "",
-                                    content_style: `
+                                }}
+                            >
+                                <Editor
+                                    key={data.orderId}
+                                    disabled={false} // Always editable
+                                    tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
+                                    onInit={(_evt: any, editor: any) => {
+                                        editorRef.current = editor;
+                                        setEditorReady(true);
+                                    }}
+                                    initialValue={initialHtml}
+                                    init={{
+                                        width: "100%",
+                                        menubar: false,
+                                        statusbar: false,
+                                        plugins: "table lists code print noneditable autoresize",
+                                        toolbar: "table | bold italic | alignleft aligncenter alignright | code print",
+                                        noneditable_noneditable_class: "mceNonEditable",
+                                        noneditable_editable_class: "mceEditable",
+                                        visual: false,
+                                        visual_table_manager: false,
+                                        table_resize_bars: false,
+                                        table_context_toolbar: "",
+                                        table_toolbar: "",
+                                        body_class: "notranslate",
+                                        min_height: 1123,
+                                        autoresize_bottom_margin: 0,
+                                        setup: (editor: any) => {
+                                            editor.on("Init", () => {
+                                                editor.getBody().setAttribute("translate", "no");
+                                                editor.getBody().setAttribute("spellcheck", "false");
+                                                editor.getBody().setAttribute("data-gramm", "false");
+                                            });
+                                        },
+                                        content_style: `
                                 * { margin: 0; padding: 0; box-sizing: border-box; }
+                                html { 
+                                    overflow-y: hidden; /* Let iframe grow */
+                                }
                                 body { 
-                                    width: 210mm;
-                                    margin: 10px auto !important; 
+                                    width: 100%;
+                                    margin: 0 auto !important; 
                                     padding: 5mm !important; 
                                     background-color: white; 
                                     font-size: 13px;
                                     line-height: 1.3;
-                                    min-height: 297mm;
-                                    box-shadow: 0 0 10px rgba(0,0,0,0.1);
                                 }
                                 table[data-mce-selected="1"] {
                                     outline: none !important;
@@ -214,19 +266,60 @@ export function SampleRequestFormPage() {
                                 table[border="0"], table[style*="border: none"], table[style*="border:none"] { border: 0 !important; }
                                 table[border="0"] td, table[style*="border: none"] td { border: 0 !important; }
                                 
-                                .layout-table td, .layout-table th { border: none !important; }
+                                .layout-table td, .layout-table th { border: none !important; vertical-align: top !important; }
                                 
                                 html { background-color: #f0f0f0; display: flex; justify-content: center; }
                                 @media print {
                                     body { margin: 0 !important; box-shadow: none !important; width: 100% !important; padding: 0 !important; }
                                     html { background: none; display: block; }
-                                    @page { margin: 8mm; size: A4 portrait; }
+                                    @page { size: A4 portrait !important; margin: 8mm !important; }
                                     .mceEditable { border-bottom: none !important; }
                                     .mceNonEditable { color: inherit; }
                                 }
                             `,
-                                }}
-                            />
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Right Side Guide Panel (Desktop) */}
+                <div className="hidden xl:block w-80 bg-white border-l border-border p-6 overflow-y-auto h-full shrink-0">
+                    <GuidePanelContent />
+                </div>
+
+                {/* Mobile Guide Modal */}
+                {showGuide && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center xl:hidden p-4">
+                        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowGuide(false)} />
+                        <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
+                            <button onClick={() => setShowGuide(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground">
+                                <X className="w-5 h-5" />
+                            </button>
+                            <GuidePanelContent />
+                        </div>
+                    </div>
+                )}
+
+                {/* Print Confirmation Modal */}
+                {showPrintConfirm && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowPrintConfirm(false)} />
+                        <div className="relative bg-white rounded-lg shadow-xl w-full max-w-sm p-6 animate-in fade-in zoom-in duration-200">
+                            <h3 className="text-lg font-semibold mb-4">{t("common.unsavedChanges")}</h3>
+                            <p className="text-sm text-muted-foreground mb-6">{t("common.unsavedChangesMessage")}</p>
+                            <div className="flex justify-end gap-3">
+                                <button onClick={() => confirmPrint(false)} className="px-4 py-2 rounded-md border border-border text-sm font-medium hover:bg-gray-50 transition-colors">
+                                    {t("common.printWithoutSaving")}
+                                </button>
+                                <button
+                                    onClick={() => confirmPrint(true)}
+                                    className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+                                >
+                                    {t("common.saveAndPrint")}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -334,12 +427,12 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                     const sampleCell = isFirst
                         ? `
               <td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important ; vertical-align:top !important;">
-                <div style="font-weight:900; margin-bottom:2px;">${t("sampleRequest.sampleInfo.sampleName")}: ${sample.sampleName || ""}</div>
-                <div style="font-size:14px; line-height:1.2;">
-                  <div><span style="font-weight:900;">${t("sampleRequest.sampleInfo.lotNo")}</span></div>
-                  <div><span style="font-weight:900;">${t("sampleRequest.sampleInfo.mfgDate")}</span></div>
-                  <div><span style="font-weight:900;">${t("sampleRequest.sampleInfo.expDate")}</span></div>
-                  <div><span style="font-weight:900;">${t("sampleRequest.sampleInfo.placeOfOrigin")}</span></div>
+                <div style="margin-bottom:2px;"><span style="font-weight:400;">${t("sampleRequest.sampleInfo.sampleName")}</span><strong>:</strong> <span style="font-weight:700;">${sample.sampleName || ""}</span></div>
+                <div style="font-size:13px; line-height:1.2;">
+                  <div><span style="font-weight:400;">${t("sampleRequest.sampleInfo.lotNo")}</span><strong>:</strong></div>
+                  <div><span style="font-weight:400;">${t("sampleRequest.sampleInfo.mfgDate")}</span><strong>:</strong></div>
+                  <div><span style="font-weight:400;">${t("sampleRequest.sampleInfo.expDate")}</span><strong>:</strong></div>
+                  <div><span style="font-weight:400;">${t("sampleRequest.sampleInfo.placeOfOrigin")}</span><strong>:</strong></div>
                 </div>
               </td>
             `
@@ -431,12 +524,12 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
         <div style="display: flex; flex-direction: column; gap: 2px;">
           <div style="display: flex; align-items: baseline; font-size: 14px; margin-bottom: 2px;">
             <span class="label-text" style="min-width: 120px;">  ${t("sampleRequest.clientName")}</span>
-            <span class="field-dotted" style="flex-grow: 1;">${data.client?.clientName || ""}</span>
+            <span class="field-dotted" style="flex-grow: 1; font-weight: bold;">${data.client?.clientName || ""}</span>
           </div>
 
           <div style="display: flex; align-items: baseline; font-size: 14px; margin-bottom: 2px;">
             <span class="label-text" style="min-width: 120px;">${t("sampleRequest.address")}</span>
-            <span class="field-dotted" style="flex-grow: 1;">${data.clientAddress || ""}</span>
+            <span class="field-dotted" style="flex-grow: 1; font-weight: bold;">${data.clientAddress || ""}</span>
           </div>
         </div>
 
@@ -446,24 +539,24 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
         
         <table class="layout-table" style="width: 100%; border-collapse: collapse; margin-bottom: 2px; border: 0 !important;" border="0">
              <colgroup>
-                <col style="width: 125px;">
-                <col style="width: 275px;">
-                <col style="width: 75px;">
-                <col style="width: 275px;">
+                <col style="width: 110px;">
+                <col style="width: 290px;">
+                <col style="width: 50px;">
+                <col style="width: 300px;">
             </colgroup>
             <tr>
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.section2.contactPerson")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.contactPerson || ""}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.section2.contactPerson")}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.contactPerson || ""}</td>
                 
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 75px;" class="label-text">${t("sampleRequest.identity")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.contactIdentity || ""}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.identity")}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.contactIdentity || ""}</td>
             </tr>
             <tr>
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.contactPhone")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.contactPhone")}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
                 
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 75px;" class="label-text">${t("sampleRequest.email")}</td>
-                 <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.reportEmail || ""}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.email")}</td>
+                 <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.reportEmail || ""}</td>
             </tr>
         </table>
 
@@ -473,21 +566,21 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
 
         <table class="layout-table" style="width: 100%; border-collapse: collapse; margin-bottom: 2px; border: 0 !important;" border="0">
              <colgroup>
-                <col style="width: 125px;">
-                <col style="width: 275px;">
-                <col style="width: 75px;">
-                <col style="width: 275px;">
+                <col style="width: 110px;">
+                <col style="width: 290px;">
+                <col style="width: 50px;">
+                <col style="width: 300px;">
             </colgroup>
              <tr>
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.address")}</td>
-                <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word;" class="field-dotted">${data.clientAddress || ""}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.address")}</td>
+                <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: bold;" class="field-dotted">${data.clientAddress || ""}</td>
             </tr>
             <tr>
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.contactPhone")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.contactPhone")}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
                 
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 75px;" class="label-text">${t("sampleRequest.email")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.reportEmail || ""}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.email")}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.reportEmail || ""}</td>
             </tr>
         </table>
 
@@ -497,31 +590,31 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
 
         <table class="layout-table" style="width: 100%; border-collapse: collapse; margin-bottom: 2px; border: 0 !important;" border="0">
             <colgroup>
-                <col style="width: 125px;">
-                <col style="width: 275px;">
-                <col style="width: 75px;">
-                <col style="width: 275px;">
+                <col style="width: 110px;">
+                <col style="width: 290px;">
+                <col style="width: 50px;">
+                <col style="width: 300px;">
             </colgroup>
             <tr>
-               <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.section4.taxName")}</td>
-               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word;" class="field-dotted">${data.client?.invoiceInfo?.taxName || ""}</td>
+               <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.section4.taxName")}</td>
+               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: bold;" class="field-dotted">${data.client?.invoiceInfo?.taxName || ""}</td>
             </tr>
            <tr>
-               <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.address")}</td>
-               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word;" class="field-dotted">${
+               <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.address")}</td>
+               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: bold;" class="field-dotted">${
                    (data.client as any)?.invoiceAddress || data.client?.invoiceInfo?.taxAddress || ""
                }</td>
             </tr>
             <tr>
-               <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.taxId")}</td>
-               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word;" class="field-dotted">${data.client?.legalId || data.taxCode || ""}</td>
+               <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.taxId")}</td>
+               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: bold;" class="field-dotted">${data.client?.legalId || data.taxCode || ""}</td>
             </tr>
             <tr>
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.contactPhone")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.contactPhone")}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
                 
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 75px;" class="label-text">${t("sampleRequest.email")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.email")}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: bold;" class="field-dotted">${
                     (data.client as any)?.invoiceEmail || data.client?.invoiceInfo?.taxEmail || ""
                 }</td>
             </tr>
@@ -539,13 +632,13 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
               <th style="border: 1px solid #1e293b; padding: 8px 8px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 40px;">
                 ${t("table.stt")}
               </th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 200px;">
-                ${t("sample.name")}(*)</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 140px;">
-                ${t("sampleRequest.table.sampleDesc")}(*)</th>
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 195px;">
+                ${t("sample.name")}</th>
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 90px;">
+                ${t("sampleRequest.table.sampleDesc")}</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900;">
                 ${t("sampleRequest.table.parameters")}</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 100px;">
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 115px;">
                 ${t("table.method")}</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 70px;">
                 ${t("sample.note")}</th>
@@ -631,7 +724,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             line-height: 1.3;
         }
         b, strong, th, .bold, .font-weight-bold {
-            font-weight: 900 !important;
+            font-weight: 700 !important;
         }
 
         .layout-table, .layout-table th, .layout-table td { border: none; border-collapse: collapse; }
@@ -641,10 +734,10 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
           line-height: 1.4 !important;
           display: inline-block;
           min-width: 50px;
-          font-weight: 900 !important;
+          font-weight: 700 !important;
         }
         .section { margin-bottom: 25px; }
-        .label-text { color: #64748b; font-weight: 500 !important; white-space: nowrap; margin-right: 5px; }
+        .label-text { color: #64748b; font-weight: 400 !important; white-space: nowrap; margin-right: 5px; }
 
         .rules-section {
              margin-top: 40px;
@@ -677,4 +770,84 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
       </table>
     </div>
   `;
+}
+
+function GuidePanelContent() {
+    return (
+        <div className="space-y-6">
+            <div>
+                <h3 className="text-lg font-bold text-primary mb-2 flex items-center gap-2">
+                    <HelpCircle className="w-5 h-5" />
+                    Hướng dẫn quy trình
+                </h3>
+                <p className="text-sm text-muted-foreground">Vui lòng thực hiện theo các bước sau để hoàn tất quá trình gửi mẫu.</p>
+            </div>
+
+            <div className="space-y-4">
+                <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">1</div>
+                    <div>
+                        <h4 className="font-semibold text-sm">Kiểm tra và Lưu phiếu</h4>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            Rà soát kỹ thông tin và nhấn nút{" "}
+                            <span className="inline-flex items-center gap-1 font-medium text-foreground bg-gray-100 px-1.5 py-0.5 rounded text-xs">
+                                <Save className="w-3 h-3" /> Lưu
+                            </span>{" "}
+                            để ghi nhận dữ liệu vào hệ thống.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">2</div>
+                    <div>
+                        <h4 className="font-semibold text-sm">In phiếu</h4>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            Nhấn nút{" "}
+                            <span className="inline-flex items-center gap-1 font-medium text-foreground bg-gray-100 px-1.5 py-0.5 rounded text-xs">
+                                <Printer className="w-3 h-3" /> In
+                            </span>{" "}
+                            để in phiếu ra giấy (Khổ A4) hoặc lưu dưới dạng PDF.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">3</div>
+                    <div>
+                        <h4 className="font-semibold text-sm">Ký và Đóng dấu</h4>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            Ký và <span className="font-bold">đóng dấu</span> vào ô "Khách hàng" trên phiếu đã in.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">4</div>
+                    <div>
+                        <h4 className="font-semibold text-sm">Hướng dẫn gửi mẫu</h4>
+                        <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                            <p>
+                                <span className="font-medium text-foreground">Hồ sơ kèm theo:</span> Đơn hàng và Phiếu gửi mẫu (có dấu mộc).
+                            </p>
+                            <p>
+                                <span className="font-medium text-foreground">Địa chỉ nhận mẫu:</span> Viện IRDOP – 12 Phùng Khoang 2, Trung Văn, Nam Từ Liêm, Hà Nội.
+                            </p>
+                            <p>
+                                <span className="font-medium text-foreground">Thanh toán:</span> Chuyển khoản trước theo giá trị đơn hàng.
+                            </p>
+                            <p className="italic text-xs text-yellow-600">Lưu ý: Nội dung chuyển khoản bắt buộc bao gồm Mã đơn hàng.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="pt-4 border-t border-border mt-4">
+                <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-800">
+                    <span className="font-bold">Cần hỗ trợ?</span> <br />
+                    Liên hệ hotline: <span className="font-bold">024 3553 5355</span>
+                </div>
+            </div>
+        </div>
+    );
 }

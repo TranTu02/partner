@@ -11,9 +11,10 @@ interface SampleRequestPrintPreviewModalProps {
     isOpen: boolean;
     onClose: () => void;
     data: OrderPrintData;
+    onUpdateData?: (data: Partial<OrderPrintData>) => void;
 }
 
-export function SampleRequestPrintPreviewModal({ isOpen, onClose, data }: SampleRequestPrintPreviewModalProps) {
+export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdateData }: SampleRequestPrintPreviewModalProps) {
     const { t } = useTranslation();
     const editorRef = useRef<any>(null);
 
@@ -22,12 +23,16 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data }: Sample
     console.log("SampleRequestPrintPreviewModal rendering. Data:", data);
 
     let initialHtml = "";
-    try {
-        initialHtml = generateSampleRequestHtml(data, t);
-        console.log("Initial HTML generated length:", initialHtml.length);
-    } catch (error) {
-        console.error("Error generating HTML:", error);
-        return <div>Error generating preview: {String(error)}</div>;
+    // Priority: 1. data.requestForm (saved content), 2. Generate from data
+    if (data.requestForm && data.requestForm.trim().length > 0) {
+        initialHtml = data.requestForm;
+    } else {
+        try {
+            initialHtml = generateSampleRequestHtml(data, t);
+        } catch (error) {
+            console.error("Error generating HTML:", error);
+            return <div>Error generating preview: {String(error)}</div>;
+        }
     }
 
     const handlePrint = () => {
@@ -38,12 +43,21 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data }: Sample
 
     const handleGenerateLink = async () => {
         if (!data?.orderId) return;
+
+        // Confirmation dialog
+        if (!window.confirm("CẢNH BÁO: Việc tạo link mới sẽ đặt lại nội dung phiếu về mặc định ban đầu. Bạn có chắc chắn muốn tiếp tục?")) {
+            return;
+        }
+
         try {
             const res: any = await generateOrderUri({ body: { orderId: data.orderId } });
             if (res?.success && res?.data?.uri) {
                 const link = `${window.location.origin}/form/request-sample?orderId=${data.orderId}&uri=${res.data.uri}`;
-                window.open(link, "_blank");
-                toast.success("Đã tạo liên kết thành công");
+                navigator.clipboard.writeText(link);
+                toast.success("Đã tạo và sao chép liên kết mới thành công");
+                if (onUpdateData) {
+                    onUpdateData({ orderUri: res.data.uri, requestForm: "" });
+                }
             } else {
                 toast.error("Không thể tạo liên kết");
             }
@@ -51,6 +65,13 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data }: Sample
             console.error(error);
             toast.error("Lỗi khi tạo liên kết");
         }
+    };
+
+    const handleGetCurrentLink = () => {
+        if (!data?.orderUri) return;
+        const link = `${window.location.origin}/form/request-sample?orderId=${data.orderId}&uri=${data.orderUri}`;
+        navigator.clipboard.writeText(link);
+        toast.success("Đã sao chép liên kết hiện tại");
     };
 
     return (
@@ -67,13 +88,26 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data }: Sample
                             <Printer className="w-4 h-4" />
                             <span>{t("common.print") || "In"}</span>
                         </button>
+
                         <button
-                            onClick={handleGenerateLink}
-                            className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
-                            title="Tạo Link Phiếu Gửi"
+                            onClick={handleGetCurrentLink}
+                            disabled={!data.orderUri}
+                            className={`flex items-center gap-2 px-3 py-2 border border-border rounded-lg transition-colors text-sm font-medium ${
+                                !data.orderUri ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50" : "hover:bg-accent text-foreground"
+                            }`}
+                            title="Lấy link hiện tại để gửi khách"
                         >
                             <LinkIcon className="w-4 h-4" />
-                            {t("Tạo Link")}
+                            {t("Lấy Link")}
+                        </button>
+
+                        <button
+                            onClick={handleGenerateLink}
+                            className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-destructive/10 text-destructive border-destructive/20 transition-colors text-sm font-medium"
+                            title="Tạo lại link mới (Reset phiếu)"
+                        >
+                            <LinkIcon className="w-4 h-4" />
+                            {t("Tạo Link Mới")}
                         </button>
                         <button onClick={onClose} className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors">
                             <X className="w-5 h-5" />
@@ -181,13 +215,13 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
 
                     const sampleCell = isFirst
                         ? `
-              <td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;">
-                <div style="font-weight:900; margin-bottom:2px;">${t("sampleRequest.sampleInfo.sampleName")}: ${sample.sampleName || ""}</div>
-                <div style="font-size:14px; line-height:1.2;">
-                  <div><span style="font-weight:900;">${t("sampleRequest.sampleInfo.lotNo")}</span></div>
-                  <div><span style="font-weight:900;">${t("sampleRequest.sampleInfo.mfgDate")}</span></div>
-                  <div><span style="font-weight:900;">${t("sampleRequest.sampleInfo.expDate")}</span></div>
-                  <div><span style="font-weight:900;">${t("sampleRequest.sampleInfo.placeOfOrigin")}</span></div>
+              <td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important ; vertical-align:top !important;">
+                <div style="margin-bottom:2px;"><span style="font-weight:400;">${t("sampleRequest.sampleInfo.sampleName")}</span><strong>:</strong> <span style="font-weight:700;">${sample.sampleName || ""}</span></div>
+                <div style="font-size:13px; line-height:1.2;">
+                  <div><span style="font-weight:400;">${t("sampleRequest.sampleInfo.lotNo")}</span><strong>:</strong></div>
+                  <div><span style="font-weight:400;">${t("sampleRequest.sampleInfo.mfgDate")}</span><strong>:</strong></div>
+                  <div><span style="font-weight:400;">${t("sampleRequest.sampleInfo.expDate")}</span><strong>:</strong></div>
+                  <div><span style="font-weight:400;">${t("sampleRequest.sampleInfo.placeOfOrigin")}</span><strong>:</strong></div>
                 </div>
               </td>
             `
@@ -195,7 +229,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
 
                     const descCell = isFirst
                         ? `
-              <td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;"> <!-- Changed from middle to top -->
+              <td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important ; vertical-align:middle !important;">
              
               </td>
             `
@@ -223,10 +257,10 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
     const headerHtml = `
       <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
         <!-- Left: logo + info -->
-        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:7px; flex: 1;">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:6px; flex: 1;">
           <img
             src="${logoFullUrl}"
-            style="height:29px; width:auto; object-fit:contain;"
+            style="height:28px; width:auto; object-fit:contain;"
             draggable="false"
           />
           <div style="font-size:10.5px; line-height:1.3; color:#0f172a; text-align:left; align-self: center;">
@@ -247,13 +281,13 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
           </div>
         </div>
       </div>
-      <div style="border-top:1px solid #cbd5e1; margin-top:8px; margin-bottom: 10px;"></div>
+      <div style="border-top:1px solid #cbd5e1; margin-top:10px; margin-bottom: 0px;"></div>
   `;
 
     const bodyHtml = `
       <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom: 6px;">
       <div style="flex:1;"></div>
-
+      
       <div style="width:100%; margin-bottom: 12px;">
        <div style="text-align:center; font-size:20px; font-weight:900; white-space:nowrap; text-transform:uppercase;">
          ${t("sampleRequest.title")}
@@ -278,13 +312,13 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
 
         <div style="display: flex; flex-direction: column; gap: 2px;">
           <div style="display: flex; align-items: baseline; font-size: 14px; margin-bottom: 2px;">
-            <span class="label-text" style="min-width: 120px;">  ${t("sampleRequest.clientName")}</span>
-            <span class="field-dotted" style="flex-grow: 1;">${data.client?.clientName || ""}</span>
+            <span class="label-text" style="min-width: 120px;">  ${t("sampleRequest.clientName").replace(":", "")}<strong>:</strong></span>
+            <span class="field-dotted" style="flex-grow: 1; font-weight: bold;">${data.client?.clientName || ""}</span>
           </div>
 
           <div style="display: flex; align-items: baseline; font-size: 14px; margin-bottom: 2px;">
-            <span class="label-text" style="min-width: 120px;">${t("sampleRequest.address")}</span>
-            <span class="field-dotted" style="flex-grow: 1;">${data.clientAddress || ""}</span>
+            <span class="label-text" style="min-width: 120px;">${t("sampleRequest.address").replace(":", "")}<strong>:</strong></span>
+            <span class="field-dotted" style="flex-grow: 1; font-weight: bold;">${data.clientAddress || ""}</span>
           </div>
         </div>
 
@@ -294,24 +328,24 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
         
         <table class="layout-table" style="width: 100%; border-collapse: collapse; margin-bottom: 2px; border: 0 !important;" border="0">
              <colgroup>
-                <col style="width: 125px;">
-                <col style="width: 275px;">
-                <col style="width: 75px;">
-                <col style="width: 275px;">
+                <col style="width: 110px;">
+                <col style="width: 290px;">
+                <col style="width: 50px;">
+                <col style="width: 300px;">
             </colgroup>
             <tr>
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.section2.contactPerson")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.contactPerson || ""}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.section2.contactPerson").replace(":", "")}<strong>:</strong></td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.contactPerson || ""}</td>
                 
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 75px;" class="label-text">${t("sampleRequest.identity")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.contactIdentity || ""}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.identity").replace(":", "")}<strong>:</strong></td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.contactIdentity || ""}</td>
             </tr>
             <tr>
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.contactPhone")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.contactPhone").replace(":", "")}<strong>:</strong></td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
                 
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 75px;" class="label-text">${t("sampleRequest.email")}</td>
-                 <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.reportEmail || ""}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.email").replace(":", "")}<strong>:</strong></td>
+                 <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.reportEmail || ""}</td>
             </tr>
         </table>
 
@@ -319,23 +353,23 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
         ${t("sampleRequest.section3.title")}
         </div>
 
-        <table class="layout-table" style="width: 100%; border-collapse: collapse; margin-bottom: 2px; border: none !important;">
+        <table class="layout-table" style="width: 100%; border-collapse: collapse; margin-bottom: 2px; border: 0 !important;" border="0">
              <colgroup>
-                <col style="width: 125px;">
-                <col style="width: 275px;">
-                <col style="width: 75px;">
-                <col style="width: 275px;">
+                <col style="width: 110px;">
+                <col style="width: 290px;">
+                <col style="width: 50px;">
+                <col style="width: 300px;">
             </colgroup>
              <tr>
-                <td style="white-space: nowrap; padding: 2px 5px; border: none !important; width: 125px;" class="label-text">${t("sampleRequest.address")}</td>
-                <td colspan="3" style="padding: 2px 5px; border: none !important; word-break: break-word;" class="field-dotted">${data.clientAddress || ""}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.address").replace(":", "")}<strong>:</strong></td>
+                <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: bold;" class="field-dotted">${data.clientAddress || ""}</td>
             </tr>
             <tr>
-                <td style="white-space: nowrap; padding: 2px 5px; border: none !important; width: 125px;" class="label-text">${t("sampleRequest.contactPhone")}</td>
-                <td style="padding: 2px 5px; border: none !important; width: 275px; word-break: break-word;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.contactPhone").replace(":", "")}<strong>:</strong></td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
                 
-                <td style="white-space: nowrap; padding: 2px 5px; border: none !important; width: 75px;" class="label-text">${t("sampleRequest.email")}</td>
-                <td style="padding: 2px 5px; border: none !important; width: 275px; word-break: break-word;" class="field-dotted">${data.reportEmail || ""}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.email").replace(":", "")}<strong>:</strong></td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.reportEmail || ""}</td>
             </tr>
         </table>
 
@@ -345,31 +379,31 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
 
         <table class="layout-table" style="width: 100%; border-collapse: collapse; margin-bottom: 2px; border: 0 !important;" border="0">
             <colgroup>
-                <col style="width: 125px;">
-                <col style="width: 275px;">
-                <col style="width: 75px;">
-                <col style="width: 275px;">
+                <col style="width: 110px;">
+                <col style="width: 290px;">
+                <col style="width: 50px;">
+                <col style="width: 300px;">
             </colgroup>
             <tr>
-               <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.section4.taxName")}</td>
-               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word;" class="field-dotted">${data.client?.invoiceInfo?.taxName || ""}</td>
+               <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.section4.taxName").replace(":", "")}<strong>:</strong></td>
+               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: bold;" class="field-dotted">${data.client?.invoiceInfo?.taxName || ""}</td>
             </tr>
            <tr>
-               <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.address")}</td>
-               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word;" class="field-dotted">${
+               <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.address").replace(":", "")}<strong>:</strong></td>
+               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: bold;" class="field-dotted">${
                    (data.client as any)?.invoiceAddress || data.client?.invoiceInfo?.taxAddress || ""
                }</td>
             </tr>
             <tr>
-               <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.taxId")}</td>
-               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word;" class="field-dotted">${data.client?.legalId || data.taxCode || ""}</td>
+               <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.taxId").replace(":", "")}<strong>:</strong></td>
+               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: bold;" class="field-dotted">${data.client?.legalId || data.taxCode || ""}</td>
             </tr>
             <tr>
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 125px;" class="label-text">${t("sampleRequest.contactPhone")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.contactPhone").replace(":", "")}<strong>:</strong></td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
                 
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 75px;" class="label-text">${t("sampleRequest.email")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 275px; word-break: break-word;" class="field-dotted">${
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.email").replace(":", "")}<strong>:</strong></td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: bold;" class="field-dotted">${
                     (data.client as any)?.invoiceEmail || data.client?.invoiceInfo?.taxEmail || ""
                 }</td>
             </tr>
@@ -387,13 +421,13 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
               <th style="border: 1px solid #1e293b; padding: 8px 8px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 40px;">
                 ${t("table.stt")}
               </th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 200px;">
-                ${t("sample.name")}(*)</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 140px;">
-                ${t("sampleRequest.table.sampleDesc")}(*)</th>
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 195px;">
+                ${t("sample.name")}</th>
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 90px;">
+                ${t("sampleRequest.table.sampleDesc")}</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900;">
                 ${t("sampleRequest.table.parameters")}</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 100px;">
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 115px;">
                 ${t("table.method")}</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 70px;">
                 ${t("sample.note")}</th>
@@ -479,23 +513,21 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             line-height: 1.3;
         }
         b, strong, th, .bold, .font-weight-bold {
-            font-weight: 900 !important;
+            font-weight: 700 !important;
         }
 
         .layout-table, .layout-table th, .layout-table td { border: none; border-collapse: collapse; }
-        .field-dotted { 
-          border: none !important;
+        .field-dotted {
           border-bottom: 1px dotted #64748b !important;
-          padding-bottom: 2px !important; 
+          padding-bottom: 2px !important;
           line-height: 1.4 !important;
           display: inline-block;
           min-width: 50px;
-          font-weight: 900 !important;
-          width: 100%; /* added */
+          font-weight: 700 !important;
         }
         .section { margin-bottom: 25px; }
-        .label-text { color: #64748b; font-weight: 500 !important; white-space: nowrap; margin-right: 5px; }
-        
+        .label-text { color: #64748b; font-weight: 400 !important; white-space: nowrap; margin-right: 5px; }
+
         .rules-section {
              margin-top: 40px;
              page-break-before: always;

@@ -251,6 +251,8 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                 total: storedTotal,
             },
             discountRate: fullOrder.discountRate || 0,
+            orderUri: fullOrder.orderUri || "",
+            requestForm: fullOrder.requestForm || "",
         };
 
         return data;
@@ -265,21 +267,17 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
     };
 
     const handleSampleRequestPrint = async (order: Order) => {
-        console.log("handleSampleRequestPrint called for order:", order.orderId);
         try {
             const data = await preparePrintData(order);
-            console.log("preparePrintData result:", data);
 
             if (data) {
                 setPrintData(data);
                 setIsSampleRequestModalOpen(true);
-                console.log("Modal state set to open");
             } else {
-                console.error("preparePrintData returned null");
                 toast.error("Failed to prepare print data");
             }
         } catch (error) {
-            console.error("Error in handleSampleRequestPrint:", error);
+            console.error("Error in handleSampleRequestPrint:", error); // Keep catch log for safety
             toast.error("Error preparing print data");
         }
     };
@@ -325,8 +323,8 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                                 {isCreate
                                     ? t("order.create")
                                     : initialViewMode === "edit"
-                                    ? `${t("order.edit")} ${selectedOrder?.orderId ? `- ${selectedOrder.orderId}` : ""}`
-                                    : `${t("order.detail")} ${selectedOrder?.orderId ? `- ${selectedOrder.orderId}` : ""}`}
+                                      ? `${t("order.edit")} ${selectedOrder?.orderId ? `- ${selectedOrder.orderId}` : ""}`
+                                      : `${t("order.detail")} ${selectedOrder?.orderId ? `- ${selectedOrder.orderId}` : ""}`}
                             </h1>
                         </div>
                     </div>
@@ -350,8 +348,6 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                                 </button>
                                 <button
                                     onClick={() => {
-                                        console.log("Clicked Sample Request Print");
-                                        console.log("Selected Order:", selectedOrder);
                                         if (selectedOrder) {
                                             handleSampleRequestPrint(selectedOrder);
                                         } else {
@@ -483,10 +479,10 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                                                         order.paymentStatus === "Paid"
                                                             ? "bg-success/10 text-success"
                                                             : order.paymentStatus === "Debt"
-                                                            ? "bg-destructive/10 text-destructive"
-                                                            : order.paymentStatus === "Partial"
-                                                            ? "bg-warning/10 text-warning"
-                                                            : "bg-gray-100 text-gray-800"
+                                                              ? "bg-destructive/10 text-destructive"
+                                                              : order.paymentStatus === "Partial"
+                                                                ? "bg-warning/10 text-warning"
+                                                                : "bg-gray-100 text-gray-800"
                                                     }`}
                                                 >
                                                     {t(`order.paymentStatuses.${(order.paymentStatus || "awaiting").toLowerCase()}`)}

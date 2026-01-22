@@ -16,7 +16,10 @@ export default {
       actions: "Hành động",
       preview: "Xem trước",
       exportPDF: "Xuất PDF",
+      unsavedChangesMessage: "Bạn có thay đổi chưa lưu. Chắc chắn tiếp tục?",
       print: "In",
+      printWithoutSaving: "In không lưu",
+      saveAndPrint: "Lưu và in",
       details: "Chi tiết",
       edit: "Chỉnh sửa",
       add: "Thêm mới",
@@ -497,7 +500,7 @@ export default {
       ],
     },
     sampleRequest: {
-      header: "Phiếu gửi mẫu thử nghiệm",
+      header: "Phiếu gửi mẫu",
       title: "PHIẾU GỬI MẪU",
       order: "ĐƠN HÀNG:",
       section1: {
@@ -530,10 +533,10 @@ export default {
       },
       sampleInfo: {
         sampleName: "Tên mẫu",
-        lotNo: "Số lô:",
-        mfgDate: "Ngày sản xuất:",
-        expDate: "Hạn sử dụng:",
-        placeOfOrigin: "Nơi sản xuất:",
+        lotNo: "Số lô",
+        mfgDate: "Ngày sản xuất",
+        expDate: "Hạn sử dụng",
+        placeOfOrigin: "Nơi sản xuất",
       },
       signer: {
         customer: "KHÁCH HÀNG",

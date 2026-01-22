@@ -91,6 +91,14 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     const [discountRate, setDiscountRate] = useState(initialData?.discountRate || 0);
     const [commission, setCommission] = useState(0);
 
+    const [orderUri, setOrderUri] = useState(initialData?.orderUri || "");
+    const [requestForm, setRequestForm] = useState(initialData?.requestForm || "");
+
+    useEffect(() => {
+        setOrderUri(initialData?.orderUri || "");
+        setRequestForm(initialData?.requestForm || "");
+    }, [initialData]);
+
     // Auto-load Quote if initialQuoteId is present and entering create mode
     useEffect(() => {
         if (mode === "create" && initialQuoteId && !initialData) {
@@ -214,22 +222,24 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         }
     }, [selectedClient, contactPerson, samples, isReadOnly]);
 
-    // Update form when Client is selected (outside of initial load)
-    useEffect(() => {
-        if (selectedClient && !initialData) {
-            setClientAddress(selectedClient.clientAddress);
-            setClientPhone(selectedClient.clientPhone || "");
-            setClientEmail(selectedClient.clientEmail || "");
+    const handleClientChange = (client: Client | null) => {
+        setSelectedClient(client);
+
+        if (client) {
+            setClientAddress(client.clientAddress);
+            setClientPhone(client.clientPhone || "");
+            setClientEmail(client.clientEmail || "");
 
             // Invoice
-            setTaxName(selectedClient.invoiceInfo?.taxName || selectedClient.clientName);
-            setTaxCode(selectedClient.invoiceInfo?.taxCode || selectedClient.legalId);
-            setTaxAddress(selectedClient.invoiceInfo?.taxAddress || selectedClient.clientAddress);
-            setTaxEmail(selectedClient.invoiceInfo?.taxEmail || "");
+            setTaxName(client.invoiceInfo?.taxName || client.clientName);
+            setTaxCode(client.invoiceInfo?.taxCode || client.legalId);
+            setTaxAddress(client.invoiceInfo?.taxAddress || client.clientAddress);
+            setTaxEmail(client.invoiceInfo?.taxEmail || "");
 
             // Contact
-            if (selectedClient.clientContacts?.[0]) {
-                const contact = selectedClient.clientContacts[0];
+            if (client.clientContacts && client.clientContacts.length > 0) {
+                // Use the LAST contact in the array as default
+                const contact = client.clientContacts[client.clientContacts.length - 1];
                 setContactPerson(contact.contactName || (contact as any).name || "");
                 setContactPhone(contact.contactPhone || (contact as any).phone || "");
                 setContactId(contact.contactId || "");
@@ -247,28 +257,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 setContactAddress("");
                 setReportEmail("");
             }
-        } else if (selectedClient && initialData && selectedClient.clientId !== initialData.client?.clientId) {
-            // If user changes client while editing an order, overwrite fields
-            setClientAddress(selectedClient.clientAddress);
-            setClientPhone(selectedClient.clientPhone || "");
-            setClientEmail(selectedClient.clientEmail || "");
-
-            setTaxName(selectedClient.invoiceInfo?.taxName || selectedClient.clientName);
-            setTaxCode(selectedClient.invoiceInfo?.taxCode || selectedClient.legalId);
-            setTaxAddress(selectedClient.invoiceInfo?.taxAddress || selectedClient.clientAddress);
-            setTaxEmail(selectedClient.invoiceInfo?.taxEmail || "");
-
-            if (selectedClient.clientContacts?.[0]) {
-                const contact = selectedClient.clientContacts[0];
-                setContactPerson(contact.contactName || (contact as any).name || "");
-                setContactPhone(contact.contactPhone || (contact as any).phone || "");
-                setContactIdentity(contact.identityId || "");
-                setContactEmail(contact.contactEmail || (contact as any).email || "");
-                setContactAddress(contact.contactAddress || "");
-                setReportEmail(contact.contactEmail || (contact as any).email || "");
-            }
         }
-    }, [selectedClient, initialData]);
+    };
 
     const handleLoadQuote = async (arg?: string | React.MouseEvent) => {
         const idToUse = typeof arg === "string" ? arg : quoteId;
@@ -480,6 +470,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
             pricing,
             discountRate,
+            orderUri: orderUri,
+            requestForm: requestForm,
         };
         setPreviewData(data);
         setIsPreviewOpen(true);
@@ -505,7 +497,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 toast.success("Client created");
                 const created = response.data as Client;
                 setClients((prev) => [...prev, created]);
-                setSelectedClient(created);
+                handleClientChange(created);
                 setIsClientModalOpen(false);
             } else {
                 toast.error("Failed to create client");
@@ -780,7 +772,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         taxCode={taxCode}
                         taxAddress={taxAddress}
                         taxEmail={taxEmail}
-                        onClientChange={setSelectedClient}
+                        onClientChange={handleClientChange}
                         onAddressChange={setClientAddress}
                         onContactPersonChange={setContactPerson}
                         onContactIdChange={setContactId}
@@ -912,7 +904,17 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 />
             )}
             {previewData && <OrderPrintPreviewModal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} data={previewData} />}
-            {previewData && <SampleRequestPrintPreviewModal isOpen={isSampleRequestPreviewOpen} onClose={() => setIsSampleRequestPreviewOpen(false)} data={previewData} />}
+            {previewData && (
+                <SampleRequestPrintPreviewModal
+                    isOpen={isSampleRequestPreviewOpen}
+                    onClose={() => setIsSampleRequestPreviewOpen(false)}
+                    data={previewData}
+                    onUpdateData={(newData) => {
+                        if (newData.orderUri !== undefined) setOrderUri(newData.orderUri);
+                        if (newData.requestForm !== undefined) setRequestForm(newData.requestForm);
+                    }}
+                />
+            )}
         </div>
     );
 });

@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Search, Plus, Loader2, Copy, Edit2 } from "lucide-react";
 import type { Client } from "@/types/client";
 import { useTranslation } from "react-i18next";
-import { getClients } from "@/api";
+import { getClients, getClientDetail } from "@/api";
 import debounce from "lodash.debounce"; // Ensure you have this or implement a simple debounce
 
 interface ClientSectionNewProps {
@@ -76,6 +76,8 @@ export function ClientSectionNew({
     onContactIdChange,
     onContactPhoneChange,
     onContactEmailChange,
+    onContactIdentityChange,
+    onContactAddressChange,
     onReportEmailChange,
     onTaxNameChange,
     onTaxCodeChange,
@@ -86,9 +88,41 @@ export function ClientSectionNew({
     isReadOnly = false,
 }: ClientSectionNewProps) {
     const { t } = useTranslation();
+    const inputRef = useRef<HTMLInputElement>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [showDropdown, setShowDropdown] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Enriched client state to store full details if selectedClient is a partial snapshot
+    const [enrichedClient, setEnrichedClient] = useState<Client | null>(selectedClient);
+
+    // Sync enrichedClient when selectedClient changes
+    useEffect(() => {
+        const fetchClientDetails = async () => {
+            if (selectedClient && selectedClient.clientId) {
+                // If the selectedClient object doesn't have contacts (e.g. from Order Snapshot), fetch full details
+                if (!selectedClient.clientContacts || selectedClient.clientContacts.length === 0) {
+                    try {
+                        const res = await getClientDetail({ query: { clientId: selectedClient.clientId } });
+                        if (res.success && res.data) {
+                            setEnrichedClient(res.data as Client);
+                        } else {
+                            setEnrichedClient(selectedClient);
+                        }
+                    } catch (err) {
+                        console.error("Failed to fetch client details", err);
+                        setEnrichedClient(selectedClient);
+                    }
+                } else {
+                    setEnrichedClient(selectedClient);
+                }
+            } else {
+                setEnrichedClient(null);
+            }
+        };
+
+        fetchClientDetails();
+    }, [selectedClient]);
 
     // Server-side search state
     const [searchResults, setSearchResults] = useState<Client[]>([]);
@@ -161,6 +195,58 @@ export function ClientSectionNew({
         onClientChange(client);
         setSearchQuery(client.clientName);
         setShowDropdown(false);
+    };
+
+    const [showContactDropdown, setShowContactDropdown] = useState(false);
+    const [localContactPerson, setLocalContactPerson] = useState(contactPerson);
+
+    // Sync local contact person with prop when prop changes (e.g. initial load or selection)
+    useEffect(() => {
+        setLocalContactPerson(contactPerson);
+    }, [contactPerson]);
+
+    const removeAccents = (str: string) => {
+        return str
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase();
+    };
+
+    // Properly debounced update to parent
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const debouncedContactUpdate = useCallback(
+        debounce((value: string) => {
+            onContactPersonChange(value);
+        }, 300),
+        [onContactPersonChange], // Re-create if parent handler changes (unlikely but safe)
+    );
+
+    // Cleanup debounce on unmount
+    useEffect(() => {
+        return () => {
+            debouncedContactUpdate.cancel();
+        };
+    }, [debouncedContactUpdate]);
+
+    const handleSelectContact = (contact: any) => {
+        const name = contact.contactName || contact.name || "";
+        // Update both local and parent immediately on selection
+        setLocalContactPerson(name);
+        debouncedContactUpdate.cancel(); // Cancel any pending type updates
+        onContactPersonChange(name);
+
+        // Update other fields
+        onContactPhoneChange(contact.contactPhone || contact.phone || "");
+        onContactEmailChange?.(contact.contactEmail || contact.email || "");
+        onReportEmailChange(contact.contactEmail || contact.email || "");
+        onContactIdentityChange?.(contact.identityId || contact.contactId || "");
+        onContactIdChange?.(contact.contactId || "");
+        onContactAddressChange?.(contact.contactAddress || "");
+
+        setShowContactDropdown(false);
+        if (inputRef.current) {
+            inputRef.current.blur();
+        }
     };
 
     const handleCopyBasicInfo = () => {
@@ -319,18 +405,71 @@ export function ClientSectionNew({
             <div>
                 <h3 className="mb-4 text-base font-semibold text-primary border-b border-border pb-2">{t("client.contactInfo")}</h3>
                 <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div>
+                    <div className="relative">
                         <label className="block mb-2 text-sm font-medium text-foreground">
                             {t("client.contactPerson")} <span className="text-destructive">*</span>
                         </label>
-                        <input
-                            type="text"
-                            className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            value={contactPerson}
-                            onChange={(e) => onContactPersonChange(e.target.value)}
-                            placeholder={t("client.contactPerson")}
-                            disabled={isReadOnly}
-                        />
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                className="w-full pl-10 pr-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                value={localContactPerson}
+                                onChange={(e) => {
+                                    const newValue = e.target.value;
+                                    setLocalContactPerson(newValue);
+                                    setShowContactDropdown(true);
+                                    debouncedContactUpdate(newValue);
+                                }}
+                                onBlur={() => {
+                                    // Flush debounce or effectively ensure sync
+                                    debouncedContactUpdate.cancel();
+                                    if (localContactPerson !== contactPerson) {
+                                        onContactPersonChange(localContactPerson);
+                                    }
+                                }}
+                                onFocus={() => setShowContactDropdown(true)}
+                                placeholder={t("client.contactPerson")}
+                                disabled={isReadOnly}
+                            />
+                            {/* Contact Dropdown - Client Side Filtering */}
+                            {showContactDropdown && enrichedClient?.clientContacts && enrichedClient.clientContacts.length > 0 && !isReadOnly && (
+                                <>
+                                    <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
+                                        {enrichedClient?.clientContacts &&
+                                        enrichedClient.clientContacts.filter((c) => {
+                                            if (!localContactPerson) return true;
+                                            const name = c.contactName || (c as any).name || "";
+                                            return removeAccents(name).includes(removeAccents(localContactPerson));
+                                        }).length > 0 ? (
+                                            enrichedClient.clientContacts
+                                                .filter((c) => {
+                                                    if (!localContactPerson) return true;
+                                                    const name = c.contactName || (c as any).name || "";
+                                                    return removeAccents(name).includes(removeAccents(localContactPerson));
+                                                })
+                                                .map((contact, idx) => (
+                                                    <div
+                                                        key={contact.contactId || idx}
+                                                        className="px-4 py-3 hover:bg-muted cursor-pointer border-b border-border last:border-b-0"
+                                                        onClick={() => handleSelectContact(contact)}
+                                                    >
+                                                        <div className="text-sm font-medium text-foreground">{contact.contactName || (contact as any).name}</div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {contact.contactPhone || (contact as any).phone}
+                                                            {contact.contactEmail || (contact as any).email ? ` - ${contact.contactEmail || (contact as any).email}` : ""}
+                                                        </div>
+                                                    </div>
+                                                ))
+                                        ) : (
+                                            <div className="px-4 py-2 text-sm text-muted-foreground italic">{t("common.noResults", "No results found")}</div>
+                                        )}
+                                    </div>
+                                    <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setShowContactDropdown(false)} />
+                                </>
+                            )}
+                        </div>
                     </div>
                     <div>
                         <label className="block mb-2 text-sm font-medium text-foreground">{t("client.contactIdentity")}</label>

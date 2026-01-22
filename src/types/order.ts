@@ -22,6 +22,8 @@ export interface Order {
     saleCommissionPercent?: number;
 
     orderStatus: "Pending" | "Processing" | "Completed" | "Cancelled";
+    orderUri?: string;
+    requestForm?: string;
     paymentStatus: "Unpaid" | "Partial" | "Paid" | "Debt";
     transactions?: any[]; // jsonb[]
     contactPerson?: {
