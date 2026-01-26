@@ -208,6 +208,10 @@ export const deleteParameterGroup = async ({ headers, body, query }: ApiInput): 
     return api.post("/v1/parameter-group/delete", { headers, body, query });
 };
 
+export const convertHtmlToPdf = async ({ headers, body, query }: ApiInput): Promise<any> => {
+    return api.download("/v1/convert-html-to-pdf/form-1", { headers, body, query });
+};
+
 // =============================================================================
 // EXPORT
 // =============================================================================
@@ -221,6 +225,7 @@ const apis = {
     matrices: { getMatrices, createMatrix, getMatrixDetail, updateMatrix, deleteMatrix, searchMatrices },
     sampleTypes: { getSampleTypes, createSampleType, getSampleTypeDetail, updateSampleType, deleteSampleType },
     parameterGroups: { getParameterGroups, createParameterGroup, getParameterGroupDetail, updateParameterGroup, deleteParameterGroup },
+    utils: { convertHtmlToPdf },
 };
 
 export default apis;

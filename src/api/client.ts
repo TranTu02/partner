@@ -181,6 +181,20 @@ const api = {
             );
         }
     },
+
+    download: async (url: string, { headers, body, query }: RequestParams = {}): Promise<any> => {
+        try {
+            const response = await axiosInstance.post(url, body, {
+                headers,
+                params: query,
+                responseType: "blob",
+            });
+            return response.data;
+        } catch (error: any) {
+            console.error("Download error:", error);
+            throw error;
+        }
+    },
 };
 
 export default api;

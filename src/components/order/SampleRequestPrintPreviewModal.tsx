@@ -5,7 +5,6 @@ import type { OrderPrintData } from "./OrderPrintTemplate";
 import { useTranslation } from "react-i18next";
 import { generateOrderUri } from "@/api/index";
 import { toast } from "sonner";
-import logoFullUrl from "@/assets/LOGO-FULL.png";
 
 interface SampleRequestPrintPreviewModalProps {
     isOpen: boolean;
@@ -19,8 +18,6 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
     const editorRef = useRef<any>(null);
 
     if (!isOpen) return null;
-
-    console.log("SampleRequestPrintPreviewModal rendering. Data:", data);
 
     let initialHtml = "";
     // Priority: 1. data.requestForm (saved content), 2. Generate from data
@@ -183,8 +180,6 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
 }
 
 function generateSampleRequestHtml(data: OrderPrintData, t: any) {
-    let globalStt = 0;
-
     const rulesItems = t("sampleRequest.rules.items", {
         returnObjects: true,
     }) as string[];
@@ -209,19 +204,21 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
 
             const rowsHtml = analyses
                 .map((analysis: any, index: number) => {
-                    globalStt++;
-
                     const isFirst = index === 0;
+
+                    const sttCell = isFirst
+                        ? `<td rowspan="${rowCount}" style="text-align:center; padding:5px; border: 1px solid #000 !important; vertical-align: top !important;">${sampleIdx + 1}</td>`
+                        : "";
 
                     const sampleCell = isFirst
                         ? `
               <td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important ; vertical-align:top !important;">
-                <div style="margin-bottom:2px;"><span style="font-weight:400;">${t("sampleRequest.sampleInfo.sampleName")}</span><strong>:</strong> <span style="font-weight:700;">${sample.sampleName || ""}</span></div>
+                <div style="margin-bottom:2px;"><span style="font-weight:300;">${t("sampleRequest.sampleInfo.sampleName")}</span><strong>:</strong> <span style="font-weight:700;">${sample.sampleName || ""}</span></div>
                 <div style="font-size:13px; line-height:1.2;">
-                  <div><span style="font-weight:400;">${t("sampleRequest.sampleInfo.lotNo")}</span><strong>:</strong></div>
-                  <div><span style="font-weight:400;">${t("sampleRequest.sampleInfo.mfgDate")}</span><strong>:</strong></div>
-                  <div><span style="font-weight:400;">${t("sampleRequest.sampleInfo.expDate")}</span><strong>:</strong></div>
-                  <div><span style="font-weight:400;">${t("sampleRequest.sampleInfo.placeOfOrigin")}</span><strong>:</strong></div>
+                  <div><span style="font-weight:300;">${t("sampleRequest.sampleInfo.lotNo")}</span><strong>:</strong></div>
+                  <div><span style="font-weight:300;">${t("sampleRequest.sampleInfo.mfgDate")}</span><strong>:</strong></div>
+                  <div><span style="font-weight:300;">${t("sampleRequest.sampleInfo.expDate")}</span><strong>:</strong></div>
+                  <div><span style="font-weight:300;">${t("sampleRequest.sampleInfo.placeOfOrigin")}</span><strong>:</strong></div>
                 </div>
               </td>
             `
@@ -237,7 +234,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
 
                     return `
           <tr>
-            <td style="text-align:center; padding:5px; border: 1px solid #000 !important;">${globalStt}</td>
+            ${sttCell}
             ${sampleCell}
             ${descCell}
             <td style="padding:5px; border: 1px solid #000 !important;">${analysis.parameterName || ""}</td>
@@ -259,12 +256,12 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
         <!-- Left: logo + info -->
         <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:6px; flex: 1;">
           <img
-            src="${logoFullUrl}"
+            src="https://documents-sea.bildr.com/rc19670b8d48b4c5ba0f89058aa6e7e4b/doc/IRDOP%20LOGO%20with%20Name.w8flZn8NnkuLrYinAamIkw.PAAKeAHDVEm9mFvCFtA46Q.svg"
             style="height:28px; width:auto; object-fit:contain;"
             draggable="false"
           />
-          <div style="font-size:10.5px; line-height:1.3; color:#0f172a; text-align:left; align-self: center;">
-            <div style="font-weight:900;">
+          <div style="font-size:10.5px !important; line-height:1.3 !important; color:#0f172a; text-align:left; align-self: center;">
+            <div style="font-weight:700 !important;">
               ${t("sampleRequest.institute.name")}
             </div>
             <div>
@@ -272,10 +269,10 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             </div>
           </div>
           <div style="flex:1;">
-            <div style="text-align:right; font-size:9px; font-weight:700; white-space:nowrap; text-transform:uppercase;">
+            <div style="text-align:right; font-size:9px !important; font-weight:700 !important; white-space:nowrap; text-transform:uppercase;">
               ${t("sampleRequest.title")}
             </div>
-            <div style="text-align:right; font-size:9px; font-weight:700; margin-top:2px;">
+            <div style="text-align:right; font-size:9px !important; font-weight:700 !important; margin-top:2px;">
                ${data.orderId}
             </div>
           </div>
@@ -289,21 +286,21 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
       <div style="flex:1;"></div>
       
       <div style="width:100%; margin-bottom: 12px;">
-       <div style="text-align:center; font-size:20px; font-weight:900; white-space:nowrap; text-transform:uppercase;">
+       <div style="text-align:center; font-size:20px; font-weight:700; white-space:nowrap; text-transform:uppercase;">
          ${t("sampleRequest.title")}
        </div>
-       <div style="text-align:right; font-size:14px; font-weight:900; margin-top:4px;">
+       <div style="text-align:right; font-size:14px; font-weight:700; margin-top:4px;">
          ${t("sampleRequest.order")} ${data.orderId}
        </div>
      </div>
       </div>
 
       <div class="section">
-        <div style="font-size: 15px; font-weight: 900; margin-bottom: 6px;">
+        <div style="font-size: 15px; font-weight: 700; margin-bottom: 6px;">
             ${t("sampleRequest.section1.title")}
         </div>
 
-        <div style="font-size: 14px; font-weight: 900; margin: 6px 0 2px;">
+        <div style="font-size: 14px; font-weight: 700; margin: 6px 0 2px;">
             ${t("sampleRequest.section1.title2")}
         </div>
         <div style="font-size: 12px; font-style: italic; margin: 0 0 8px;">
@@ -313,16 +310,16 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
         <div style="display: flex; flex-direction: column; gap: 2px;">
           <div style="display: flex; align-items: baseline; font-size: 14px; margin-bottom: 2px;">
             <span class="label-text" style="min-width: 120px;">  ${t("sampleRequest.clientName").replace(":", "")}<strong>:</strong></span>
-            <span class="field-dotted" style="flex-grow: 1; font-weight: bold;">${data.client?.clientName || ""}</span>
+            <span class="field-dotted" style="flex-grow: 1; font-weight: 700;">${data.client?.clientName || ""}</span>
           </div>
 
           <div style="display: flex; align-items: baseline; font-size: 14px; margin-bottom: 2px;">
             <span class="label-text" style="min-width: 120px;">${t("sampleRequest.address").replace(":", "")}<strong>:</strong></span>
-            <span class="field-dotted" style="flex-grow: 1; font-weight: bold;">${data.clientAddress || ""}</span>
+            <span class="field-dotted" style="flex-grow: 1; font-weight: 700;">${data.clientAddress || ""}</span>
           </div>
         </div>
 
-        <div style="font-size: 14px; font-weight: 900; margin: 8px 0 4px;">
+        <div style="font-size: 14px; font-weight: 700; margin: 8px 0 4px;">
             ${t("sampleRequest.section2.title")}
         </div>
         
@@ -335,21 +332,21 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             </colgroup>
             <tr>
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.section2.contactPerson").replace(":", "")}<strong>:</strong></td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.contactPerson || ""}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.contactPerson || ""}</td>
                 
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.identity").replace(":", "")}<strong>:</strong></td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.contactIdentity || ""}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.contactIdentity || ""}</td>
             </tr>
             <tr>
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.contactPhone").replace(":", "")}<strong>:</strong></td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
                 
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.email").replace(":", "")}<strong>:</strong></td>
-                 <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.reportEmail || ""}</td>
+                 <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.reportEmail || ""}</td>
             </tr>
         </table>
 
-        <div style="font-size: 14px; font-weight: 900; margin: 8px 0 4px;">
+        <div style="font-size: 14px; font-weight: 700; margin: 8px 0 4px;">
         ${t("sampleRequest.section3.title")}
         </div>
 
@@ -362,18 +359,18 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             </colgroup>
              <tr>
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.address").replace(":", "")}<strong>:</strong></td>
-                <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: bold;" class="field-dotted">${data.clientAddress || ""}</td>
+                <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;" class="field-dotted">${data.clientAddress || ""}</td>
             </tr>
             <tr>
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.contactPhone").replace(":", "")}<strong>:</strong></td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
                 
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.email").replace(":", "")}<strong>:</strong></td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.reportEmail || ""}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.reportEmail || ""}</td>
             </tr>
         </table>
 
-        <div style="font-size: 14px; font-weight: 900; margin: 8px 0 4px;">
+        <div style="font-size: 14px; font-weight: 700; margin: 8px 0 4px;">
         ${t("sampleRequest.section4.title")}
         </div>
 
@@ -386,24 +383,24 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             </colgroup>
             <tr>
                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.section4.taxName").replace(":", "")}<strong>:</strong></td>
-               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: bold;" class="field-dotted">${data.client?.invoiceInfo?.taxName || ""}</td>
+               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;" class="field-dotted">${data.client?.invoiceInfo?.taxName || ""}</td>
             </tr>
            <tr>
                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.address").replace(":", "")}<strong>:</strong></td>
-               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: bold;" class="field-dotted">${
+               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;" class="field-dotted">${
                    (data.client as any)?.invoiceAddress || data.client?.invoiceInfo?.taxAddress || ""
                }</td>
             </tr>
             <tr>
                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.taxId").replace(":", "")}<strong>:</strong></td>
-               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: bold;" class="field-dotted">${data.client?.legalId || data.taxCode || ""}</td>
+               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;" class="field-dotted">${data.client?.legalId || data.taxCode || ""}</td>
             </tr>
             <tr>
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.contactPhone").replace(":", "")}<strong>:</strong></td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: bold;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
                 
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.email").replace(":", "")}<strong>:</strong></td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: bold;" class="field-dotted">${
+                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: 700;" class="field-dotted">${
                     (data.client as any)?.invoiceEmail || data.client?.invoiceInfo?.taxEmail || ""
                 }</td>
             </tr>
@@ -418,18 +415,18 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
         <table class="content-table" style="width: 100%; border-collapse: collapse; border: none; margin: 10px 0; table-layout: fixed;">
           <thead>
             <tr>
-              <th style="border: 1px solid #1e293b; padding: 8px 8px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 40px;">
+              <th style="border: 1px solid #1e293b; padding: 8px 8px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 40px;">
                 ${t("table.stt")}
               </th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 195px;">
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 195px;">
                 ${t("sample.name")}</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 90px;">
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 90px;">
                 ${t("sampleRequest.table.sampleDesc")}</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900;">
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700;">
                 ${t("sampleRequest.table.parameters")}</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 115px;">
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 115px;">
                 ${t("table.method")}</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 900; width: 70px;">
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 70px;">
                 ${t("sample.note")}</th>
             </tr>
           </thead>
@@ -443,7 +440,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
         <!-- Cột Khách Hàng (Nằm trên) -->
         <div style="width:100%; display:flex; justify-content:center; margin-bottom: 50px;">
              <div style="width:80%; text-align:center;">
-                <div class="sign-title" style="font-weight: 900; font-size: 14px;">${t("sampleRequest.signer.customer")}</div>
+                <div class="sign-title" style="font-weight: 700; font-size: 14px;">${t("sampleRequest.signer.customer")}</div>
                 <div class="sign-confirm" style="margin-top:4px; font-style:italic; font-size:12px;">${t("sampleRequest.signer.confirm")}</div>
                 <div class="sign-confirm" style="margin-top:2px; font-size: 12px;">${t("sampleRequest.signer.signNote")}</div>
                 <div class="sign-space" style="height:100px;"></div>
@@ -454,8 +451,8 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
         <table style="width:100%; border:1px solid #000; border-collapse:collapse;">
           <tr>
             <td style="width:55%; vertical-align:top; text-align:left; padding:8px; border-right:1px solid #000 !important; border-bottom:0 !important;">
-              <div style="font-size:13px; font-weight:900; text-transform:uppercase; margin-bottom:6px;">
-                ${t("sampleRequest.signer.receiptTitle")} - <span style="font-weight:900; text-transform:none;">${t("sampleRequest.signer.labOnly")}</span>
+              <div style="font-size:13px; font-weight:700; text-transform:uppercase; margin-bottom:6px;">
+                ${t("sampleRequest.signer.receiptTitle")} - <span style="font-weight:700; text-transform:none;">${t("sampleRequest.signer.labOnly")}</span>
               </div>
               <div style="font-size:13px; line-height:1.5;">
                 <div>${t("sampleRequest.signer.receivedDate")} ..................................................</div>
@@ -465,7 +462,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
               </div>
             </td>
              <td style="vertical-align:top; text-align:center; padding:8px; border-bottom:0 !important;">
-              <div style="font-size:13px; font-weight:900; text-transform:uppercase; margin-bottom:6px;">
+              <div style="font-size:13px; font-weight:700; text-transform:uppercase; margin-bottom:6px;">
                 ${t("sampleRequest.signer.receiver")}
               </div>
                <div style="height:80px;"></div>
@@ -476,7 +473,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
 
 
        <div class="rules-section" style="page-break-before: always; break-before: page;">
-         <div style="text-align:center; font-weight:900; font-size:15px; text-transform:uppercase; margin-bottom:4px;">
+         <div style="text-align:center; font-weight:700; font-size:15px; text-transform:uppercase; margin-bottom:4px;">
            ${t("sampleRequest.rules.header.title")}
          </div>
          <div style="text-align:center; font-style:italic; font-size:14px; margin-bottom:10px;">
@@ -487,10 +484,10 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             ${rulesListHtml}
          </div>
           <div style="margin-top:16px; font-size:14px; line-height:1.3;">
-            <div style="font-weight:900; margin-bottom:4px;">
+            <div style="font-weight:700; margin-bottom:4px;">
               ${t("sampleRequest.rules.contact.title")}
             </div>
-            <div style="font-weight:900;">
+            <div style="font-weight:700;">
               ${t("sampleRequest.rules.contact.orgName")}
             </div>
             <div>${t("sampleRequest.rules.contact.address")}</div>
@@ -509,7 +506,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
         /* Global Font Settings */
         body, div, table, td, th, span {
             font-family: "Reddit Mono", monospace !important;
-            font-weight: 500;
+            font-weight: 300;
             line-height: 1.3;
         }
         b, strong, th, .bold, .font-weight-bold {
@@ -526,7 +523,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
           font-weight: 700 !important;
         }
         .section { margin-bottom: 25px; }
-        .label-text { color: #64748b; font-weight: 400 !important; white-space: nowrap; margin-right: 5px; }
+        .label-text { color: #64748b; font-weight: 300 !important; white-space: nowrap; margin-right: 5px; }
 
         .rules-section {
              margin-top: 40px;

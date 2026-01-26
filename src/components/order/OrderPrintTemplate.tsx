@@ -192,14 +192,14 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                     </tbody>
                 </table>
             </div>
-            <div style={{ pageBreakInside: "avoid" }}>
+            <div style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
                 <div style={{ marginTop: "10px", display: "flex", justifyContent: "space-between" }}>
-                    <div style={{ textAlign: "center", width: "40%" }}>
+                    <div style={{ textAlign: "center", width: "40%", pageBreakInside: "avoid", breakInside: "avoid" }}>
                         <p style={{ fontWeight: "bold" }}>{t("order.print.clientRep")}</p>
                         <p>({t("order.print.signName")})</p>
                         <div style={{ height: "25mm" }}></div>
                     </div>
-                    <div style={{ textAlign: "center", width: "40%" }}>
+                    <div style={{ textAlign: "center", width: "40%", pageBreakInside: "avoid", breakInside: "avoid" }}>
                         <p style={{ fontWeight: "bold" }}>{t("order.print.companyRep")}</p>
                         <p>({t("order.print.signName")})</p>
                         <div style={{ height: "25mm" }}></div>

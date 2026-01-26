@@ -187,8 +187,8 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                             (data.pricing.discountAmount || 0) > 0 || data.discountRate > 0
                                 ? `<tr>
                             <td style="text-align: right; padding-right: 20px; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("parameter.totalDiscount", "Giảm giá")} (${
-                                      data.discountRate
-                                  }%):</td>
+                                data.discountRate
+                            }%):</td>
                             <td style="text-align: right; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">- ${(
                                 data.pricing.discountAmount || (data.pricing.subtotal * data.discountRate) / 100
                             ).toLocaleString("vi-VN", {
@@ -255,18 +255,18 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                             </td>
                             <td style="width: 40%; vertical-align: top; text-align: center; border: none !important; padding: 0;">
                                 <img src="https://img.vietqr.io/image/ACB-16356688-qr_only.png?amount=${Math.ceil(data.pricing.total)}&addInfo=${encodeURIComponent(
-            `${data.orderId}`,
-        )}&accountName=Vien%20nghien%20cuu%20va%20phat%20trien%20san%20pham%20thien%20nhien" alt="QR Code" style="width: 105px;" />
+                                    `${data.orderId}`,
+                                )}&accountName=Vien%20nghien%20cuu%20va%20phat%20trien%20san%20pham%20thien%20nhien" alt="QR Code" style="width: 105px;" />
                             </td>
                         </tr>
                     </table>
                 </div>
             </div>
-            <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+            <div style="margin-top: 10px; display: flex; justify-content: flex-end; page-break-inside: avoid !important;">
                 <div style="text-align: center; width: 40%;">
                     <p style="font-weight: bold; margin-bottom: 5px;">${t("order.print.customerConfirmation")}</p>
                     <p style="font-style: italic;">(${t("order.print.signName")})</p>
-                    <div style="height: 25mm;"></div>
+                    <div style="height: 30mm;"></div>
                 </div>
             </div>
             </div>
