@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Plus, Trash2, Save } from "lucide-react";
+import { X, Save } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Order } from "@/types/order";
 import { updateOrder } from "@/api/index"; // Assume updateOrder exists and handles partial updates
@@ -13,18 +13,12 @@ interface AccountingDetailModalProps {
     onRefresh: () => void;
 }
 
-interface Transaction {
-    amount: number;
-    date: string;
-    method: string;
-    note: string;
-}
-
 export function AccountingDetailModal({ order, open, onClose, onRefresh }: AccountingDetailModalProps) {
     const { t } = useTranslation();
     const [orderStatus, setOrderStatus] = useState<string>("");
     const [paymentStatus, setPaymentStatus] = useState<string>("");
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [totalPaid, setTotalPaid] = useState<number>(0);
+    const [invoiceNumbers, setInvoiceNumbers] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     const handleNumberKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -37,25 +31,10 @@ export function AccountingDetailModal({ order, open, onClose, onRefresh }: Accou
         if (order) {
             setOrderStatus(order.orderStatus);
             setPaymentStatus(order.paymentStatus);
-            setTransactions((order.transactions as Transaction[]) || []);
+            setTotalPaid(order.totalPaid || 0);
+            setInvoiceNumbers(order.invoiceNumbers || []);
         }
     }, [order]);
-
-    const handleAddTransaction = () => {
-        setTransactions([...transactions, { amount: 0, date: new Date().toISOString(), method: "Bank Transfer", note: "" }]);
-    };
-
-    const handleTransactionChange = (index: number, field: keyof Transaction, value: any) => {
-        const newTrans = [...transactions];
-        newTrans[index] = { ...newTrans[index], [field]: value };
-        setTransactions(newTrans);
-    };
-
-    const handleRemoveTransaction = (index: number) => {
-        const newTrans = [...transactions];
-        newTrans.splice(index, 1);
-        setTransactions(newTrans);
-    };
 
     const handleSave = async () => {
         if (!order) return;
@@ -66,7 +45,8 @@ export function AccountingDetailModal({ order, open, onClose, onRefresh }: Accou
                     id: order.orderId,
                     orderStatus,
                     paymentStatus,
-                    transactions,
+                    totalPaid,
+                    invoiceNumbers,
                 },
             });
 
@@ -215,80 +195,44 @@ export function AccountingDetailModal({ order, open, onClose, onRefresh }: Accou
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-2">{t("order.paymentStatus")}</label>
                             <select className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground" value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)}>
-                                <option value="Unpaid">{t("order.paymentStatuses.awaiting")}</option> // Unpaid map to awaiting
+                                <option value="Unpaid">{t("order.paymentStatuses.unpaid")}</option>
                                 <option value="Partial">{t("order.paymentStatuses.partial") || "Partial"}</option>
                                 <option value="Paid">{t("order.paymentStatuses.paid")}</option>
                                 <option value="Debt">{t("order.paymentStatuses.debt")}</option>
+                                <option value="Variance">{t("order.paymentStatuses.variance")}</option>
                             </select>
                         </div>
                     </div>
 
-                    {/* Transactions Section */}
+                    {/* Invoice Numbers Section (Read Only) */}
                     <div>
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold text-foreground">{t("accounting.transactions")}</h3>
-                            <button onClick={handleAddTransaction} className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-md hover:bg-primary/20 text-sm font-medium">
-                                <Plus className="w-4 h-4" />
-                                {t("common.add")}
-                            </button>
-                        </div>
-
-                        <div className="space-y-3">
-                            {transactions.length === 0 && (
-                                <p className="text-sm text-muted-foreground italic text-center py-4 border border-dashed border-border rounded-lg">{t("accounting.noTransactions")}</p>
+                        <label className="block text-sm font-medium text-foreground mb-2">{t("accounting.invoices") || "Invoices"}</label>
+                        <div className="flex flex-wrap gap-2">
+                            {invoiceNumbers.length > 0 ? (
+                                invoiceNumbers.map((inv, idx) => (
+                                    <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-muted text-sm border border-border">
+                                        {inv}
+                                    </span>
+                                ))
+                            ) : (
+                                <span className="text-sm text-muted-foreground italic">--</span>
                             )}
-                            {transactions.map((trans, idx) => (
-                                <div key={idx} className="flex gap-4 items-start p-4 bg-muted/30 border border-border rounded-lg">
-                                    <div className="flex-1 space-y-3">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="text-xs text-muted-foreground block mb-1">{t("accounting.amount")}</label>
-                                                <input
-                                                    type="number"
-                                                    className="w-full px-2 py-1 border border-border rounded bg-background text-sm"
-                                                    value={trans.amount}
-                                                    onChange={(e) => handleTransactionChange(idx, "amount", parseFloat(e.target.value) || 0)}
-                                                    onKeyDown={handleNumberKeyDown}
-                                                    onWheel={(e) => e.currentTarget.blur()}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs text-muted-foreground block mb-1">{t("accounting.date")}</label>
-                                                <input
-                                                    type="date"
-                                                    className="w-full px-2 py-1 border border-border rounded bg-background text-sm"
-                                                    value={trans.date ? trans.date.split("T")[0] : ""}
-                                                    onChange={(e) => handleTransactionChange(idx, "date", new Date(e.target.value).toISOString())}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="text-xs text-muted-foreground block mb-1">{t("accounting.method")}</label>
-                                                <input
-                                                    type="text"
-                                                    className="w-full px-2 py-1 border border-border rounded bg-background text-sm"
-                                                    value={trans.method}
-                                                    onChange={(e) => handleTransactionChange(idx, "method", e.target.value)}
-                                                    placeholder="Bank Transfer, Cash..."
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs text-muted-foreground block mb-1">{t("accounting.note")}</label>
-                                                <input
-                                                    type="text"
-                                                    className="w-full px-2 py-1 border border-border rounded bg-background text-sm"
-                                                    value={trans.note}
-                                                    onChange={(e) => handleTransactionChange(idx, "note", e.target.value)}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button onClick={() => handleRemoveTransaction(idx)} className="p-2 text-muted-foreground hover:text-destructive transition-colors mt-6">
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            ))}
+                        </div>
+                    </div>
+
+                    {/* Total Paid Section */}
+                    <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">{t("accounting.totalPaid") || "Total Paid"}</label>
+                        <div className="relative">
+                            <input
+                                type="number"
+                                className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                value={totalPaid}
+                                onChange={(e) => setTotalPaid(parseFloat(e.target.value) || 0)}
+                                onKeyDown={handleNumberKeyDown}
+                                onWheel={(e) => e.currentTarget.blur()}
+                            />
+                            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-muted-foreground text-sm">VND</div>
                         </div>
                     </div>
                 </div>

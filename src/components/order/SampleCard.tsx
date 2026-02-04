@@ -395,15 +395,21 @@ export function SampleCard({
                                                 <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>{index + 1}</td>
                                                 <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
                                                     {isReadOnly ? (
-                                                        analysis.parameterName
+                                                        <div>
+                                                            <div>{analysis.parameterName}</div>
+                                                            {analysis.parameterId && <div className="text-xs text-muted-foreground">{analysis.parameterId}</div>}
+                                                        </div>
                                                     ) : (
-                                                        <input
-                                                            type="text"
-                                                            className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent"
-                                                            value={analysis.parameterName}
-                                                            onChange={(e) => handleAnalysisChange(index, "parameterName", e.target.value)}
-                                                            placeholder={t("order.print.parameter")}
-                                                        />
+                                                        <div>
+                                                            <input
+                                                                type="text"
+                                                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent mb-1"
+                                                                value={analysis.parameterName}
+                                                                onChange={(e) => handleAnalysisChange(index, "parameterName", e.target.value)}
+                                                                placeholder={t("order.print.parameter")}
+                                                            />
+                                                            {analysis.parameterId && <div className="text-xs text-muted-foreground px-2">{analysis.parameterId}</div>}
+                                                        </div>
                                                     )}
                                                 </td>
                                                 <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>

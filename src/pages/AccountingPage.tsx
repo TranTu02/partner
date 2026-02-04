@@ -6,7 +6,6 @@ import { getOrders, getOrderStats } from "@/api/index";
 import type { Order } from "@/types/order";
 import { AccountingStats } from "@/components/accounting/AccountingStats";
 import { AccountingTable } from "@/components/accounting/AccountingTable";
-import { InvoiceModal } from "@/components/accounting/InvoiceModal";
 import { AccountingDetailModal } from "@/components/accounting/AccountingDetailModal";
 
 interface AccountingPageProps {
@@ -19,7 +18,7 @@ export function AccountingPage({ activeMenu, onMenuClick }: AccountingPageProps)
     const [orders, setOrders] = useState<Order[]>([]);
     const [stats, setStats] = useState({ pendingCount: 0, completedCount: 0, totalPendingValue: 0 });
     const [searchQuery, setSearchQuery] = useState("");
-    const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [loading, setLoading] = useState(false);
@@ -32,10 +31,11 @@ export function AccountingPage({ activeMenu, onMenuClick }: AccountingPageProps)
 
     // Filter State
     const [filterType, setFilterType] = useState<"pending" | "completed" | "totalPending" | "all">("pending");
+    const [tableFilters, setTableFilters] = useState<any>({});
 
     useEffect(() => {
         fetchOrders();
-    }, [page, itemsPerPage, filterType, searchQuery]);
+    }, [page, itemsPerPage, filterType, searchQuery, tableFilters]);
 
     useEffect(() => {
         fetchStats();
@@ -56,16 +56,23 @@ export function AccountingPage({ activeMenu, onMenuClick }: AccountingPageProps)
             // - "Tổng giá trị chờ" (totalPending): orderStatus = "Processing" AND paymentStatus = ["Unpaid", "Partial"]
 
             if (filterType === "pending") {
-                query.orderStatus = "Processing";
+                // query.orderStatus = "Processing";
             } else if (filterType === "completed") {
                 query.orderStatus = "Completed";
             } else if (filterType === "totalPending") {
-                query.orderStatus = "Processing";
-                // BE likely needs to handle array for paymentStatus or repeated params
-                // We pass array here assuming axios/client helper serializes it correctly
-                // If not, we might need to adjust based on BE framework (e.g. comma separated or repeated keys)
+                // query.orderStatus = "Processing";
                 query.paymentStatus = ["Unpaid", "Partial"];
             }
+
+            // Merge table filters (spread them into query)
+            // Table filters might have receiptId, invoiceNumbers, orderStatus, paymentStatus, requestDate
+            // Note: If table filter defines 'orderStatus', it might conflict with 'filterType'.
+            // Priority: Table Filters override Filter Type (or we merge?)
+            // Implementation: Spread tableFilters AFTER base filters.
+            // However, paymentStatus from filterType is array, paymentStatus from Table is array.
+            // We should probably rely on Table Filters if they exist, otherwise use Filter Type.
+            // But user is "Adding" filters.
+            Object.assign(query, tableFilters);
 
             const res = await getOrders({ query });
             if (res.data) {
@@ -98,24 +105,9 @@ export function AccountingPage({ activeMenu, onMenuClick }: AccountingPageProps)
         }
     };
 
-    const handleCreateInvoice = (order: Order) => {
-        setSelectedOrder(order);
-        setShowInvoiceModal(true);
-    };
-
     const handleEditOrder = (order: Order) => {
         setSelectedOrder(order);
         setShowDetailModal(true);
-    };
-
-    const handleConfirmInvoice = () => {
-        if (!selectedOrder) return;
-        // In a real app, you would call an API here to generate an invoice
-        alert(t("accounting.successMessage", { orderId: selectedOrder.orderId }));
-        setShowInvoiceModal(false);
-        setSelectedOrder(null);
-        fetchOrders(); // Refresh list
-        fetchStats(); // Refresh stats
     };
 
     const headerContent = (
@@ -164,11 +156,13 @@ export function AccountingPage({ activeMenu, onMenuClick }: AccountingPageProps)
                         setItemsPerPage(limit);
                         setPage(1);
                     }}
-                    onCreateInvoice={handleCreateInvoice}
                     onEdit={handleEditOrder}
+                    onFilterChange={(filters) => {
+                        setTableFilters(filters);
+                        setPage(1);
+                    }}
                 />
 
-                <InvoiceModal open={showInvoiceModal} order={selectedOrder} onClose={() => setShowInvoiceModal(false)} onConfirm={handleConfirmInvoice} />
                 <AccountingDetailModal
                     open={showDetailModal}
                     order={selectedOrder}

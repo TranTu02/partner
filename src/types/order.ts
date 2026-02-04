@@ -24,7 +24,13 @@ export interface Order {
     orderStatus: "Pending" | "Processing" | "Completed" | "Cancelled";
     orderUri?: string;
     requestForm?: string;
-    paymentStatus: "Unpaid" | "Partial" | "Paid" | "Debt";
+    paymentStatus: "Unpaid" | "Partial" | "Paid" | "Debt" | "Variance";
+
+    receiptId?: string; // Lab Receipt FK
+    totalPaid?: number; // Total Paid Amount
+    invoiceNumbers?: string[]; // List of issued invoices
+    requestDate?: string; // Information regarding request date
+
     transactions?: any[]; // jsonb[]
     contactPerson?: {
         contactId?: string;
