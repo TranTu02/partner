@@ -22,27 +22,12 @@ export default defineConfig({
         },
     },
     build: {
-        chunkSizeWarningLimit: 1000,
+        chunkSizeWarningLimit: 1500,
         commonjsOptions: {
             include: [/html2pdf/, /jspdf/, /html2canvas/, /node_modules/],
             transformMixedEsModules: true,
         },
-        rollupOptions: {
-            output: {
-                manualChunks(id) {
-                    if (id.includes("node_modules")) {
-                        if (id.includes("tinymce")) return "tinymce";
-                        if (id.includes("recharts")) return "recharts";
-                        if (id.includes("html2pdf") || id.includes("jspdf") || id.includes("html2canvas")) return "pdf";
-                        if (id.includes("react-dnd")) return "dnd";
-                        if (id.includes("@radix-ui") || id.includes("lucide-react")) return "ui";
-                        if (id.includes("react") || id.includes("react-dom") || id.includes("react-router-dom")) return "react-vendor";
-                        // Organize other large libs if necessary, otherwise default vendor
-                        return "vendor";
-                    }
-                },
-            },
-        },
+        // Let Vite handle chunking automatically to ensure proper dependency order
     },
     server: {
         host: true,
