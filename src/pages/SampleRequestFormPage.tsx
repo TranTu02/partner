@@ -8,8 +8,6 @@ import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import type { Client } from "@/types/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-// @ts-ignore
-import html2pdf from "html2pdf.js";
 
 export function SampleRequestFormPage() {
     const { t } = useTranslation();
