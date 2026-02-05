@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft, Copy, FileText } from "lucide-react";
+import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft, FileText } from "lucide-react";
 import type { OrderEditorRef } from "@/components/order/OrderEditor";
 import { OrderEditor } from "@/components/order/OrderEditor";
 
@@ -9,7 +9,7 @@ import { getOrders, getOrderDetail } from "@/api/index";
 
 import type { Order } from "@/types/order";
 import { toast } from "sonner";
-import { Pagination } from "@/components/common/Pagination";
+
 import { MainLayout } from "@/components/layout/MainLayout";
 import { SampleRequestFormPage } from "./SampleRequestFormPage";
 import { OrderPrintPreviewModal } from "@/components/order/OrderPrintPreviewModal";
@@ -148,17 +148,6 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
     }, [orderId, isDetail, isEdit, isCreate, duplicateId, orders]); // add orders to deps for fallback
 
     // Status Configurations
-    const statusConfig = {
-        pending: { label: t("order.statuses.pending"), color: "bg-warning/10 text-warning" },
-        processing: { label: t("order.statuses.processing") || "Processing", color: "bg-blue-500/10 text-blue-500" },
-        completed: { label: t("order.statuses.completed"), color: "bg-success/10 text-success" },
-        cancelled: { label: t("order.statuses.cancelled"), color: "bg-destructive/10 text-destructive" },
-        // Fallback for case sensitivity or mismatches
-        Pending: { label: t("order.statuses.pending"), color: "bg-warning/10 text-warning" },
-        Processing: { label: t("order.statuses.processing") || "Processing", color: "bg-blue-500/10 text-blue-500" },
-        Completed: { label: t("order.statuses.completed"), color: "bg-success/10 text-success" },
-        Cancelled: { label: t("order.statuses.cancelled"), color: "bg-destructive/10 text-destructive" },
-    };
 
     const handleCreate = () => navigate("/orders/create");
     const handleViewDetail = (order: Order) => navigate(`/orders/detail?orderId=${order.orderId}`);
