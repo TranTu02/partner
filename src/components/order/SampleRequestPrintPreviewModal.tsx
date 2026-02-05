@@ -124,13 +124,18 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
                             menubar: false,
                             statusbar: false,
                             plugins: "table lists code print noneditable",
-                            toolbar: "table | bold italic | alignleft aligncenter alignright | code print",
+                            toolbar:
+                                "bold italic | alignleft aligncenter alignright | table tablemergecells tablesplitcells | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol | code print",
+                            toolbar_mode: "wrap",
+                            paste_as_text: true,
+                            paste_preprocess: (_plugin: any, args: any) => {
+                                // Remove any remaining HTML tags and keep only text
+                                args.content = args.content.replace(/<[^>]*>/g, "");
+                            },
                             noneditable_noneditable_class: "mceNonEditable",
                             noneditable_editable_class: "mceEditable",
                             visual: false,
                             visual_table_manager: false,
-                            table_toolbar: "",
-                            table_context_toolbar: "",
                             content_style: `
                                 * { margin: 0; padding: 0; box-sizing: border-box; }
                                 body { 
@@ -232,14 +237,21 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             `
                         : "";
 
+                    // Method and Note columns merged per sample (rowspan)
+                    const methodCell = isFirst
+                        ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;">Đã thống nhất phương pháp kiểm nghiệm với Irdop</td>`
+                        : "";
+
+                    const noteCell = isFirst ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;"></td>` : "";
+
                     return `
           <tr>
             ${sttCell}
             ${sampleCell}
             ${descCell}
             <td style="padding:5px; border: 1px solid #000 !important;">${analysis.parameterName || ""}</td>
-            <td style="padding:5px; border: 1px solid #000 !important;">${analysis.protocolCode || ""}</td>
-            <td style="padding:5px; border: 1px solid #000 !important;"></td>
+            ${methodCell}
+            ${noteCell}
           </tr>
         `;
                 })

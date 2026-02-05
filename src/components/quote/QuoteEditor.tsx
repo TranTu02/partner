@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import type { EditorMode } from "../order/OrderEditor";
 import type { SampleWithQuantity, AnalysisWithQuantity } from "@/components/order/SampleCard";
-import { getClients, createClient } from "@/api/index";
+import { getClients, createClient, updateClient, createQuote, updateQuote } from "@/api/index";
 import { toast } from "sonner";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -404,8 +404,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
         }
 
         try {
-            const { createQuote, updateQuote } = await import("@/api/index");
-
             const clientSnapshot = {
                 clientId: selectedClient.clientId,
                 clientName: selectedClient.clientName,
@@ -681,7 +679,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                     client={selectedClient}
                     onConfirm={async (updatedClient) => {
                         try {
-                            const { updateClient } = await import("@/api/index");
                             const response = await updateClient({ body: updatedClient });
                             if (response.success) {
                                 toast.success("Client updated");

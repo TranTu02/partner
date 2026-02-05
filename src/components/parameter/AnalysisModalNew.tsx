@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Search, Trash2, Layers } from "lucide-react";
 import type { Matrix, ParameterGroup } from "@/types/parameter";
 import { useTranslation } from "react-i18next";
-import { getMatrices, getParameterGroups } from "@/api/index";
+import { getMatrices, getParameterGroups, getMatrixDetail } from "@/api/index";
 import { scientificFields } from "@/data/constants";
 
 interface AnalysisModalNewProps {
@@ -237,8 +237,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm }: AnalysisModalNe
             }
 
             try {
-                // Fetch matrices by IDs if not present in group object
-                const detailPromises = group.matrixIds.map((id) => import("@/api/index").then((mod) => mod.getMatrixDetail({ query: { matrixId: id } })));
+                const detailPromises = group.matrixIds.map((id) => getMatrixDetail({ query: { matrixId: id } }));
 
                 const responses = await Promise.all(detailPromises);
                 const matrices: Matrix[] = responses.map((r) => (r.success ? r.data : null)).filter((m): m is Matrix => !!m);

@@ -13,7 +13,7 @@ import { OrderPrintPreviewModal } from "@/components/order/OrderPrintPreviewModa
 import { SampleRequestPrintPreviewModal } from "@/components/order/SampleRequestPrintPreviewModal";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import { getClients, getQuoteDetail } from "@/api/index";
+import { getClients, getQuoteDetail, createClient, updateClient, createOrder, updateOrder } from "@/api/index";
 import { toast } from "sonner";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -497,7 +497,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     // Replacing handleAddClient with API version
     const handleAddClientAPI = async (newClientData: any) => {
         try {
-            const { createClient } = await import("@/api/index");
             const response = await createClient({ body: newClientData });
             if (response.success && response.data) {
                 toast.success("Client created");
@@ -627,8 +626,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         }
 
         try {
-            const { createOrder, updateOrder } = await import("@/api/index");
-
             // Construct client snapshot
             const clientSnapshot = {
                 clientId: selectedClient.clientId,
@@ -880,7 +877,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     client={selectedClient}
                     onConfirm={async (updatedClient) => {
                         try {
-                            const { updateClient } = await import("@/api/index");
                             const response = await updateClient({ body: updatedClient });
                             if (response.success) {
                                 toast.success("Client updated");

@@ -233,51 +233,58 @@ export function SampleRequestFormPage() {
                     {loading && <div className="p-4">{t("common.loading")}</div>}
 
                     {data && (
-                        <div className="relative w-[794px] min-w-[794px] mx-auto bg-white shadow-lg">
-                            {!editorReady && <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted/50">{t("common.loading")}</div>}
+                        <div className="relative w-full max-w-[1200px] mx-auto flex flex-col">
+                            {/* Toolbar container - full width */}
+                            <div className="w-full bg-white shadow-lg rounded-t-lg" id="tinymce-toolbar-container"></div>
 
-                            <div
-                                style={{
-                                    visibility: editorReady ? "visible" : "hidden",
-                                    height: "100%",
-                                }}
-                            >
-                                <Editor
-                                    key={data.orderId}
-                                    disabled={false} // Always editable
-                                    tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
-                                    onInit={(_evt: any, editor: any) => {
-                                        editorRef.current = editor;
-                                        setEditorReady(true);
+                            {/* Editor container - A4 width centered */}
+                            <div className="w-[794px] min-w-[794px] mx-auto bg-white shadow-lg">
+                                {!editorReady && <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted/50">{t("common.loading")}</div>}
+
+                                <div
+                                    style={{
+                                        visibility: editorReady ? "visible" : "hidden",
+                                        height: "100%",
                                     }}
-                                    initialValue={initialHtml}
-                                    init={{
-                                        width: "100%",
-                                        menubar: false,
-                                        statusbar: false,
-                                        plugins: "table lists code print noneditable autoresize",
-                                        toolbar: "table | bold italic | alignleft aligncenter alignright | code print",
-                                        paste_preprocess: (_plugin: any, args: any) => {
-                                            args.content = args.content.replace(/(font-family|font-size|font-weight|line-height|color|background-color):[^;"]*;?/gi, "");
-                                        },
-                                        noneditable_noneditable_class: "mceNonEditable",
-                                        noneditable_editable_class: "mceEditable",
-                                        visual: false,
-                                        visual_table_manager: false,
-                                        table_resize_bars: false,
-                                        table_context_toolbar: "",
-                                        table_toolbar: "",
-                                        body_class: "notranslate",
-                                        min_height: 1123,
-                                        autoresize_bottom_margin: 0,
-                                        setup: (editor: any) => {
-                                            editor.on("Init", () => {
-                                                editor.getBody().setAttribute("translate", "no");
-                                                editor.getBody().setAttribute("spellcheck", "false");
-                                                editor.getBody().setAttribute("data-gramm", "false");
-                                            });
-                                        },
-                                        content_style: `
+                                >
+                                    <Editor
+                                        key={data.orderId}
+                                        disabled={false} // Always editable
+                                        tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
+                                        onInit={(_evt: any, editor: any) => {
+                                            editorRef.current = editor;
+                                            setEditorReady(true);
+                                        }}
+                                        initialValue={initialHtml}
+                                        init={{
+                                            width: "100%",
+                                            menubar: false,
+                                            statusbar: false,
+                                            plugins: "table lists code print noneditable autoresize",
+                                            toolbar:
+                                                "bold italic | alignleft aligncenter alignright | table tablemergecells tablesplitcells | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol | code print",
+                                            toolbar_mode: "wrap",
+                                            paste_as_text: true,
+                                            paste_preprocess: (_plugin: any, args: any) => {
+                                                // Remove any remaining HTML tags and keep only text
+                                                args.content = args.content.replace(/<[^>]*>/g, "");
+                                            },
+                                            noneditable_noneditable_class: "mceNonEditable",
+                                            noneditable_editable_class: "mceEditable",
+                                            visual: false,
+                                            visual_table_manager: false,
+                                            table_resize_bars: false,
+                                            body_class: "notranslate",
+                                            min_height: 1123,
+                                            autoresize_bottom_margin: 0,
+                                            setup: (editor: any) => {
+                                                editor.on("Init", () => {
+                                                    editor.getBody().setAttribute("translate", "no");
+                                                    editor.getBody().setAttribute("spellcheck", "false");
+                                                    editor.getBody().setAttribute("data-gramm", "false");
+                                                });
+                                            },
+                                            content_style: `
                                 * { margin: 0; padding: 0; box-sizing: border-box; }
                                 html { 
                                     overflow-y: hidden; /* Let iframe grow */
@@ -318,8 +325,9 @@ export function SampleRequestFormPage() {
                                     .mceNonEditable { color: inherit; }
                                 }
                             `,
-                                    }}
-                                />
+                                        }}
+                                    />
+                                </div>
                             </div>
                         </div>
                     )}
@@ -487,14 +495,21 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             `
                         : "";
 
+                    // Method and Note columns merged per sample (rowspan)
+                    const methodCell = isFirst
+                        ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;">Đã thống nhất phương pháp kiểm nghiệm với Irdop</td>`
+                        : "";
+
+                    const noteCell = isFirst ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;"></td>` : "";
+
                     return `
           <tr>
             ${sttCell}
             ${sampleCell}
             ${descCell}
             <td style="padding:5px; border: 1px solid #000 !important;">${analysis.parameterName || ""}</td>
-            <td style="padding:5px; border: 1px solid #000 !important;">${analysis.protocolCode || ""}</td>
-            <td style="padding:5px; border: 1px solid #000 !important;"></td>
+            ${methodCell}
+            ${noteCell}
           </tr>
         `;
                 })
