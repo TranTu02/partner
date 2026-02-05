@@ -93,6 +93,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
     const [orderUri, setOrderUri] = useState(initialData?.orderUri || "");
     const [requestForm, setRequestForm] = useState(initialData?.requestForm || "");
+    const [orderNote, setOrderNote] = useState(initialData?.orderNote || "");
 
     useEffect(() => {
         setOrderUri(initialData?.orderUri || "");
@@ -138,7 +139,12 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 setContactIdentity(contact.identityId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
                 setContactAddress(contact.contactAddress || "");
+                setContactAddress(contact.contactAddress || "");
                 setReportEmail(contact.contactEmail || (contact as any).email || "");
+            }
+
+            if (initialData.orderNote) {
+                setOrderNote(initialData.orderNote);
             }
 
             if (initialData.samples && initialData.samples.length > 0) {
@@ -662,7 +668,9 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 clientId: selectedClient.clientId,
                 client: clientSnapshot as any,
                 contactPerson: contactData,
+
                 quoteId,
+                orderNote: orderNote?.trim() || null,
 
                 samples: samples.map((s) => {
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -824,8 +832,21 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     </div>
 
                     {samples.length > 0 && (
-                        <div className="flex justify-end">
-                            <div className="w-[600px]">
+                        <div className="flex flex-col md:flex-row gap-8 items-start justify-between">
+                            <div className="flex-1 w-full">
+                                <label className="block text-sm font-medium mb-2 text-foreground">{t("order.note", "Ghi chú")}</label>
+                                <textarea
+                                    value={orderNote}
+                                    onChange={(e) => {
+                                        setOrderNote(e.target.value);
+                                        if (!isReadOnly) setHasUnsavedChanges(true);
+                                    }}
+                                    disabled={isReadOnly}
+                                    placeholder={t("order.notePlaceholder", "Nhập ghi chú cho đơn hàng...")}
+                                    className="w-full min-h-[150px] p-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-y"
+                                />
+                            </div>
+                            <div className="w-full md:w-[600px] shrink-0">
                                 <PricingSummary
                                     subtotal={pricing.subtotal}
                                     discountRate={discountRate}

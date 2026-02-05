@@ -2,26 +2,26 @@
 
 ## 1. Tổng quan Dự án
 
--   **Tên dự án**: Partner CRM (Phần mở rộng Partner cho LIMS)
--   **Loại ứng dụng**: Frontend SPA (Single Page Application)
--   **Công nghệ cốt lõi**:
-    -   **Nền tảng**: React 18 (Vite), JavaScript (Chuyển đổi từ TypeScript nhưng vẫn giữ Type checking cơ bản qua JSDoc/Check JS nếu cần). _Lưu ý: Tài liệu này được cập nhật để phản ánh việc ưu tiên JavaScript trong triển khai nhanh, tuy nhiên code hiện tại vẫn đang dùng TypeScript cho sự an toàn._
-    -   **Styling**: Tailwind CSS (kết hợp CSS Variables cho hệ thống Theme).
-    -   **UI Library**:
-        -   **@radix-ui/react-\***: Bộ component nguyên tử (Primitives) cho các thành phần tương tác (Dialog, Popover, Select, etc.).
-        -   **Recharts**: Thư viện biểu đồ cho Dashboard.
-        -   **react-resizable-panels (^2.0.19)**: Sử dụng phiên bản cũ để đảm bảo tương thích.
-    -   **Editor**: TinyMCE (cấu hình Manual Chunks trong Vite để tối ưu tải trang).
-    -   **Icons**: Lucide React.
-    -   **Đa ngôn ngữ**: react-i18next (Tiếng Việt/Tiếng Anh).
-    -   **Quản lý trạng thái**: React Context API.
-    -   **Dữ liệu**: Fetch từ API Backend.
-    -   **Xác thực**: Session-based authentication với `sessionId` và `authToken`.
-    -   **Tiện ích**:
-        -   `date-fns` (xử lý ngày tháng).
-        -   `html2pdf.js` (xuất PDF).
-        -   `clsx`, `tailwind-merge` (xử lý class CSS).
-        -   **Custom Utils**: Sử dụng `src/utils/textUtils.ts` (Pure Logic) cho các tác vụ chuyển đổi dữ liệu nhạy cảm (như đọc số tiền) thay vì cài thêm thư viện npm không ổn định.
+- **Tên dự án**: Partner CRM (Phần mở rộng Partner cho LIMS)
+- **Loại ứng dụng**: Frontend SPA (Single Page Application)
+- **Công nghệ cốt lõi**:
+    - **Nền tảng**: React 18 (Vite), JavaScript (Chuyển đổi từ TypeScript nhưng vẫn giữ Type checking cơ bản qua JSDoc/Check JS nếu cần). _Lưu ý: Tài liệu này được cập nhật để phản ánh việc ưu tiên JavaScript trong triển khai nhanh, tuy nhiên code hiện tại vẫn đang dùng TypeScript cho sự an toàn._
+    - **Styling**: Tailwind CSS (kết hợp CSS Variables cho hệ thống Theme).
+    - **UI Library**:
+        - **@radix-ui/react-\***: Bộ component nguyên tử (Primitives) cho các thành phần tương tác (Dialog, Popover, Select, etc.).
+        - **Recharts**: Thư viện biểu đồ cho Dashboard.
+        - **react-resizable-panels (^2.0.19)**: Sử dụng phiên bản cũ để đảm bảo tương thích.
+    - **Editor**: TinyMCE (cấu hình Manual Chunks trong Vite để tối ưu tải trang).
+    - **Icons**: Lucide React.
+    - **Đa ngôn ngữ**: react-i18next (Tiếng Việt/Tiếng Anh).
+    - **Quản lý trạng thái**: React Context API.
+    - **Dữ liệu**: Fetch từ API Backend.
+    - **Xác thực**: Session-based authentication với `sessionId` và `authToken`.
+    - **Tiện ích**:
+        - `date-fns` (xử lý ngày tháng).
+        - `html2pdf.js` (xuất PDF).
+        - `clsx`, `tailwind-merge` (xử lý class CSS).
+        - **Custom Utils**: Sử dụng `src/utils/textUtils.ts` (Pure Logic) cho các tác vụ chuyển đổi dữ liệu nhạy cảm (như đọc số tiền) thay vì cài thêm thư viện npm không ổn định.
 
 ## 2. Cấu trúc Thư mục (Directory Structure)
 
@@ -67,67 +67,80 @@ partner/
 
 ### A. Hệ thống Giao diện (Theming System)
 
--   **Quy tắc Bất di bất dịch**: KHÔNG BAO GIỜ sử dụng mã màu cứng (hardcoded colors) như `bg-white`, `text-black`, `bg-[#123456]`.
--   **Sử dụng Class theo Ngữ nghĩa**: Luôn sử dụng các biến Tailwind được định nghĩa trong `globals.css` thông qua `theme.config.ts`.
-    -   Nền: `bg-background`, `bg-card`, `bg-muted`
-    -   Chữ: `text-foreground`, `text-muted-foreground`, `text-primary`
-    -   Viền: `border-border`, `border-input`
--   **Định dạng Số liệu**: Tất cả các giá trị tiền tệ hiển thị trên UI (đặc biệt là Print Template & Preview) phải được định dạng thống nhất với tối đa 2 chữ số thập phân (`maximumFractionDigits: 2`).
--   **Tham chiếu**: Xem chi tiết trong file `THEME_SYSTEM.md`.
+- **Quy tắc Bất di bất dịch**: KHÔNG BAO GIỜ sử dụng mã màu cứng (hardcoded colors) như `bg-white`, `text-black`, `bg-[#123456]`.
+- **Sử dụng Class theo Ngữ nghĩa**: Luôn sử dụng các biến Tailwind được định nghĩa trong `globals.css` thông qua `theme.config.ts`.
+    - Nền: `bg-background`, `bg-card`, `bg-muted`
+    - Chữ: `text-foreground`, `text-muted-foreground`, `text-primary`
+    - Viền: `border-border`, `border-input`
+- **Định dạng Số liệu**: Tất cả các giá trị tiền tệ hiển thị trên UI (đặc biệt là Print Template & Preview) phải được định dạng thống nhất với tối đa 2 chữ số thập phân (`maximumFractionDigits: 2`).
+- **Tham chiếu**: Xem chi tiết trong file `THEME_SYSTEM.md`.
 
 ### B. Đa ngôn ngữ (Internationalization - i18n)
 
--   **Quy tắc**: KHÔNG viết cứng văn bản trong code UI (No hardcoded text).
--   Sử dụng hook `useTranslation()`.
--   Từ khóa (Keys) phải được phân nhóm rõ ràng trong `vi.ts` và `en.ts` (VD: `sidebar.*`, `order.print.*`).
--   Dữ liệu tĩnh từ Server (VD: tên công ty, địa chỉ) nên được lấy từ API hoặc file cấu hình, không hardcode trong file ngôn ngữ nếu nó có thể thay đổi.
--   **Print Templates**: Tuyệt đối sử dụng i18n cho toàn bộ văn bản trong mẫu in (Kể cả dấu câu, đơn vị tiền tệ, tiêu đề cột) để đảm bảo trải nghiệm người dùng nhất quán.
+- **Quy tắc**: KHÔNG viết cứng văn bản trong code UI (No hardcoded text).
+- Sử dụng hook `useTranslation()`.
+- Từ khóa (Keys) phải được phân nhóm rõ ràng trong `vi.ts` và `en.ts` (VD: `sidebar.*`, `order.print.*`).
+- Dữ liệu tĩnh từ Server (VD: tên công ty, địa chỉ) nên được lấy từ API hoặc file cấu hình, không hardcode trong file ngôn ngữ nếu nó có thể thay đổi.
+- **Print Templates**: Tuyệt đối sử dụng i18n cho toàn bộ văn bản trong mẫu in (Kể cả dấu câu, đơn vị tiền tệ, tiêu đề cột) để đảm bảo trải nghiệm người dùng nhất quán.
 
 ### C. Types & Interfaces
 
--   Định nghĩa Interface dùng chung trong `src/types/`.
--   Nếu Interface chỉ dùng nội bộ cho một component, có thể định nghĩa ngay đầu file component đó.
--   Ưu tiên dùng `interface` hơn `type` để định nghĩa Object.
--   Đảm bảo các type như `Client`, `Order`, `Quote` phải đồng bộ với cấu trúc trả về từ API.
--   **Tham chiếu**: Khi lưu thông tin tham chiếu đơn giản (như người phụ trách), ưu tiên dùng cặp `xxxId` (FK) và `xxxName` (Text) thay vì lưu JSONB object phức tạp, trừ khi cần snapshot lịch sử.
--   **Compatibility**: Sử dụng `import type` cho các loại dữ liệu chỉ dùng để checking (như `VariantProps` của CVA) để tuân thủ `verbatimModuleSyntax`.
--   **Frontend Aliases**: Một số trường dữ liệu có thể có Alias ở Frontend để tương thích ngược (Ví dụ: `Client` có `contacts` là alias của `clientContacts`).
+- Định nghĩa Interface dùng chung trong `src/types/`.
+- Nếu Interface chỉ dùng nội bộ cho một component, có thể định nghĩa ngay đầu file component đó.
+- Ưu tiên dùng `interface` hơn `type` để định nghĩa Object.
+- Đảm bảo các type như `Client`, `Order`, `Quote` phải đồng bộ với cấu trúc trả về từ API.
+- **Tham chiếu**: Khi lưu thông tin tham chiếu đơn giản (như người phụ trách), ưu tiên dùng cặp `xxxId` (FK) và `xxxName` (Text) thay vì lưu JSONB object phức tạp, trừ khi cần snapshot lịch sử.
+- **Compatibility**: Sử dụng `import type` cho các loại dữ liệu chỉ dùng để checking (như `VariantProps` của CVA) để tuân thủ `verbatimModuleSyntax`.
+- **Frontend Aliases**: Một số trường dữ liệu có thể có Alias ở Frontend để tương thích ngược (Ví dụ: `Client` có `contacts` là alias của `clientContacts`).
 
 ### E. Cấu hình Build & Compatibility
 
--   **Manual Chunks**: Cấu hình Vite (`vite.config.ts`) chia nhỏ chunk cho các thư viện nặng như `tinymce` để tránh lỗi tải và tối ưu hiệu suất.
--   **Peer Dependencies**: Khi cài đặt các thư viện cũ hoặc có xung đột (như `tinymce` hoặc `react-resizable-panels`), sử dụng cờ `--legacy-peer-deps`.
+- **Manual Chunks**: Cấu hình Vite (`vite.config.ts`) chia nhỏ chunk cho các thư viện nặng như `tinymce` để tránh lỗi tải và tối ưu hiệu suất.
+- **Peer Dependencies**: Khi cài đặt các thư viện cũ hoặc có xung đột (như `tinymce` hoặc `react-resizable-panels`), sử dụng cờ `--legacy-peer-deps`.
 
 ### D. Thiết kế Component
 
--   **Functional Components**: Sử dụng cú pháp `export function ComponentName() {}`.
--   **Props**: Định nghĩa Interface Props rõ ràng.
--   **Tính Module hóa**: Chia nhỏ các component lớn. Ví dụ `QuoteCreationPage` nên được chia thành `ClientSection`, `SampleCard`, `PricingSummary`... để dễ bảo trì và tái sử dụng.
+- **Functional Components**: Sử dụng cú pháp `export function ComponentName() {}`.
+- **Props**: Định nghĩa Interface Props rõ ràng.
+- **Tính Module hóa**: Chia nhỏ các component lớn. Ví dụ `QuoteCreationPage` nên được chia thành `ClientSection`, `SampleCard`, `PricingSummary`... để dễ bảo trì và tái sử dụng.
 
 ### F. Tài liệu hóa (Documentation)
 
--   **Convention**: Mỗi module lớn trong `src/components/` phải có một file `0_[MODULE_NAME]_DOCUMENTATION.md` đặt tại thư mục gốc của module đó.
--   **Nội dung**: Phải mô tả Mục đích, Các Component chính, Props, Logic quan trọng.
--   **Cập nhật**: Khi thay đổi tính năng core, phải cập nhật file tài liệu tương ứng.
+- **Convention**: Mỗi module lớn trong `src/components/` phải có một file `0_[MODULE_NAME]_DOCUMENTATION.md` đặt tại thư mục gốc của module đó.
+- **Nội dung**: Phải mô tả Mục đích, Các Component chính, Props, Logic quan trọng.
+- **Cập nhật**: Khi thay đổi tính năng core, phải cập nhật file tài liệu tương ứng.
+
+### G. Quy tắc Nghiệp vụ Kế toán (Accounting Logic)
+
+- **Tối ưu hóa API**:
+    - Khi cập nhật thông tin thành toán (AccountingDetailModal), CHỈ gửi các trường có thay đổi (dirty fields) lên API `updateOrder`.
+    - Tránh gửi toàn bộ object order để giảm payload và tránh ghi đè dữ liệu concurrent.
+- **Xử lý ngày tháng**:
+    - Input: Hiển thị định dạng `DD-MM-YYYY` hoặc `DD/MM/YYYY`.
+    - API: Luôn convert về định dạng ISO 8601 UTC (`YYYY-MM-DDTHH:mm:ss.sssZ`) trước khi gửi.
+    - Xử lý lỗi: Nếu ngày không hợp lệ, giữ nguyên input hoặc báo lỗi, không gửi `Invalid Date` lên server.
+- **Xử lý số tiền**:
+    - Nếu người dùng xóa trống hoặc nhập 0 cho `totalPaid`, gửi `null` lên API để reset trạng thái.
+    - Luôn validate số tiền là số dương.
 
 ### G. Truy cập Công khai (Public Form Access)
 
--   **Cơ chế**: Sử dụng `orderUri` (một token ngẫu nhiên được sinh cho mỗi Đơn hàng) để cho phép khách hàng truy cập trực tiếp vào `/form/request-sample` mà không cần đăng nhập Account Partner.
--   **Luồng hoạt động**:
+- **Cơ chế**: Sử dụng `orderUri` (một token ngẫu nhiên được sinh cho mỗi Đơn hàng) để cho phép khách hàng truy cập trực tiếp vào `/form/request-sample` mà không cần đăng nhập Account Partner.
+- **Luồng hoạt động**:
     1. Partner (Nhân viên) bấm "Tạo Link" trong Preview.
     2. Một link định dạng `.../form/request-sample?orderId=...&uri=...` được sinh ra.
     3. Khách hàng mở link, điền form TinyMCE và bấm "Lưu".
     4. Dữ liệu được lưu vào cột `requestForm` của bảng `orders`.
--   **Xác thực**: Token `uri` phải match với `orderUri` trong DB để được phép đọc/ghi dữ liệu đơn hàng đó.
+- **Xác thực**: Token `uri` phải match với `orderUri` trong DB để được phép đọc/ghi dữ liệu đơn hàng đó.
 
 ## 4. Quy trình Git & Công việc (Git & Workflow)
 
 1.  **Kiểm tra**: Luôn đảm bảo `npm run dev` chạy không lỗi trước khi commit.
 2.  **Linting**: Sửa các cảnh báo ESLint (biến không sử dụng, sai kiểu dữ liệu...) trước khi đẩy code.
 3.  **Đặt tên (Naming Convention)**:
-    -   File/Component: PascalCase (VD: `OrdersListPage.tsx`, `SampleCard.tsx`).
-    -   Biến/Hàm: camelCase (VD: `handleExport`, `isModalOpen`, `fetchData`).
-    -   Hằng số: UPPER_SNAKE_CASE (VD: `DEFAULT_PAGE_SIZE`, `API_BASE_URL`).
+    - File/Component: PascalCase (VD: `OrdersListPage.tsx`, `SampleCard.tsx`).
+    - Biến/Hàm: camelCase (VD: `handleExport`, `isModalOpen`, `fetchData`).
+    - Hằng số: UPPER_SNAKE_CASE (VD: `DEFAULT_PAGE_SIZE`, `API_BASE_URL`).
 
 ## 5. Tiêu chuẩn API (API Standards)
 
@@ -152,27 +165,27 @@ Tất cả các API phải trả về JSON theo cấu trúc chuẩn:
 
 Endpoint phải tuân theo mẫu: `/v1/<Thực thể>/<Hành động>/<Bổ sung>`
 
--   **Thực thể (Entity)**: `client`, `order`, `sample`, `auth`... (Số ít, chữ thường).
--   **Hành động (Action)**: `get`, `create`, `edit`, `delete`.
--   **Bổ sung**: `list`, `detail` (cho hành động get), hoặc để trống.
+- **Thực thể (Entity)**: `client`, `order`, `sample`, `auth`... (Số ít, chữ thường).
+- **Hành động (Action)**: `get`, `create`, `edit`, `delete`.
+- **Bổ sung**: `list`, `detail` (cho hành động get), hoặc để trống.
 
 Ví dụ:
 
--   `GET /v1/client/get/list`
--   `POST /v1/client/create`
--   `GET /v1/client/get/detail`
+- `GET /v1/client/get/list`
+- `POST /v1/client/create`
+- `GET /v1/client/get/detail`
 
 ### C. Chữ ký hàm & Triển khai (Function Signatures)
 
--   Tất cả các hàm gọi API trong `src/api` chỉ nhận một tham số là object cấu hình:
+- Tất cả các hàm gọi API trong `src/api` chỉ nhận một tham số là object cấu hình:
     ```typescript
     export const tenHamApi = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => { ... }
     ```
--   **KHÔNG** truyền tham số rời rạc (như `id`) vào chữ ký hàm. ID phải được đặt trong `query` (nếu GET) hoặc `body` (nếu POST).
--   **Phương thức HTTP**:
-    -   `GET`: Lấy dữ liệu (List, Detail).
-    -   `POST`: Tạo mới, Cập nhật, Xóa (Mọi thay đổi trạng thái đều dùng POST).
--   **Xác thực (Authentication)**:
-    -   Sử dụng `/v1/auth/login` để lấy `token` và `sessionId`.
-    -   Gọi `/v1/auth/check-status` khi ứng dụng khởi động để đồng bộ thông tin định danh (`identityId`, `identityName`) và kiểm tra hiệu lực session.
-    -   `sessionId` được lưu trong `localStorage` để duy trì phiên làm việc.
+- **KHÔNG** truyền tham số rời rạc (như `id`) vào chữ ký hàm. ID phải được đặt trong `query` (nếu GET) hoặc `body` (nếu POST).
+- **Phương thức HTTP**:
+    - `GET`: Lấy dữ liệu (List, Detail).
+    - `POST`: Tạo mới, Cập nhật, Xóa (Mọi thay đổi trạng thái đều dùng POST).
+- **Xác thực (Authentication)**:
+    - Sử dụng `/v1/auth/login` để lấy `token` và `sessionId`.
+    - Gọi `/v1/auth/check-status` khi ứng dụng khởi động để đồng bộ thông tin định danh (`identityId`, `identityName`) và kiểm tra hiệu lực session.
+    - `sessionId` được lưu trong `localStorage` để duy trì phiên làm việc.

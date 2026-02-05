@@ -17,22 +17,33 @@ export function AccountingDetailModal({ order, open, onClose, onRefresh }: Accou
     const { t } = useTranslation();
     const [orderStatus, setOrderStatus] = useState<string>("");
     const [paymentStatus, setPaymentStatus] = useState<string>("");
-    const [totalPaid, setTotalPaid] = useState<number>(0);
+    const [totalPaid, setTotalPaid] = useState<string>("");
+    const [paymentDate, setPaymentDate] = useState<string>("");
     const [invoiceNumbers, setInvoiceNumbers] = useState<string[]>([]);
+    const [orderNote, setOrderNote] = useState<string>("");
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleNumberKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-            e.preventDefault();
-        }
+    // Currency formatting helpers
+    const formatCurrencyDisplay = (value: string) => {
+        if (!value) return "";
+        const numericValue = value.replace(/[^0-9]/g, "");
+        if (!numericValue) return "";
+        return parseInt(numericValue).toLocaleString("vi-VN");
+    };
+
+    const handleCurrencyInput = (value: string) => {
+        const numericValue = value.replace(/[^0-9]/g, "");
+        setTotalPaid(numericValue);
     };
 
     useEffect(() => {
         if (order) {
             setOrderStatus(order.orderStatus);
             setPaymentStatus(order.paymentStatus);
-            setTotalPaid(order.totalPaid || 0);
+            setTotalPaid(order.totalPaid?.toString() || "");
+            setPaymentDate(order.paymentDate ? new Date(order.paymentDate).toISOString().split("T")[0] : "");
             setInvoiceNumbers(order.invoiceNumbers || []);
+            setOrderNote(order.orderNote || "");
         }
     }, [order]);
 
@@ -40,15 +51,55 @@ export function AccountingDetailModal({ order, open, onClose, onRefresh }: Accou
         if (!order) return;
         setIsLoading(true);
         try {
-            const response = await updateOrder({
-                body: {
-                    id: order.orderId,
-                    orderStatus,
-                    paymentStatus,
-                    totalPaid,
-                    invoiceNumbers,
-                },
-            });
+            // Only include fields that have changed
+            const updateBody: any = { orderId: order.orderId };
+
+            // Check paymentStatus change
+            if (paymentStatus !== order.paymentStatus) {
+                updateBody.paymentStatus = paymentStatus;
+            }
+
+            // Check totalPaid change - send null if 0 or empty
+            const newTotalPaid = totalPaid ? parseFloat(totalPaid) : 0;
+            const originalTotalPaid = order.totalPaid || 0;
+            if (newTotalPaid !== originalTotalPaid) {
+                // If new value is 0, send null to clear it
+                updateBody.totalPaid = newTotalPaid === 0 ? null : newTotalPaid;
+            }
+
+            // Check paymentDate change
+            const currentPaymentDate = order.paymentDate ? new Date(order.paymentDate).toISOString().split("T")[0] : "";
+            if (paymentDate !== currentPaymentDate) {
+                // If paymentDate is empty, send null (or handle as needed, assuming clear date)
+                // If it has value, send as ISO string or just the date string depending on backend expectation.
+                // Usually for timestamp, we might want to append time or just send the date string if DB casts it.
+                // Let's send as ISO string with 00:00:00 time if strictly needed, or just the date string.
+                // Based on "convert to correct timestamp format" request, let's assume valid ISO timestamp.
+                updateBody.paymentDate = paymentDate ? new Date(paymentDate).toISOString() : null;
+            }
+
+            // Check invoiceNumbers change
+            const currentInvoices = order.invoiceNumbers || [];
+            if (JSON.stringify(invoiceNumbers) !== JSON.stringify(currentInvoices)) {
+                updateBody.invoiceNumbers = invoiceNumbers;
+            }
+
+            // Check orderNote change
+            const trimmedNote = orderNote.trim();
+            const noteToSave = trimmedNote === "" ? null : trimmedNote;
+            if (noteToSave !== (order.orderNote || null)) {
+                updateBody.orderNote = noteToSave;
+            }
+
+            // Only call API if there are changes
+            if (Object.keys(updateBody).length === 1) {
+                // Only has 'orderId', no changes
+                toast.info(t("common.noChanges") || "Không có thay đổi");
+                setIsLoading(false);
+                return;
+            }
+
+            const response = await updateOrder({ body: updateBody });
 
             if (response.success) {
                 toast.success(t("common.saveSuccess") || "Saved successfully");
@@ -185,12 +236,7 @@ export function AccountingDetailModal({ order, open, onClose, onRefresh }: Accou
                     <div className="grid grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-2">{t("order.status")}</label>
-                            <select className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground" value={orderStatus} onChange={(e) => setOrderStatus(e.target.value)}>
-                                <option value="Pending">{t("order.statuses.pending")}</option>
-                                <option value="Processing">{t("order.statuses.processing")}</option>
-                                <option value="Completed">{t("order.statuses.completed")}</option>
-                                <option value="Cancelled">{t("order.statuses.cancelled")}</option>
-                            </select>
+                            <div className="w-full px-3 py-2 border border-border rounded-lg bg-muted/50 text-foreground">{t(`order.statuses.${orderStatus.toLowerCase()}` as any) || orderStatus}</div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-2">{t("order.paymentStatus")}</label>
@@ -220,20 +266,42 @@ export function AccountingDetailModal({ order, open, onClose, onRefresh }: Accou
                         </div>
                     </div>
 
-                    {/* Total Paid Section */}
-                    <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">{t("accounting.totalPaid") || "Total Paid"}</label>
-                        <div className="relative">
-                            <input
-                                type="number"
-                                className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                value={totalPaid}
-                                onChange={(e) => setTotalPaid(parseFloat(e.target.value) || 0)}
-                                onKeyDown={handleNumberKeyDown}
-                                onWheel={(e) => e.currentTarget.blur()}
-                            />
-                            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-muted-foreground text-sm">VND</div>
+                    {/* Total Paid & Payment Date */}
+                    <div className="grid grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-foreground mb-2">{t("accounting.totalPaid") || "Total Paid"}</label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground text-right pr-14"
+                                    value={formatCurrencyDisplay(totalPaid)}
+                                    onChange={(e) => handleCurrencyInput(e.target.value)}
+                                    placeholder="0"
+                                />
+                                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-muted-foreground text-sm">VND</div>
+                            </div>
                         </div>
+                        <div>
+                            <label className="block text-sm font-medium text-foreground mb-2">{t("accounting.paymentDate") || "Ngày thanh toán"}</label>
+                            <input
+                                type="date"
+                                className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground"
+                                value={paymentDate}
+                                onChange={(e) => setPaymentDate(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Order Note Section */}
+                    <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">{t("order.note") || "Ghi chú"}</label>
+                        <textarea
+                            className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground resize-none"
+                            rows={3}
+                            value={orderNote}
+                            onChange={(e) => setOrderNote(e.target.value)}
+                            placeholder={t("order.notePlaceholder") || "Nhập ghi chú..."}
+                        />
                     </div>
                 </div>
 

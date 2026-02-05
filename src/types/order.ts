@@ -28,8 +28,10 @@ export interface Order {
 
     receiptId?: string; // Lab Receipt FK
     totalPaid?: number; // Total Paid Amount
+    paymentDate?: string; // Payment Date
     invoiceNumbers?: string[]; // List of issued invoices
     requestDate?: string; // Information regarding request date
+    orderNote?: string; // Order Note
 
     transactions?: any[]; // jsonb[]
     contactPerson?: {

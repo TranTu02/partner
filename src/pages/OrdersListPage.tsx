@@ -15,6 +15,7 @@ import { SampleRequestFormPage } from "./SampleRequestFormPage";
 import { OrderPrintPreviewModal } from "@/components/order/OrderPrintPreviewModal";
 import { SampleRequestPrintPreviewModal } from "@/components/order/SampleRequestPrintPreviewModal";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
+import { OrderTable } from "@/components/order/OrderTable";
 
 interface OrdersListPageProps {
     activeMenu: string;
@@ -33,6 +34,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [localFilters, setLocalFilters] = useState<any>({});
 
     // Print State
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -75,6 +77,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                 search: searchQuery || undefined,
                 page: currentPage,
                 itemsPerPage,
+                ...localFilters,
             };
             const response = await getOrders({ query });
             if (response.success && response.data) {
@@ -94,7 +97,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
         } finally {
             setIsLoading(false);
         }
-    }, [searchQuery, currentPage, itemsPerPage]);
+    }, [searchQuery, currentPage, itemsPerPage, localFilters]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -422,124 +425,30 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
 
                 {/* Orders List */}
                 <div className="bg-card rounded-lg border border-border overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-muted border-b border-border">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.code")}</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.client")}</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.salePerson")}</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.total")}</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.createdDate")}</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.status")}</th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.paymentStatus")}</th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("common.actions")}</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
-                                {isLoading ? (
-                                    <tr>
-                                        <td colSpan={8} className="px-6 py-4 text-center text-sm text-muted-foreground">
-                                            {t("common.loading")}
-                                        </td>
-                                    </tr>
-                                ) : orders.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={8} className="px-6 py-4 text-center text-sm text-muted-foreground">
-                                            {t("common.noData")}
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    orders.map((order) => (
-                                        <tr key={order.orderId} className="hover:bg-muted/50 transition-colors">
-                                            <td className="px-6 py-4 text-sm font-medium text-primary cursor-pointer align-top" onClick={() => handleViewDetail(order)}>
-                                                {order.orderId}
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-foreground align-top">
-                                                <div className="font-medium text-primary cursor-pointer hover:underline" onClick={() => navigate(`/clients`)}>
-                                                    {order.client?.clientName || "Unknown Client"}
-                                                </div>
-                                                <div className="text-xs text-muted-foreground mt-0.5">{order.contactPerson?.contactName || "N/A"}</div>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-foreground align-top">{order.salePerson || "-"}</td>
-                                            <td className="px-6 py-4 text-right text-sm font-medium text-foreground align-top">{(order.totalAmount || 0).toLocaleString("vi-VN")} đ</td>
-                                            <td className="px-6 py-4 text-sm text-muted-foreground align-top">{order.createdAt ? new Date(order.createdAt).toLocaleDateString("vi-VN") : "N/A"}</td>
-                                            <td className="px-6 py-4 align-top">
-                                                <span
-                                                    className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                                                        (statusConfig as any)[order.orderStatus]?.color || "bg-gray-100 text-gray-800"
-                                                    }`}
-                                                >
-                                                    {(statusConfig as any)[order.orderStatus]?.label || order.orderStatus}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 align-top text-center">
-                                                <span
-                                                    className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                                                        order.paymentStatus === "Paid"
-                                                            ? "bg-success/10 text-success"
-                                                            : order.paymentStatus === "Debt"
-                                                              ? "bg-destructive/10 text-destructive"
-                                                              : order.paymentStatus === "Partial"
-                                                                ? "bg-warning/10 text-warning"
-                                                                : "bg-gray-100 text-gray-800"
-                                                    }`}
-                                                >
-                                                    {t(`order.paymentStatuses.${(order.paymentStatus || "awaiting").toLowerCase()}`)}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 align-top">
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <button
-                                                        onClick={() => handleViewDetail(order)}
-                                                        className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors"
-                                                        title={t("common.view")}
-                                                    >
-                                                        <Eye className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleEdit(order)}
-                                                        className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors"
-                                                        title={t("common.edit")}
-                                                    >
-                                                        <Pencil className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDuplicate(order)}
-                                                        className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors"
-                                                        title={t("common.duplicate")}
-                                                    >
-                                                        <Copy className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handlePrint(order)}
-                                                        className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors"
-                                                        title={t("order.downloadReport")}
-                                                    >
-                                                        <FileDown className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {!isLoading && orders.length > 0 && (
-                        <Pagination
-                            currentPage={currentPage}
-                            totalPages={totalPages}
-                            totalItems={totalItems}
-                            itemsPerPage={itemsPerPage}
-                            onPageChange={(page) => setCurrentPage(page)}
-                            onItemsPerPageChange={(items) => {
-                                setItemsPerPage(items);
-                                setCurrentPage(1);
-                            }}
-                        />
-                    )}
+                    <OrderTable
+                        orders={orders}
+                        loading={isLoading}
+                        pagination={{
+                            page: currentPage,
+                            itemsPerPage,
+                            totalItems,
+                            totalPages,
+                        }}
+                        onPageChange={setCurrentPage}
+                        onItemsPerPageChange={(items) => {
+                            setItemsPerPage(items);
+                            setCurrentPage(1);
+                        }}
+                        onViewDetail={handleViewDetail}
+                        onEdit={handleEdit}
+                        onDuplicate={handleDuplicate}
+                        onPrint={handlePrint}
+                        onPrintSampleRequest={handleSampleRequestPrint as any}
+                        onFilterChange={(filters) => {
+                            setLocalFilters(filters);
+                            setCurrentPage(1);
+                        }}
+                    />
                 </div>
             </div>
             {printData && <OrderPrintPreviewModal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} data={printData} />}

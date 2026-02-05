@@ -4,81 +4,90 @@
 
 Hệ thống phân quyền dựa trên vai trò của người dùng:
 
--   **Admin (Quản trị viên)**: Có toàn quyền truy cập hệ thống, quản lý cấu hình, người dùng và danh mục dùng chung.
--   **Client (Khách hàng)**: Có thể xem lịch sử đơn hàng, báo giá của chính mình và tạo yêu cầu kiểm nghiệm mới.
--   **Collaborator (Cộng tác viên - CTV)**:
-    -   Quản lý danh sách khách hàng riêng (Private scope).
-    -   Tạo và theo dõi đơn hàng cho các khách hàng được phân công.
--   **Sales (Nhân viên Kinh doanh)**: Quản lý báo giá, đơn hàng và danh sách khách hàng chung (Public scope).
--   **Accountant (Kế toán)**: Xem thông tin công nợ, quản lý trạng thái thanh toán của các đơn hàng (Chưa thanh toán/Đã thanh toán).
--   **CustomerService (Chăm sóc khách hàng)**: Xem toàn bộ khách hàng, hỗ trợ giải đáp thắc mắc (Ticket).
--   **Guest (Khách vãng lai)**: Quyền hạn chế, chỉ xem được danh mục chỉ tiêu công khai (Public catalog).
+- **Admin (Quản trị viên)**: Có toàn quyền truy cập hệ thống, quản lý cấu hình, người dùng và danh mục dùng chung.
+- **Client (Khách hàng)**: Có thể xem lịch sử đơn hàng, báo giá của chính mình và tạo yêu cầu kiểm nghiệm mới.
+- **Collaborator (Cộng tác viên - CTV)**:
+    - Quản lý danh sách khách hàng riêng (Private scope).
+    - Tạo và theo dõi đơn hàng cho các khách hàng được phân công.
+- **Sales (Nhân viên Kinh doanh)**: Quản lý báo giá, đơn hàng và danh sách khách hàng chung (Public scope).
+- **Accountant (Kế toán)**: Xem thông tin công nợ, quản lý trạng thái thanh toán của các đơn hàng (Chưa thanh toán/Đã thanh toán).
+- **CustomerService (Chăm sóc khách hàng)**: Xem toàn bộ khách hàng, hỗ trợ giải đáp thắc mắc (Ticket).
+- **Guest (Khách vãng lai)**: Quyền hạn chế, chỉ xem được danh mục chỉ tiêu công khai (Public catalog).
 
 ## 2. Các Module Chính (Core Modules)
 
 ### A. Bảng điều khiển (`DashboardPage`)
 
--   **Tổng quan**: Cung cấp cái nhìn nhanh về tình hình hoạt động kinh doanh.
--   **Chỉ số chính (KPIs)**: Tổng số yêu cầu, Đơn hàng hoàn thành, Đơn hàng đang xử lý, Doanh thu ước tính.
--   **Biểu đồ & Hiển thị**:
-    -   _StatCards_: Thẻ số liệu với chỉ báo xu hướng tăng/giảm.
-    -   _ActivityItem_: Nhật ký hoạt động gần đây (VD: "Đơn hàng #123 vừa được tạo").
-    -   _ParameterBar_: Biểu đồ thể hiện các chỉ tiêu được yêu cầu nhiều nhất.
--   **Tính năng**: Bộ lọc thời gian (Ngày/Tuần/Tháng) để xem dữ liệu lịch sử.
+- **Tổng quan**: Cung cấp cái nhìn nhanh về tình hình hoạt động kinh doanh.
+- **Chỉ số chính (KPIs)**: Tổng số yêu cầu, Đơn hàng hoàn thành, Đơn hàng đang xử lý, Doanh thu ước tính.
+- **Biểu đồ & Hiển thị**:
+    - _StatCards_: Thẻ số liệu với chỉ báo xu hướng tăng/giảm.
+    - _ActivityItem_: Nhật ký hoạt động gần đây (VD: "Đơn hàng #123 vừa được tạo").
+    - _ParameterBar_: Biểu đồ thể hiện các chỉ tiêu được yêu cầu nhiều nhất.
+- **Tính năng**: Bộ lọc thời gian (Ngày/Tuần/Tháng) để xem dữ liệu lịch sử.
 
 ### B. Quản lý Đơn hàng (`OrdersListPage`, `OrderEditor`)
 
--   **Quy trình nghiệp vụ**: Tạo Đơn hàng mới -> Chọn Khách hàng -> Thêm Mẫu -> Chọn Chỉ tiêu phân tích (trên từng mẫu) -> Lưu/In phiếu.
--   **Cấu trúc dữ liệu**: Đơn hàng (Order) chứa nhiều Mẫu (Sample), mỗi Mẫu chứa nhiều Chỉ tiêu (Analysis) lấy từ Ma trận giá (Matrix).
--   **Tính năng chi tiết**:
-    -   **Form động**: Cho phép thêm nhiều mẫu cùng lúc, nhân bản mẫu (Duplicate) để nhập liệu nhanh.
-    -   **Chọn chỉ tiêu**: Modal tìm kiếm chỉ tiêu (`AnalysisModalNew`) hỗ trợ chọn đơn lẻ hoặc chọn theo gói (nếu có).
-    -   **Thông tin hóa đơn**: Nút "Copy Basic Info" cho phép tự động điền thông tin xuất hóa đơn từ thông tin cơ bản của khách hàng.
-    -   **Tính giá**: Hệ thống tự động tính Thành tiền = Đơn giá x Số lượng + Thuế (VAT) - Chiết khấu.
-    -   **In ấn**:
-        -   Tạo file PDF "Phiếu yêu cầu thử nghiệm" khổ A4.
-        -   **Tính năng nâng cao**: Tự động đọc số tiền bằng chữ (Việt/Anh), hiển thị thông tin chuyển khoản và ghi chú miễn trừ trách nhiệm (Disclaimer) theo ngôn ngữ.
-        -   Chữ ký: Rút gọn chỉ hiển thị "Xác nhận của khách hàng".
--   **Chế độ Xem/Sửa (View/Edit Mode)**:
-    -   Mặc định khi mở đơn hàng cũ là **View Mode** (Chỉ xem) để tránh sai sót.
-    -   Nút "Edit" chuyển sang **Edit Mode** để chỉnh sửa.
-    -   Hệ thống cảnh báo nếu có thay đổi chưa lưu khi thoát.
--   **Luồng trạng thái**: Chờ xử lý (Pending) -> Đã duyệt (Approved) -> Đang kiểm nghiệm (In Progress) -> Hoàn thành (Completed).
+- **Quy trình nghiệp vụ**: Tạo Đơn hàng mới -> Chọn Khách hàng -> Thêm Mẫu -> Chọn Chỉ tiêu phân tích (trên từng mẫu) -> Lưu/In phiếu.
+- **Cấu trúc dữ liệu**: Đơn hàng (Order) chứa nhiều Mẫu (Sample), mỗi Mẫu chứa nhiều Chỉ tiêu (Analysis) lấy từ Ma trận giá (Matrix).
+- **Tính năng chi tiết**:
+    - **Form động**: Cho phép thêm nhiều mẫu cùng lúc, nhân bản mẫu (Duplicate) để nhập liệu nhanh.
+    - **Chọn chỉ tiêu**: Modal tìm kiếm chỉ tiêu (`AnalysisModalNew`) hỗ trợ chọn đơn lẻ hoặc chọn theo gói (nếu có).
+    - **Thông tin hóa đơn**: Nút "Copy Basic Info" cho phép tự động điền thông tin xuất hóa đơn từ thông tin cơ bản của khách hàng.
+    - **Tính giá**: Hệ thống tự động tính Thành tiền = Đơn giá x Số lượng + Thuế (VAT) - Chiết khấu.
+    - **In ấn**:
+        - Tạo file PDF "Phiếu yêu cầu thử nghiệm" khổ A4.
+        - **Tính năng nâng cao**: Tự động đọc số tiền bằng chữ (Việt/Anh), hiển thị thông tin chuyển khoản và ghi chú miễn trừ trách nhiệm (Disclaimer) theo ngôn ngữ.
+        - Chữ ký: Rút gọn chỉ hiển thị "Xác nhận của khách hàng".
+- **Chế độ Xem/Sửa (View/Edit Mode)**:
+    - Mặc định khi mở đơn hàng cũ là **View Mode** (Chỉ xem) để tránh sai sót.
+    - Nút "Edit" chuyển sang **Edit Mode** để chỉnh sửa.
+    - Hệ thống cảnh báo nếu có thay đổi chưa lưu khi thoát.
+- **Luồng trạng thái**: Chờ xử lý (Pending) -> Đã duyệt (Approved) -> Đang kiểm nghiệm (In Progress) -> Hoàn thành (Completed).
 
 ### C. Quản lý Báo giá (`QuotesListPage`, `QuoteEditor`)
 
--   **Quy trình**: Tương tự như Đơn hàng nhưng dùng cho giai đoạn trước bán hàng (chào giá).
--   **Tính năng**:
-    -   Tạo và chỉnh sửa Báo giá.
-    -   **Xuất PDF**: Tạo file Báo giá chuyên nghiệp (`QuotePrintPreviewModal`) với đầy đủ tính năng đọc số tiền bằng chữ và thông tin thanh toán tương tự Đơn hàng.
-    -   **Chuyển đổi**: Tạo Đơn hàng trực tiếp từ Báo giá ("Create Order") giữ nguyên thông tin khách hàng và chỉ tiêu.
-    -   **Chiết khấu/Hoa hồng**: Hỗ trợ nhập % chiết khấu thương mại hoặc hoa hồng môi giới.
+- **Quy trình**: Tương tự như Đơn hàng nhưng dùng cho giai đoạn trước bán hàng (chào giá).
+- **Tính năng**:
+    - Tạo và chỉnh sửa Báo giá.
+    - **Xuất PDF**: Tạo file Báo giá chuyên nghiệp (`QuotePrintPreviewModal`) với đầy đủ tính năng đọc số tiền bằng chữ và thông tin thanh toán tương tự Đơn hàng.
+    - **Chuyển đổi**: Tạo Đơn hàng trực tiếp từ Báo giá ("Create Order") giữ nguyên thông tin khách hàng và chỉ tiêu.
+    - **Chiết khấu/Hoa hồng**: Hỗ trợ nhập % chiết khấu thương mại hoặc hoa hồng môi giới.
 
 ### D. Quản lý Khách hàng (`ClientsPage`)
 
--   **Phân loại khách hàng**:
-    -   _Public (Công khai)_: Khách hàng thuộc sở hữu chung của công ty, Sale/CSKH đều thấy.
-    -   _Private (Riêng tư)_: Khách hàng do CTV tự kiếm, chỉ CTV đó và Admin thấy.
--   **Thông tin lưu trữ**: Tên doanh nghiệp/Cá nhân, Mã số thuế, Địa chỉ, Danh sách người liên hệ, Thông tin xuất hóa đơn, Nhân viên Sale phụ trách.
--   **Thống kê**: Hiển thị tổng doanh số và số lượng đơn hàng tích lũy ngay trên danh sách.
+- **Phân loại khách hàng**:
+    - _Public (Công khai)_: Khách hàng thuộc sở hữu chung của công ty, Sale/CSKH đều thấy.
+    - _Private (Riêng tư)_: Khách hàng do CTV tự kiếm, chỉ CTV đó và Admin thấy.
+- **Thông tin lưu trữ**: Tên doanh nghiệp/Cá nhân, Mã số thuế, Địa chỉ, Danh sách người liên hệ, Thông tin xuất hóa đơn, Nhân viên Sale phụ trách.
+- **Thống kê**: Hiển thị tổng doanh số và số lượng đơn hàng tích lũy ngay trên danh sách.
 
 ### E. Danh mục Chỉ tiêu & Giá (`ParametersPage`)
 
--   **Dữ liệu**: Danh sách các chỉ tiêu kiểm nghiệm (VD: pH, COD, BOD5, Salmonella...).
--   **Ma trận cấu hình (Matrix)**: Một chỉ tiêu có thể có nhiều mức giá và phương pháp khác nhau tùy thuộc vào Nền mẫu (Nước, Đất, Thực phẩm).
--   **Thông tin hiển thị**: Phương pháp thử (Protocol), Đơn giá chưa thuế, Lĩnh vực (Hóa/Lý/Vi sinh), Thời gian trả kết quả (TAT).
+- **Dữ liệu**: Danh sách các chỉ tiêu kiểm nghiệm (VD: pH, COD, BOD5, Salmonella...).
+- **Ma trận cấu hình (Matrix)**: Một chỉ tiêu có thể có nhiều mức giá và phương pháp khác nhau tùy thuộc vào Nền mẫu (Nước, Đất, Thực phẩm).
+- **Thông tin hiển thị**: Phương pháp thử (Protocol), Đơn giá chưa thuế, Lĩnh vực (Hóa/Lý/Vi sinh), Thời gian trả kết quả (TAT).
 
 ### F. Kế toán & Công nợ (`AccountingPage`)
 
--   **Mục tiêu**: Theo dõi dòng tiền và tình trạng thanh toán của các đơn hàng.
--   **Trang thái**:
-    -   _Đơn hàng_: Chờ xử lý, Đang xử lý, Hoàn thành, Hủy.
-    -   _Thanh toán_: Chưa thanh toán (Unpaid), Thanh toán 1 phần (Partially Paid), Đã thanh toán (Paid), Công nợ (Debt).
--   **Tính năng chính**:
-    -   **Danh sách**: Hiển thị đơn hàng với trạng thái, mã số thuế, và người tạo.
-    -   **Chi tiết & Cập nhật**: Modal chi tiết (`AccountingDetailModal`) cho phép xem thông tin đơn hàng, khách hàng (read-only) và cập nhật trạng thái đơn hàng.
-    -   **Lịch sử giao dịch**: Ghi lại chi tiết các lần thanh toán (Ngày, Số tiền, Phương thức, Ghi chú) trong Detail Modal.
-    -   **Xuất hóa đơn**: Tính năng tạo hóa đơn từ đơn hàng đã chọn.
+- **Mục tiêu**: Theo dõi dòng tiền, tình trạng thanh toán và xuất hóa đơn.
+- **Dashboard & KPIs**:
+    - **Thẻ thống kê**: 3 chỉ số chính (Chưa xuất hóa đơn, Lệch/Chờ thanh toán, Tổng giá trị lệch).
+    - **Bộ lọc tương tác**: Bấm vào thẻ thống kê để lọc danh sách đơn hàng tương ứng, bấm lần nữa để hủy lọc.
+- **Trang thái & Quy tắc**:
+    - _Chưa xuất hóa đơn (Pending Invoice)_: Đơn đã hoàn thành/đang xử lý, đã thanh toán đủ nhưng chưa có số hóa đơn.
+    - _Lệch/Chờ thanh toán (Payment Problem)_: Đơn có ngày yêu cầu nhưng chưa thanh toán đủ hoặc có chênh lệch.
+    - _Thanh toán_: Hỗ trợ input số tiền (VND), ngày thanh toán và ghi chú.
+- **Tính năng chính**:
+    - **Danh sách**: Hiển thị đơn hàng với trạng thái, mã số thuế, và người tạo. Hỗ trợ icon Ghi chú (Note) trực quan.
+    - **Chi tiết & Cập nhật (`AccountingDetailModal`)**:
+        - Cập nhật trạng thái thanh toán (`paymentStatus`), số tiền đã trả (`totalPaid`), ngày thanh toán (`paymentDate`) và hóa đơn (`invoiceNumbers`).
+        - Logic thông minh: Chỉ gửi các trường có thay đổi lên server, tự động convert ngày tháng chuẩn ISO.
+    - **Cập nhật hàng loạt (`BulkPaymentModal`)**:
+        - Giao diện dạng bảng tính (Spreadsheet).
+        - Cho phép copy-paste trực tiếp từ Excel (Cột: Order ID, Amount, Date).
+        - Tự động xóa dòng thành công, giữ lại dòng lỗi (kèm highlight đỏ) để sửa.
+    - **Xuất hóa đơn**: Tính năng tạo hóa đơn cho danh sách đơn hàng đã chọn.
 
 ## 3. Thực thể Dữ liệu (Data Entities)
 
@@ -86,16 +95,16 @@ Hệ thống phân quyền dựa trên vai trò của người dùng:
 
 Thông tin cấu hình chung của phòng Lab:
 
--   `organizationName`: Tên phòng thí nghiệm.
--   `address`, `taxId`, `email`, `phone`, `website`.
--   **Chi nhánh (Branches)**: Danh sách các địa điểm nhận mẫu.
+- `organizationName`: Tên phòng thí nghiệm.
+- `address`, `taxId`, `email`, `phone`, `website`.
+- **Chi nhánh (Branches)**: Danh sách các địa điểm nhận mẫu.
 
 ### Định danh Đơn/Phiếu
 
--   Hệ thống sử dụng **Custom Text ID** để dễ đọc:
-    -   Đơn hàng: `ORD-YYYYMMDD-XX` (VD: `ORD-20240101-01`).
-    -   Báo giá: `QT-YYYYMMDD-XX` (VD: `QT-20240101-01`).
-    -   Khách hàng: `CLI-XXXX` (VD: `CLI-0001`).
+- Hệ thống sử dụng **Custom Text ID** để dễ đọc:
+    - Đơn hàng: `ORD-YYYYMMDD-XX` (VD: `ORD-20240101-01`).
+    - Báo giá: `QT-YYYYMMDD-XX` (VD: `QT-20240101-01`).
+    - Khách hàng: `CLI-XXXX` (VD: `CLI-0001`).
 
 ## 4. Quy trình Workflows Quan trọng
 
@@ -109,46 +118,46 @@ Thông tin cấu hình chung của phòng Lab:
 6.  Đảm bảo lề trang (margin) chuẩn 1cm và có Header/Footer (Số trang) tự động.
 7.  **Định dạng số**: Tất cả các giá trị tiền tệ trong mẫu in và xem trước phải được làm tròn tối đa 2 chữ số thập phân (`maximumFractionDigits: 2`).
 8.  **Xử lý dữ liệu cũ (Pricing Fallback)**:
-    -   Trong trường hợp đơn hàng cũ thiếu thông tin đơn giá trước thuế (`feeBeforeTax`), hệ thống phải tự động tính ngược từ giá sau thuế (`feeAfterTax`) theo công thức: `feeBeforeTax = feeAfterTax / (1 + taxRate/100)`.
-    -   Điều này đảm bảo hiển thị đúng giá trị khi in ấn hoặc tính toán lại tổng tiền.
+    - Trong trường hợp đơn hàng cũ thiếu thông tin đơn giá trước thuế (`feeBeforeTax`), hệ thống phải tự động tính ngược từ giá sau thuế (`feeAfterTax`) theo công thức: `feeBeforeTax = feeAfterTax / (1 + taxRate/100)`.
+    - Điều này đảm bảo hiển thị đúng giá trị khi in ấn hoặc tính toán lại tổng tiền.
 9.  **Tiện ích văn bản**: Sử dụng module `textUtils` (Pure Logic) để chuyển đổi số thành chữ, đảm bảo hoạt động ổn định trên mọi môi trường (tránh lỗi thư viện bên thứ 3).
 
 ## 5. Tích hợp API (API Integration)
 
 ### A. Tiêu chuẩn
 
--   **Mô hình URL**: `/v1/<Thực thể>/<Hành động>/<Bổ sung>`.
-    -   VD: `/v1/client/get/list`, `/v1/order/create`.
--   **Định dạng**: JSON chuẩn có `success`, `data`, `meta`.
--   **Chữ ký hàm (Frontend)**: Luôn nhận vào một object tham số duy nhất: `({ headers, body, query })`.
+- **Mô hình URL**: `/v1/<Thực thể>/<Hành động>/<Bổ sung>`.
+    - VD: `/v1/client/get/list`, `/v1/order/create`.
+- **Định dạng**: JSON chuẩn có `success`, `data`, `meta`.
+- **Chữ ký hàm (Frontend)**: Luôn nhận vào một object tham số duy nhất: `({ headers, body, query })`.
 
 ### B. Ánh xạ Thực thể Chính
 
--   **Xác thực**: `/v1/auth/login`, `/v1/auth/logout`, `/v1/auth/check-status` (Kiểm tra session).
--   **Khách hàng**:
-    -   Lấy danh sách: `GET /v1/client/get/list`
-    -   Chi tiết: `GET /v1/client/get/detail` (ID trong query)
-    -   Thêm/Sửa/Xóa: `POST /v1/client/create`, `edit`, `delete`.
--   **Đơn hàng**:
-    -   Lấy danh sách: `GET /v1/order/get/list`
-    -   Chi tiết: `GET /v1/order/get/detail`
-    -   Thêm/Sửa/Xóa: `POST /v1/order/create`, `edit`, `delete`.
--   **Mẫu & Chỉ tiêu**: Sử dụng các API `/v1/matrix/...` để lấy thông tin cấu hình và giá.
+- **Xác thực**: `/v1/auth/login`, `/v1/auth/logout`, `/v1/auth/check-status` (Kiểm tra session).
+- **Khách hàng**:
+    - Lấy danh sách: `GET /v1/client/get/list`
+    - Chi tiết: `GET /v1/client/get/detail` (ID trong query)
+    - Thêm/Sửa/Xóa: `POST /v1/client/create`, `edit`, `delete`.
+- **Đơn hàng**:
+    - Lấy danh sách: `GET /v1/order/get/list`
+    - Chi tiết: `GET /v1/order/get/detail`
+    - Thêm/Sửa/Xóa: `POST /v1/order/create`, `edit`, `delete`.
+- **Mẫu & Chỉ tiêu**: Sử dụng các API `/v1/matrix/...` để lấy thông tin cấu hình và giá.
 
 ### C. Quy tắc triển khai
 
--   **Không dùng Path Params trong hàm API**: Tránh định nghĩa hàm dạng `getClient(id)`. Phải dùng `getClient({ query: { id } })`.
--   **Phương thức HTTP**:
-    -   `GET`: Chỉ dùng để lấy dữ liệu (List/Detail).
-    -   `POST`: Dùng cho mọi thay đổi trạng thái dữ liệu (Create, Edit, Delete) để đảm bảo an toàn và nhất quán.
+- **Không dùng Path Params trong hàm API**: Tránh định nghĩa hàm dạng `getClient(id)`. Phải dùng `getClient({ query: { id } })`.
+- **Phương thức HTTP**:
+    - `GET`: Chỉ dùng để lấy dữ liệu (List/Detail).
+    - `POST`: Dùng cho mọi thay đổi trạng thái dữ liệu (Create, Edit, Delete) để đảm bảo an toàn và nhất quán.
 
 ## 6. Ràng buộc UX/UI (UX/UI Constraints)
 
--   **Popups/Modals**: Phải có chiều rộng tối thiểu (`min-w`) để tránh vỡ giao diện khi chưa có dữ liệu.
--   **Thông báo (Notifications)**:
-    -   Dùng Toast message góc màn hình.
-    -   Thời gian hiển thị: **1 giây** (đủ để đọc nhưng không che khuất thao tác).
-    -   Z-index: Phải cao nhất (Max) để nổi trên các modal khác.
--   **Phản hồi người dùng**:
-    -   Nút bấm phải có trạng thái Loading (disabled + spinner) khi đang gọi API.
-    -   Các hành động nguy hiểm (Xóa) phải có hộp thoại xác nhận (Confirm Dialog).
+- **Popups/Modals**: Phải có chiều rộng tối thiểu (`min-w`) để tránh vỡ giao diện khi chưa có dữ liệu.
+- **Thông báo (Notifications)**:
+    - Dùng Toast message góc màn hình.
+    - Thời gian hiển thị: **1 giây** (đủ để đọc nhưng không che khuất thao tác).
+    - Z-index: Phải cao nhất (Max) để nổi trên các modal khác.
+- **Phản hồi người dùng**:
+    - Nút bấm phải có trạng thái Loading (disabled + spinner) khi đang gọi API.
+    - Các hành động nguy hiểm (Xóa) phải có hộp thoại xác nhận (Confirm Dialog).

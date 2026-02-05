@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
-import { Search } from "lucide-react";
+import { Search, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { getOrders, getOrderStats } from "@/api/index";
 import type { Order } from "@/types/order";
+import type { AccountingStats as AccountingStatsType } from "@/types/common";
 import { AccountingStats } from "@/components/accounting/AccountingStats";
 import { AccountingTable } from "@/components/accounting/AccountingTable";
 import { AccountingDetailModal } from "@/components/accounting/AccountingDetailModal";
+import { BulkPaymentModal } from "@/components/accounting/BulkPaymentModal";
 
 interface AccountingPageProps {
     activeMenu: string;
@@ -16,10 +18,11 @@ interface AccountingPageProps {
 export function AccountingPage({ activeMenu, onMenuClick }: AccountingPageProps) {
     const { t } = useTranslation();
     const [orders, setOrders] = useState<Order[]>([]);
-    const [stats, setStats] = useState({ pendingCount: 0, completedCount: 0, totalPendingValue: 0 });
+    const [stats, setStats] = useState<AccountingStatsType>({ waitingExportInvoiceCount: 0, paymentProblemOrderCount: 0, totalPaymentDifferenceAmount: 0 });
     const [searchQuery, setSearchQuery] = useState("");
 
     const [showDetailModal, setShowDetailModal] = useState(false);
+    const [showBulkPaymentModal, setShowBulkPaymentModal] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [loading, setLoading] = useState(false);
 
@@ -50,18 +53,24 @@ export function AccountingPage({ activeMenu, onMenuClick }: AccountingPageProps)
                 search: searchQuery || undefined,
             };
 
-            // Requirement:
-            // - "Chưa xuất hóa đơn" (pending): orderStatus = "Processing"
-            // - "Đã xuất hóa đơn" (completed): orderStatus = "Completed"
-            // - "Tổng giá trị chờ" (totalPending): orderStatus = "Processing" AND paymentStatus = ["Unpaid", "Partial"]
+            // Filter conditions based on stats cards:
+            // - "Chưa xuất hóa đơn" (pending): orderStatus IN ('Processing', 'Completed') AND invoiceNumbers IS NULL AND paymentStatus IN ('Paid', 'Debt')
+            // - "Lệch/Chờ thanh toán" (completed): paymentStatus NOT IN ('Paid', 'Debt') AND requestDate IS NOT NULL
+            // - "Tổng giá trị lệch/chờ" (totalPending): same as "completed" filter
 
             if (filterType === "pending") {
-                // query.orderStatus = "Processing";
+                // Chưa xuất hóa đơn
+                query.orderStatus = ["Processing", "Completed"];
+                query.invoiceNumbers = ["IS NULL"];
+                query.paymentStatus = ["Paid", "Debt"];
             } else if (filterType === "completed") {
-                query.orderStatus = "Completed";
+                // Lệch/Chờ thanh toán
+                query.paymentStatus = ["Unpaid", "Partial", "Variance"];
+                query.requestDate = ["IS NOT NULL"];
             } else if (filterType === "totalPending") {
-                // query.orderStatus = "Processing";
-                query.paymentStatus = ["Unpaid", "Partial"];
+                // Tổng giá trị lệch/chờ (same filter as completed)
+                query.paymentStatus = ["Unpaid", "Partial", "Variance"];
+                query.requestDate = ["IS NOT NULL"];
             }
 
             // Merge table filters (spread them into query)
@@ -116,6 +125,13 @@ export function AccountingPage({ activeMenu, onMenuClick }: AccountingPageProps)
                 <h1 className="text-xl font-bold text-foreground">{t("accounting.management")}</h1>
                 <p className="text-sm text-muted-foreground">{t("accounting.subtitle")}</p>
             </div>
+            <button
+                onClick={() => setShowBulkPaymentModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+            >
+                <Upload className="w-4 h-4" />
+                {t("accounting.bulkPayment.button")}
+            </button>
         </div>
     );
 
@@ -168,6 +184,15 @@ export function AccountingPage({ activeMenu, onMenuClick }: AccountingPageProps)
                     order={selectedOrder}
                     onClose={() => setShowDetailModal(false)}
                     onRefresh={() => {
+                        fetchOrders();
+                        fetchStats();
+                    }}
+                />
+
+                <BulkPaymentModal
+                    open={showBulkPaymentModal}
+                    onClose={() => setShowBulkPaymentModal(false)}
+                    onSuccess={() => {
                         fetchOrders();
                         fetchStats();
                     }}

@@ -41,12 +41,11 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **POST /v1/auth/login**
 
--   **Description**: Login to the system.
--   **Input**:
+- **Description**: Login to the system.
+- **Input**:
+    - Body: `{ "username": "admin", "password": "password" }`
 
-    -   Body: `{ "username": "admin", "password": "password" }`
-
--   **Output**:
+- **Output**:
 
 ```json
 {
@@ -83,10 +82,10 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **POST /v1/auth/logout**
 
--   **Description**: Logout from the system.
--   **Input**: `{}`
+- **Description**: Logout from the system.
+- **Input**: `{}`
 
--   **Output**:
+- **Output**:
 
 ```json
 {
@@ -101,12 +100,11 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **POST /v1/auth/check-status**
 
--   **Description**: Check the status of a session token.
--   **Input**:
+- **Description**: Check the status of a session token.
+- **Input**:
+    - Body: `{ "sessionId": "UUID" }`
 
-    -   Body: `{ "sessionId": "UUID" }`
-
--   **Output**:
+- **Output**:
 
 ```json
 {
@@ -145,10 +143,10 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ```
 
--   **Error Responses**:
-    -   **404**: Session not found or Invalid session ID.
-    -   **403**: Session expired.
-    -   **500**: Session revoked or other internal server errors.
+- **Error Responses**:
+    - **404**: Session not found or Invalid session ID.
+    - **403**: Session expired.
+    - **500**: Session revoked or other internal server errors.
 
 ---
 
@@ -156,10 +154,10 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **GET /v1/client/get/list**
 
--   **Description**: Get a list of clients.
--   **Input**: `page=1&itemsPerPage=10&search=Company`
+- **Description**: Get a list of clients.
+- **Input**: `page=1&itemsPerPage=10&search=Company`
 
--   **Output**:
+- **Output**:
 
 ```json
 {
@@ -195,10 +193,9 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **POST /v1/client/create**
 
--   **Description**: Create a new client.
--   **Input**:
-
-    -   Body:
+- **Description**: Create a new client.
+- **Input**:
+    - Body:
 
         ```json
         {
@@ -209,7 +206,7 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
         }
         ```
 
--   **Output**:
+- **Output**:
 
 ```json
 {
@@ -227,10 +224,10 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **GET /v1/client/get/detail**
 
--   **Description**: Get client details, including related FKs (contacts, etc.).
--   **Input**: `clientId=CLI-2024-001`
+- **Description**: Get client details, including related FKs (contacts, etc.).
+- **Input**: `clientId=CLI-2024-001`
 
--   **Output**:
+- **Output**:
 
 ```json
 {
@@ -258,16 +255,16 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **POST /v1/client/edit**
 
--   **Description**: Update an existing client.
--   **Input**: Body includes `clientId` and fields to update.
--   **Output**: Returns updated client object in `data`.
+- **Description**: Update an existing client.
+- **Input**: Body includes `clientId` and fields to update.
+- **Output**: Returns updated client object in `data`.
 
 ### **POST /v1/client/delete**
 
--   **Description**: Delete a client (Soft delete).
--   **Input**: Body `{ "clientId": "CLI-2024-001" }`
+- **Description**: Delete a client (Soft delete).
+- **Input**: Body `{ "clientId": "CLI-2024-001" }`
 
--   **Output**: `{ "success": true, ... }`
+- **Output**: `{ "success": true, ... }`
 
 ---
 
@@ -275,10 +272,10 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **GET /v1/order/get/list**
 
--   **Description**: Get a list of orders.
--   **Input**: `page=1&itemsPerPage=20&status=Pending`
+- **Description**: Get a list of orders.
+- **Input**: `page=1&itemsPerPage=20&status=Pending`
 
--   **Output**:
+- **Output**:
 
 ```json
 {
@@ -306,10 +303,10 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **GET /v1/order/get/detail**
 
--   **Description**: Get full order details including samples.
--   **Input**: `orderId=ORD-20240101-01`
+- **Description**: Get full order details including samples.
+- **Input**: `orderId=ORD-20240101-01`
 
--   **Output**:
+- **Output**:
 
 ```json
 {
@@ -348,8 +345,8 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **POST /v1/order/create**
 
--   **Description**: Create a new order.
--   **Input**:
+- **Description**: Create a new order.
+- **Input**:
 
     ```json
     {
@@ -375,34 +372,71 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
     }
     ```
 
--   **Output**: Created Order object.
+- **Output**: Created Order object.
 
-### **POST /v1/order/edit**
+### **POST /v1/order/edit** (alias: `/v1/order/update`)
 
--   **Description**: Update order details or save/submit the Sample Request Form.
--   **Input**:
-
-    -   Body:
+- **Description**: Update order details, accounting information, or save/submit the Sample Request Form.
+- **Input**:
+    - Body (all fields optional except `orderId`):
 
     ```json
     {
         "orderId": "ORD-...",
         "orderStatus": "Processing",
+        "paymentStatus": "Paid",
+        "totalPaid": 5000000,
+        "paymentDate": "2024-01-15T00:00:00.000Z",
+        "invoiceNumbers": ["INV-001", "INV-002"],
+        "orderNote": "Payment received via bank transfer",
         "requestForm": "<html>...</html>",
         "orderUri": "SC_..."
     }
     ```
 
-    -   `requestForm`: Optional. HTML content from the editor.
-    -   `orderUri`: Optional. For public access form submission (validates the token).
+    **Field Descriptions**:
 
--   **Output**: Updated Order object.
+    | Field            | Type           | Description                    | Validation                                                |
+    | ---------------- | -------------- | ------------------------------ | --------------------------------------------------------- |
+    | `orderId`        | `string`       | **Required**. Order identifier | Must exist in database                                    |
+    | `orderStatus`    | `string`       | Order status                   | One of: `Pending`, `Processing`, `Completed`, `Cancelled` |
+    | `paymentStatus`  | `string`       | Payment status                 | One of: `Unpaid`, `Partial`, `Paid`, `Debt`, `Variance`   |
+    | `totalPaid`      | `number\|null` | Total amount paid              | If `0`, send `null` to clear value                        |
+    | `paymentDate`    | `string\|null` | Payment date (ISO timestamp)   | ISO 8601 format. If empty, send `null`                    |
+    | `invoiceNumbers` | `string[]`     | Array of invoice numbers       | Updated when invoices are generated                       |
+    | `orderNote`      | `string\|null` | Accounting notes               | Trimmed. If empty after trim, send `null`                 |
+    | `requestForm`    | `string`       | HTML content from editor       | Optional                                                  |
+    | `orderUri`       | `string`       | Public access token            | Optional. For form submission validation                  |
+
+    **Update Behavior**:
+    - Only send fields that have changed
+    - Null values clear the field in database
+    - Empty strings after trim are converted to null
+    - Partial updates supported (send only changed fields)
+
+- **Output**: Updated Order object.
+
+    ```json
+    {
+        "success": true,
+        "statusCode": 200,
+        "data": {
+            "orderId": "ORD-...",
+            "paymentStatus": "Paid",
+            "totalPaid": 5000000,
+            "paymentDate": "2024-01-15T00:00:00.000Z",
+            "orderNote": "Payment received via bank transfer"
+            // ... other order fields
+        },
+        "error": null
+    }
+    ```
 
 ### **POST /v1/order/generate-uri**
 
--   **Description**: Generate a unique access URI for an order (used for public form access).
--   **Input**: Body `{ "orderId": "ORD-..." }`
--   **Output**:
+- **Description**: Generate a unique access URI for an order (used for public form access).
+- **Input**: Body `{ "orderId": "ORD-..." }`
+- **Output**:
     ```json
     {
         "success": true,
@@ -412,9 +446,9 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **POST /v1/order/check-uri**
 
--   **Description**: Validate an order-specific URI and return order data (used for guest form access).
--   **Input**: Body `{ "uri": "SC_...", "orderId": "ORD-..." }`
--   **Output**:
+- **Description**: Validate an order-specific URI and return order data (used for guest form access).
+- **Input**: Body `{ "uri": "SC_...", "orderId": "ORD-..." }`
+- **Output**:
     ```json
     {
         "success": true,
@@ -430,22 +464,28 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **GET /v1/order/stats/accounting**
 
--   **Description**: Get order statistics for accounting (Pending, Paid, Revenue).
--   **Input**: `?` (query params for filtering if needed)
--   **Output**:
+- **Description**: Get order statistics for accounting dashboard.
+- **Input**: `?` (query params for filtering if needed)
+- **Output**:
 
 ```json
 {
     "success": true,
     "statusCode": 200,
     "data": {
-        "pendingCount": 15,
-        "paidCount": 100,
-        "totalPendingValue": 56000000
+        "waitingExportInvoiceCount": 15,
+        "paymentProblemOrderCount": 8,
+        "totalPaymentDifferenceAmount": 56000000
     },
     "error": null
 }
 ```
+
+| Field                          | Type     | Description                                        |
+| :----------------------------- | :------- | :------------------------------------------------- |
+| `waitingExportInvoiceCount`    | `number` | Number of orders waiting for invoice export        |
+| `paymentProblemOrderCount`     | `number` | Number of orders with payment difference/pending   |
+| `totalPaymentDifferenceAmount` | `number` | Total value of payment difference/pending (in VND) |
 
 ---
 
@@ -453,10 +493,10 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **GET /v1/quote/get/list**
 
--   **Description**: Get a list of quotes.
--   **Input**: `page=1&itemsPerPage=20&status=Sent`
+- **Description**: Get a list of quotes.
+- **Input**: `page=1&itemsPerPage=20&status=Sent`
 
--   **Output**:
+- **Output**:
 
 ```json
 {
@@ -479,10 +519,10 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **GET /v1/quote/get/detail**
 
--   **Description**: Get quote details.
--   **Input**: `quoteId=QT-2024-001`
+- **Description**: Get quote details.
+- **Input**: `quoteId=QT-2024-001`
 
--   **Output**:
+- **Output**:
 
 ```json
 {
@@ -509,24 +549,24 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **POST /v1/quote/create**
 
--   **Description**: Create a new quote.
--   **Input**: Body `{ "clientId": "...", "samples": [...] }`
+- **Description**: Create a new quote.
+- **Input**: Body `{ "clientId": "...", "samples": [...] }`
 
--   **Output**: Created Quote Object.
+- **Output**: Created Quote Object.
 
 ### **POST /v1/quote/edit**
 
--   **Description**: Update a quote.
--   **Input**: Body `{ "quoteId": "QT-...", ... }`
+- **Description**: Update a quote.
+- **Input**: Body `{ "quoteId": "QT-...", ... }`
 
--   **Output**: Updated Quote Object.
+- **Output**: Updated Quote Object.
 
 ### **POST /v1/quote/delete**
 
--   **Description**: Delete a quote.
--   **Input**: Body `{ "quoteId": "QT-..." }`
+- **Description**: Delete a quote.
+- **Input**: Body `{ "quoteId": "QT-..." }`
 
--   **Output**: Success message.
+- **Output**: Success message.
 
 ---
 
@@ -534,10 +574,10 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **GET /v1/parameter/get/list**
 
--   **Description**: Get list of parameters (Analytes).
--   **Input**: `page=1&itemsPerPage=50`
+- **Description**: Get list of parameters (Analytes).
+- **Input**: `page=1&itemsPerPage=50`
 
--   **Output**:
+- **Output**:
 
 ```json
 {
@@ -557,31 +597,31 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **GET /v1/parameter/get/detail**
 
--   **Description**: Get parameter details.
--   **Input**: `parameterId=PAR-001`
+- **Description**: Get parameter details.
+- **Input**: `parameterId=PAR-001`
 
--   **Output**: Detailed Parameter object.
+- **Output**: Detailed Parameter object.
 
 ### **POST /v1/parameter/create**
 
--   **Description**: Create parameter.
--   **Input**: Body `{ "parameterName": "..." }`
+- **Description**: Create parameter.
+- **Input**: Body `{ "parameterName": "..." }`
 
--   **Output**: Created Parameter.
+- **Output**: Created Parameter.
 
 ### **POST /v1/parameter/edit**
 
--   **Description**: Update parameter.
--   **Input**: Body `{ "parameterId": "PAR-001", ... }`
+- **Description**: Update parameter.
+- **Input**: Body `{ "parameterId": "PAR-001", ... }`
 
--   **Output**: Updated Parameter.
+- **Output**: Updated Parameter.
 
 ### **POST /v1/parameter/delete**
 
--   **Description**: Delete parameter.
--   **Input**: Body `{ "parameterId": "PAR-001" }`
+- **Description**: Delete parameter.
+- **Input**: Body `{ "parameterId": "PAR-001" }`
 
--   **Output**: Success message.
+- **Output**: Success message.
 
 ---
 
@@ -589,10 +629,10 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **GET /v1/matrix/get/list**
 
--   **Description**: Get list of matrix configurations (Price/Method).
--   **Input**: `page=1&itemsPerPage=50`
+- **Description**: Get list of matrix configurations (Price/Method).
+- **Input**: `page=1&itemsPerPage=50`
 
--   **Output**:
+- **Output**:
 
 ```json
 {
@@ -614,17 +654,16 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **GET /v1/matrix/get/detail**
 
--   **Description**: Get matrix details.
--   **Input**: `matrixId=MAT-001`
+- **Description**: Get matrix details.
+- **Input**: `matrixId=MAT-001`
 
--   **Output**: Detailed Matrix object.
+- **Output**: Detailed Matrix object.
 
 ### **POST /v1/matrix/create**
 
--   **Description**: Create matrix config.
--   **Input**:
-
-    -   Body:
+- **Description**: Create matrix config.
+- **Input**:
+    - Body:
 
         ```json
         {
@@ -640,21 +679,21 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
         }
         ```
 
--   **Output**: Created Matrix.
+- **Output**: Created Matrix.
 
 ### **POST /v1/matrix/edit**
 
--   **Description**: Update matrix.
--   **Input**: Body `{ "matrixId": "MAT-001", "parameterName": "Updated Name", "feeBeforeTax": ... }`
+- **Description**: Update matrix.
+- **Input**: Body `{ "matrixId": "MAT-001", "parameterName": "Updated Name", "feeBeforeTax": ... }`
 
--   **Output**: Updated Matrix.
+- **Output**: Updated Matrix.
 
 ### **POST /v1/matrix/delete**
 
--   **Description**: Delete matrix.
--   **Input**: Body `{ "matrixId": "MAT-001" }`
+- **Description**: Delete matrix.
+- **Input**: Body `{ "matrixId": "MAT-001" }`
 
--   **Output**: Success message.
+- **Output**: Success message.
 
 ---
 
@@ -662,10 +701,10 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **GET /v1/sample-type/get/list**
 
--   **Description**: Get list of sample types.
--   **Input**: `page=1`
+- **Description**: Get list of sample types.
+- **Input**: `page=1`
 
--   **Output**:
+- **Output**:
 
 ```json
 {
@@ -684,31 +723,31 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **GET /v1/sample-type/get/detail**
 
--   **Description**: Get sample type details.
--   **Input**: `sampleTypeId=ST-001`
+- **Description**: Get sample type details.
+- **Input**: `sampleTypeId=ST-001`
 
--   **Output**: Detailed SampleType object.
+- **Output**: Detailed SampleType object.
 
 ### **POST /v1/sample-type/create**
 
--   **Description**: Create sample type.
--   **Input**: Body `{ "sampleTypeName": "..." }`
+- **Description**: Create sample type.
+- **Input**: Body `{ "sampleTypeName": "..." }`
 
--   **Output**: Created SampleType.
+- **Output**: Created SampleType.
 
 ### **POST /v1/sample-type/edit**
 
--   **Description**: Update sample type.
--   **Input**: Body `{ "sampleTypeId": "ST-001", ... }`
+- **Description**: Update sample type.
+- **Input**: Body `{ "sampleTypeId": "ST-001", ... }`
 
--   **Output**: Updated SampleType.
+- **Output**: Updated SampleType.
 
 ### **POST /v1/sample-type/delete**
 
--   **Description**: Delete sample type.
--   **Input**: Body `{ "sampleTypeId": "ST-001" }`
+- **Description**: Delete sample type.
+- **Input**: Body `{ "sampleTypeId": "ST-001" }`
 
--   **Output**: Success message.
+- **Output**: Success message.
 
 ---
 
@@ -716,10 +755,10 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **GET /v1/parameter-group/get/list**
 
--   **Description**: Get list of parameter groups (packages).
--   **Input**: `page=1&itemsPerPage=20&search=PackageName`
+- **Description**: Get list of parameter groups (packages).
+- **Input**: `page=1&itemsPerPage=20&search=PackageName`
 
--   **Output**:
+- **Output**:
 
 ```json
 {
@@ -746,10 +785,10 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **GET /v1/parameter-group/get/detail**
 
--   **Description**: Get details of a parameter group.
--   **Input**: `parameterGroupId=GRP-001`
+- **Description**: Get details of a parameter group.
+- **Input**: `parameterGroupId=GRP-001`
 
--   **Output**:
+- **Output**:
 
 ```json
 {
@@ -775,10 +814,9 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ### **POST /v1/parameter-group/create**
 
--   **Description**: Create a new parameter group.
--   **Input**:
-
-    -   Body:
+- **Description**: Create a new parameter group.
+- **Input**:
+    - Body:
         ```json
         {
             "groupName": "New Package",
@@ -793,18 +831,18 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
         }
         ```
 
--   **Output**: Created ParameterGroup object.
+- **Output**: Created ParameterGroup object.
 
 ### **POST /v1/parameter-group/edit**
 
--   **Description**: Update a parameter group.
--   **Input**: Body `{ "parameterGroupId": "GRP-001", "groupName": "Updated Name", ... }`
+- **Description**: Update a parameter group.
+- **Input**: Body `{ "parameterGroupId": "GRP-001", "groupName": "Updated Name", ... }`
 
--   **Output**: Updated ParameterGroup object.
+- **Output**: Updated ParameterGroup object.
 
 ### **POST /v1/parameter-group/delete**
 
--   **Description**: Delete a parameter group.
--   **Input**: Body `{ "parameterGroupId": "GRP-001" }`
+- **Description**: Delete a parameter group.
+- **Input**: Body `{ "parameterGroupId": "GRP-001" }`
 
--   **Output**: Success message.
+- **Output**: Success message.

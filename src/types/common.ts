@@ -20,3 +20,9 @@ export interface ApiInput {
     body?: any;
     query?: Record<string, any>;
 }
+
+export interface AccountingStats {
+    waitingExportInvoiceCount: number;
+    paymentProblemOrderCount: number;
+    totalPaymentDifferenceAmount: number;
+}
