@@ -136,9 +136,7 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
             </div>
         `
                 : "";
-
-        const grandTotal = data.pricing.total + otherFeeAfterTax;
-
+        const grandTotal = data.pricing.total;
         // Use layout-table so header repeats on every printed page
         return `
             <table style="width: 100%; border-collapse: collapse; border: none;">
@@ -224,6 +222,18 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                             <td style="width: 150px; text-align: right; font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${fmtMoney(data.pricing.subtotal)} </td>
                         </tr>
                         ${
+                            data.otherItems && data.otherItems.length > 0
+                                ? `
+                        <tr>
+                            <td style="text-align: right; padding-right: 20px; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("order.otherItems.title", "Phụ phí")}:</td>
+                            <td style="text-align: right; font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${fmtMoney(
+                                data.otherItems.reduce((acc, curr) => acc + curr.feeBeforeTax, 0),
+                            )}</td>
+                        </tr>
+                        `
+                                : ""
+                        }
+                        ${
                             (data.pricing.discountAmount || 0) > 0 || data.discountRate > 0
                                 ? `<tr>
                             <td style="text-align: right; padding-right: 20px; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("parameter.totalDiscount", "Giảm giá")} (${data.discountRate}%):</td>
@@ -239,16 +249,7 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                             <td style="text-align: right; padding-right: 20px; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("order.print.vat")}:</td>
                             <td style="text-align: right; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${fmtMoney(data.pricing.tax)} </td>
                         </tr>
-                        ${
-                            otherItems.length > 0
-                                ? `
-                        <tr>
-                            <td style="text-align: right; padding-right: 20px; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("order.otherItems.totalLabel", "Tổng phụ phí")}:</td>
-                            <td style="text-align: right; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${fmtMoney(otherFeeAfterTax)}</td>
-                        </tr>
-                        `
-                                : ""
-                        }
+
                         <tr style="font-size: 16px;">
                             <td style="text-align: right; padding-right: 20px; font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("order.total", "Tổng thanh toán")}:</td>
                             <td style="text-align: right; font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${fmtMoney(Math.ceil(grandTotal))} </td>
