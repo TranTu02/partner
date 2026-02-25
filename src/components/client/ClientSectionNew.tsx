@@ -1,9 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Search, Plus, Loader2, Copy, Edit2 } from "lucide-react";
+import { Search, Plus, Loader2, Copy, Edit2, ClipboardCopy } from "lucide-react";
 import type { Client } from "@/types/client";
 import { useTranslation } from "react-i18next";
 import { getClients, getClientDetail } from "@/api";
 import debounce from "lodash.debounce"; // Ensure you have this or implement a simple debounce
+
+interface ReportRecipient {
+    receiverName?: string;
+    receiverPhone?: string;
+    receiverAddress?: string;
+    receiverEmail?: string;
+}
 
 interface ClientSectionNewProps {
     clients: Client[]; // Still passed for initial data or fallback
@@ -21,7 +28,10 @@ interface ClientSectionNewProps {
     contactIdentity: string;
     contactEmail?: string;
     contactAddress?: string;
-    reportEmail: string;
+
+    // Report Recipient
+    reportRecipient?: ReportRecipient;
+    onReportRecipientChange?: (val: ReportRecipient) => void;
 
     // Invoice Info
     taxName?: string;
@@ -41,7 +51,6 @@ interface ClientSectionNewProps {
     onContactIdentityChange: (identity: string) => void;
     onContactEmailChange?: (val: string) => void;
     onContactAddressChange?: (val: string) => void;
-    onReportEmailChange: (email: string) => void;
 
     onTaxNameChange?: (val: string) => void;
     onTaxCodeChange?: (val: string) => void;
@@ -63,7 +72,8 @@ export function ClientSectionNew({
     contactId = "",
     contactPhone,
     contactEmail = "",
-    reportEmail,
+    reportRecipient,
+    onReportRecipientChange,
     taxName = "",
     taxCode = "",
     taxAddress = "",
@@ -78,7 +88,6 @@ export function ClientSectionNew({
     onContactEmailChange,
     onContactIdentityChange,
     onContactAddressChange,
-    onReportEmailChange,
     onTaxNameChange,
     onTaxCodeChange,
     onTaxAddressChange,
@@ -238,7 +247,6 @@ export function ClientSectionNew({
         // Update other fields
         onContactPhoneChange(contact.contactPhone || contact.phone || "");
         onContactEmailChange?.(contact.contactEmail || contact.email || "");
-        onReportEmailChange(contact.contactEmail || contact.email || "");
         onContactIdentityChange?.(contact.identityId || contact.contactId || "");
         onContactIdChange?.(contact.contactId || "");
         onContactAddressChange?.(contact.contactAddress || "");
@@ -257,7 +265,7 @@ export function ClientSectionNew({
     };
 
     return (
-        <div className="bg-card rounded-lg border border-border p-6 space-y-6">
+        <div className="bg-card rounded-lg border border-border p-4 md:p-6 space-y-6">
             {/* Section 1: Basic Client Info */}
             <div>
                 <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
@@ -270,7 +278,7 @@ export function ClientSectionNew({
                     )}
                 </div>
                 <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="relative">
                             <label className="block mb-2 text-sm font-medium text-foreground">
                                 {t("client.name")} <span className="text-destructive">*</span>
@@ -361,7 +369,7 @@ export function ClientSectionNew({
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block mb-2 text-sm font-medium text-foreground">
                                 {t("client.address")} <span className="text-destructive">*</span>
@@ -386,7 +394,7 @@ export function ClientSectionNew({
                                 disabled={isReadOnly}
                             />
                         </div>
-                        <div className="col-span-2">
+                        <div className="md:col-span-2">
                             <label className="block mb-2 text-sm font-medium text-foreground">{t("client.email")}</label>
                             <input
                                 type="email"
@@ -404,7 +412,7 @@ export function ClientSectionNew({
             {/* Section 2: Contact Info */}
             <div>
                 <h3 className="mb-4 text-base font-semibold text-primary border-b border-border pb-2">{t("client.contactInfo")}</h3>
-                <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div className="relative">
                         <label className="block mb-2 text-sm font-medium text-foreground">
                             {t("client.contactPerson")} <span className="text-destructive">*</span>
@@ -508,16 +516,73 @@ export function ClientSectionNew({
                             disabled={isReadOnly}
                         />
                     </div>
+                </div>
+            </div>
+
+            {/* Section 2b: Report Recipient */}
+            <div>
+                <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
+                    <h3 className="text-base font-semibold text-primary">{t("client.reportRecipient", "Người nhận báo cáo")}</h3>
+                    {!isReadOnly && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onReportRecipientChange?.({
+                                    receiverName: contactPerson,
+                                    receiverPhone: contactPhone,
+                                    receiverEmail: contactEmail,
+                                    receiverAddress: address,
+                                });
+                            }}
+                            className="text-xs text-primary hover:underline flex items-center gap-1"
+                        >
+                            <ClipboardCopy className="w-3 h-3" />
+                            {t("client.fillFromContact", "Lấy từ thông tin liên hệ")}
+                        </button>
+                    )}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="block mb-2 text-sm font-medium text-foreground">
-                            {t("client.reportEmail")} <span className="text-destructive">*</span>
-                        </label>
+                        <label className="block mb-2 text-sm font-medium text-foreground">{t("client.receiverName", "Tên người nhận")}</label>
+                        <input
+                            type="text"
+                            className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            value={reportRecipient?.receiverName || ""}
+                            onChange={(e) => onReportRecipientChange?.({ ...reportRecipient, receiverName: e.target.value })}
+                            placeholder={t("client.receiverName", "Tên người nhận")}
+                            disabled={isReadOnly}
+                        />
+                    </div>
+                    <div>
+                        <label className="block mb-2 text-sm font-medium text-foreground">{t("client.receiverPhone", "SĐT người nhận")}</label>
+                        <input
+                            type="text"
+                            className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            value={reportRecipient?.receiverPhone || ""}
+                            onChange={(e) => onReportRecipientChange?.({ ...reportRecipient, receiverPhone: e.target.value })}
+                            placeholder={t("client.receiverPhone", "SĐT")}
+                            disabled={isReadOnly}
+                        />
+                    </div>
+                    <div>
+                        <label className="block mb-2 text-sm font-medium text-foreground">{t("client.receiverEmail", "Email người nhận")}</label>
                         <input
                             type="email"
                             className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            value={reportEmail}
-                            onChange={(e) => onReportEmailChange(e.target.value)}
-                            placeholder={t("client.reportEmail")}
+                            value={reportRecipient?.receiverEmail || ""}
+                            onChange={(e) => onReportRecipientChange?.({ ...reportRecipient, receiverEmail: e.target.value })}
+                            placeholder="Email"
+                            disabled={isReadOnly}
+                        />
+                    </div>
+                    <div>
+                        <label className="block mb-2 text-sm font-medium text-foreground">{t("client.receiverAddress", "Địa chỉ nhận")}</label>
+                        <input
+                            type="text"
+                            className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            value={reportRecipient?.receiverAddress || ""}
+                            onChange={(e) => onReportRecipientChange?.({ ...reportRecipient, receiverAddress: e.target.value })}
+                            placeholder={t("client.address")}
                             disabled={isReadOnly}
                         />
                     </div>
@@ -535,8 +600,8 @@ export function ClientSectionNew({
                         </button>
                     )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
                         <label className="block mb-2 text-sm font-medium text-foreground">{t("client.taxName")}</label>
                         <input
                             type="text"

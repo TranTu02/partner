@@ -47,6 +47,12 @@ export interface QuotePrintData {
     };
     discountRate: number;
     commission?: number;
+    otherItems?: {
+        itemName: string;
+        feeBeforeTax: number;
+        taxRate: number;
+        feeAfterTax: number;
+    }[];
 }
 
 export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
@@ -160,6 +166,16 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                                 {data.pricing.subtotal.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
                             </td>
                         </tr>
+                        {data.otherItems && data.otherItems.length > 0 && (
+                            <tr style={{ pageBreakInside: "avoid" }}>
+                                <td style={{ textAlign: "right", paddingRight: "20px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
+                                    {t("order.otherItems.title", "Phụ phí")} ({t("order.pricing.feeBeforeTax")}):
+                                </td>
+                                <td style={{ textAlign: "right", fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
+                                    {data.otherItems.reduce((acc, current) => acc + current.feeBeforeTax, 0).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                                </td>
+                            </tr>
+                        )}
                         {data.discountRate > 0 && (
                             <tr style={{ pageBreakInside: "avoid" }}>
                                 <td style={{ textAlign: "right", paddingRight: "20px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>

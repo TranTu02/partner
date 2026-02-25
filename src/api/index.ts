@@ -209,7 +209,7 @@ export const deleteParameterGroup = async ({ headers, body, query }: ApiInput): 
 };
 
 export const convertHtmlToPdf = async ({ headers, body, query }: ApiInput): Promise<any> => {
-    return api.download("/v1/convert-html-to-pdf/form-1", { headers, body, query });
+    return api.download("/v1/convert-html-to-pdf/form-2", { headers, body, query });
 };
 
 // =============================================================================

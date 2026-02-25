@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { X, Save } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Order } from "@/types/order";
-import { updateOrder } from "@/api/index"; // Assume updateOrder exists and handles partial updates
+import { updateOrder } from "@/api/index";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AccountingDetailModalProps {
     order: Order | null;
@@ -15,11 +16,22 @@ interface AccountingDetailModalProps {
 
 export function AccountingDetailModal({ order, open, onClose, onRefresh }: AccountingDetailModalProps) {
     const { t } = useTranslation();
+    const { user } = useAuth();
+    const isSuperAdmin = user?.roles?.superAdmin;
+
     const [orderStatus, setOrderStatus] = useState<string>("");
     const [paymentStatus, setPaymentStatus] = useState<string>("");
     const [totalPaid, setTotalPaid] = useState<string>("");
     const [paymentDate, setPaymentDate] = useState<string>("");
+
+    // Invoice Numbers state
+    const [invoiceNumbersInput, setInvoiceNumbersInput] = useState<string>("");
     const [invoiceNumbers, setInvoiceNumbers] = useState<string[]>([]);
+
+    // Reception Info (SuperAdmin only)
+    const [receiptId, setReceiptId] = useState<string>("");
+    const [requestDate, setRequestDate] = useState<string>("");
+
     const [orderNote, setOrderNote] = useState<string>("");
     const [isLoading, setIsLoading] = useState(false);
 
@@ -42,7 +54,14 @@ export function AccountingDetailModal({ order, open, onClose, onRefresh }: Accou
             setPaymentStatus(order.paymentStatus);
             setTotalPaid(order.totalPaid?.toString() || "");
             setPaymentDate(order.paymentDate ? new Date(order.paymentDate).toISOString().split("T")[0] : "");
-            setInvoiceNumbers(order.invoiceNumbers || []);
+
+            const invoices = order.invoiceNumbers || [];
+            setInvoiceNumbers(invoices);
+            setInvoiceNumbersInput(invoices.join(", "));
+
+            setReceiptId(order.receiptId || "");
+            setRequestDate(order.requestDate ? new Date(order.requestDate).toISOString().split("T")[0] : "");
+
             setOrderNote(order.orderNote || "");
         }
     }, [order]);
@@ -63,25 +82,39 @@ export function AccountingDetailModal({ order, open, onClose, onRefresh }: Accou
             const newTotalPaid = totalPaid ? parseFloat(totalPaid) : 0;
             const originalTotalPaid = order.totalPaid || 0;
             if (newTotalPaid !== originalTotalPaid) {
-                // If new value is 0, send null to clear it
                 updateBody.totalPaid = newTotalPaid === 0 ? null : newTotalPaid;
             }
 
             // Check paymentDate change
             const currentPaymentDate = order.paymentDate ? new Date(order.paymentDate).toISOString().split("T")[0] : "";
             if (paymentDate !== currentPaymentDate) {
-                // If paymentDate is empty, send null (or handle as needed, assuming clear date)
-                // If it has value, send as ISO string or just the date string depending on backend expectation.
-                // Usually for timestamp, we might want to append time or just send the date string if DB casts it.
-                // Let's send as ISO string with 00:00:00 time if strictly needed, or just the date string.
-                // Based on "convert to correct timestamp format" request, let's assume valid ISO timestamp.
                 updateBody.paymentDate = paymentDate ? new Date(paymentDate).toISOString() : null;
             }
 
-            // Check invoiceNumbers change
+            // Check invoiceNumbers change (SuperAdmin only can edit via input, otherwise it stays as read)
+            let finalInvoiceNumbers = invoiceNumbers;
+            if (isSuperAdmin) {
+                finalInvoiceNumbers = invoiceNumbersInput
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter((s) => s.length > 0);
+            }
+
             const currentInvoices = order.invoiceNumbers || [];
-            if (JSON.stringify(invoiceNumbers) !== JSON.stringify(currentInvoices)) {
-                updateBody.invoiceNumbers = invoiceNumbers;
+            if (JSON.stringify(finalInvoiceNumbers) !== JSON.stringify(currentInvoices)) {
+                updateBody.invoiceNumbers = finalInvoiceNumbers;
+            }
+
+            // Check Reception Info changes (SuperAdmin only)
+            if (isSuperAdmin) {
+                if (receiptId !== (order.receiptId || "")) {
+                    updateBody.receiptId = receiptId === "" ? null : receiptId;
+                }
+
+                const currentRequestDate = order.requestDate ? new Date(order.requestDate).toISOString().split("T")[0] : "";
+                if (requestDate !== currentRequestDate) {
+                    updateBody.requestDate = requestDate ? new Date(requestDate).toISOString() : null;
+                }
             }
 
             // Check orderNote change
@@ -93,7 +126,6 @@ export function AccountingDetailModal({ order, open, onClose, onRefresh }: Accou
 
             // Only call API if there are changes
             if (Object.keys(updateBody).length === 1) {
-                // Only has 'orderId', no changes
                 toast.info(t("common.noChanges") || "Không có thay đổi");
                 setIsLoading(false);
                 return;
@@ -175,6 +207,37 @@ export function AccountingDetailModal({ order, open, onClose, onRefresh }: Accou
                         </div>
                     </div>
 
+                    {/* Reception Info (SuperAdmin Only) */}
+                    {isSuperAdmin && (
+                        <div className="mb-8 border-b border-border pb-6">
+                            <h3 className="font-semibold text-primary text-base mb-4 flex items-center gap-2">
+                                <span>{t("order.receptionInfo") || "Thông tin tiếp nhận"}</span>
+                                <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full border border-red-200">Admin Only</span>
+                            </h3>
+                            <div className="grid grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-foreground mb-2">{t("order.receiptId") || "Mã tiếp nhận"}</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground"
+                                        value={receiptId}
+                                        onChange={(e) => setReceiptId(e.target.value)}
+                                        placeholder="Nhập mã tiếp nhận..."
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-foreground mb-2">{t("order.requestDate") || "Ngày tiếp nhận"}</label>
+                                    <input
+                                        type="date"
+                                        className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground"
+                                        value={requestDate}
+                                        onChange={(e) => setRequestDate(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Sample Details */}
                     <div className="mb-8 border-b border-border pb-6">
                         <h3 className="font-semibold text-primary text-base mb-4">{t("order.sampleList")}</h3>
@@ -250,20 +313,33 @@ export function AccountingDetailModal({ order, open, onClose, onRefresh }: Accou
                         </div>
                     </div>
 
-                    {/* Invoice Numbers Section (Read Only) */}
+                    {/* Invoice Numbers Section */}
                     <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">{t("accounting.invoices") || "Invoices"}</label>
-                        <div className="flex flex-wrap gap-2">
-                            {invoiceNumbers.length > 0 ? (
-                                invoiceNumbers.map((inv, idx) => (
-                                    <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-muted text-sm border border-border">
-                                        {inv}
-                                    </span>
-                                ))
-                            ) : (
-                                <span className="text-sm text-muted-foreground italic">--</span>
-                            )}
-                        </div>
+                        <label className="block text-sm font-medium text-foreground mb-2">
+                            {t("accounting.invoices") || "Invoices"}
+                            {isSuperAdmin && <span className="ml-2 text-xs text-muted-foreground font-normal">(Chỉnh sửa: ngăn cách bằng dấu phẩy)</span>}
+                        </label>
+                        {isSuperAdmin ? (
+                            <input
+                                type="text"
+                                className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground"
+                                value={invoiceNumbersInput}
+                                onChange={(e) => setInvoiceNumbersInput(e.target.value)}
+                                placeholder="INV-001, INV-002..."
+                            />
+                        ) : (
+                            <div className="flex flex-wrap gap-2">
+                                {invoiceNumbers.length > 0 ? (
+                                    invoiceNumbers.map((inv, idx) => (
+                                        <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-muted text-sm border border-border">
+                                            {inv}
+                                        </span>
+                                    ))
+                                ) : (
+                                    <span className="text-sm text-muted-foreground italic">--</span>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Total Paid & Payment Date */}

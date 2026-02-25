@@ -1,4 +1,5 @@
 import type { Client } from "./client";
+import type { OtherItem } from "./order";
 
 export interface Quote {
     quoteId: string; // Custom Text ID (PK)
@@ -8,6 +9,7 @@ export interface Quote {
     salePerson?: string; // text (name)
     salePersonId?: string; // text (FK)
     samples: any[]; // jsonb[]
+    otherItems?: OtherItem[]; // jsonb[] - Phụ phí (surcharges)
     totalFeeBeforeTax: number;
     taxRate: number;
     discountRate: number;

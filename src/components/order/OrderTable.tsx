@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Order } from "@/types/order";
-import { Eye, Pencil, Copy, FileDown, FileText, StickyNote } from "lucide-react";
+import { Eye, Pencil, Copy, FileDown, FileText, StickyNote, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface OrderTableProps {
     orders: Order[];
@@ -236,17 +237,16 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
         <div className="bg-card rounded-lg border border-border overflow-visible flex flex-col relative z-0">
             <div className="overflow-x-auto flex-1 min-h-[400px]">
                 <table className="w-full">
-                    <thead className="bg-muted/50 sticky top-0 z-20 shadow-sm">
+                    <thead className="bg-muted border-b border-border sticky top-0 z-20 shadow-sm">
                         <tr>
-                            {/* Order Code */}
                             {/* Order Code + Created Date */}
                             <th
-                                className={`px-6 py-4 text-left text-sm font-semibold min-w-size-medium cursor-pointer transition-colors select-none ${isActive("createdAt") ? "text-primary underline" : "text-foreground hover:text-primary/80"}`}
+                                className={`px-3 py-2 text-left text-xs font-medium uppercase tracking-wider min-w-[120px] cursor-pointer transition-colors select-none ${isActive("createdAt") ? "text-primary underline" : "text-muted-foreground hover:text-primary"}`}
                                 onClick={() => setActiveDropdown(activeDropdown === "created" ? null : "created")}
                             >
                                 {t("order.code")}
                                 {activeDropdown === "created" && (
-                                    <div ref={dropdownRef} className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg p-4 z-50">
+                                    <div ref={dropdownRef} className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 normal-case tracking-normal">
                                         <div className="space-y-3">
                                             <div className="text-xs font-semibold text-muted-foreground mb-2">{t("order.createdDate", "Ngày tạo đơn")}</div>
                                             <div className="space-y-2">
@@ -288,21 +288,21 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                             </th>
 
                             {/* Client */}
-                            <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-large">{t("order.client")}</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground min-w-[200px]">{t("order.client")}</th>
 
                             {/* Sale Person */}
-                            <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("order.salePerson")}</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground min-w-[120px]">{t("order.salePerson")}</th>
 
                             {/* Status (Merged) */}
-                            <th className="px-6 py-4 text-left text-sm font-semibold min-w-size-large relative">
+                            <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider min-w-[180px] relative">
                                 <span
-                                    className={`cursor-pointer select-none ${isActive("orderStatus") || isActive("paymentStatus") ? "text-primary underline" : "text-foreground hover:text-primary/80"}`}
+                                    className={`cursor-pointer select-none ${isActive("orderStatus") || isActive("paymentStatus") ? "text-primary underline" : "text-muted-foreground hover:text-primary"}`}
                                     onClick={() => setActiveDropdown(activeDropdown === "status" ? null : "status")}
                                 >
                                     {t("accounting.table.status")}
                                 </span>
                                 {activeDropdown === "status" && (
-                                    <div ref={dropdownRef} className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg p-4 z-50">
+                                    <div ref={dropdownRef} className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 normal-case tracking-normal">
                                         <div className="space-y-4">
                                             <div>
                                                 <div className="text-xs font-semibold text-muted-foreground mb-2">{t("order.status")}</div>
@@ -350,15 +350,18 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                             </th>
 
                             {/* Total Amount (Order Value) */}
-                            <th className="px-6 py-4 text-right text-sm font-semibold min-w-size-medium relative">
+                            <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider min-w-[120px] relative">
                                 <span
-                                    className={`cursor-pointer select-none ${isActive("totalAmount") ? "text-primary underline" : "text-foreground hover:text-primary/80"}`}
+                                    className={`cursor-pointer select-none ${isActive("totalAmount") ? "text-primary underline" : "text-muted-foreground hover:text-primary"}`}
                                     onClick={() => setActiveDropdown(activeDropdown === "amount" ? null : "amount")}
                                 >
                                     {t("order.orderValue", "Giá trị đơn")}
                                 </span>
                                 {activeDropdown === "amount" && (
-                                    <div ref={dropdownRef} className="absolute top-full right-0 mt-2 w-72 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 text-left">
+                                    <div
+                                        ref={dropdownRef}
+                                        className="absolute top-full right-0 mt-2 w-72 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 text-left normal-case tracking-normal"
+                                    >
                                         <div className="space-y-3">
                                             <div className="text-xs font-semibold text-muted-foreground mb-2">{t("accounting.filter.amountFilter")}</div>
                                             <div>
@@ -402,15 +405,18 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                             </th>
 
                             {/* Total Paid */}
-                            <th className="px-6 py-4 text-right text-sm font-semibold min-w-size-medium relative">
+                            <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider min-w-[120px] relative">
                                 <span
-                                    className={`cursor-pointer select-none ${isActive("totalPaid") || isActive("paymentDate") ? "text-primary underline" : "text-foreground hover:text-primary/80"}`}
+                                    className={`cursor-pointer select-none ${isActive("totalPaid") || isActive("paymentDate") ? "text-primary underline" : "text-muted-foreground hover:text-primary"}`}
                                     onClick={() => setActiveDropdown(activeDropdown === "payment" ? null : "payment")}
                                 >
                                     {t("accounting.table.totalPaid")}
                                 </span>
                                 {activeDropdown === "payment" && (
-                                    <div ref={dropdownRef} className="absolute top-full right-0 mt-2 w-72 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 text-left">
+                                    <div
+                                        ref={dropdownRef}
+                                        className="absolute top-full right-0 mt-2 w-72 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 text-left normal-case tracking-normal"
+                                    >
                                         <div className="space-y-4">
                                             <div>
                                                 <div className="text-xs font-semibold text-muted-foreground mb-2">{t("accounting.filter.paymentFilter")}</div>
@@ -480,7 +486,7 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
 
                             {/* Invoice Numbers */}
                             <th
-                                className={`px-6 py-4 text-left text-sm font-semibold min-w-size-medium cursor-pointer transition-colors select-none ${isActive("invoiceNumbers") ? "text-primary underline" : "text-foreground hover:text-primary/80"}`}
+                                className={`px-3 py-2 text-left text-xs font-medium uppercase tracking-wider min-w-[150px] cursor-pointer transition-colors select-none ${isActive("invoiceNumbers") ? "text-primary underline" : "text-muted-foreground hover:text-primary"}`}
                                 onClick={handleInvoiceClick}
                                 title="Click to filter"
                             >
@@ -491,15 +497,18 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                             </th>
 
                             {/* Reception Info (Request Date + Receipt ID) */}
-                            <th className="px-6 py-4 text-center text-sm font-semibold min-w-size-medium relative">
+                            <th className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider min-w-[150px] relative">
                                 <span
-                                    className={`cursor-pointer select-none ${isActive("requestDate") || isActive("receiptId") ? "text-primary underline" : "text-foreground hover:text-primary/80"}`}
+                                    className={`cursor-pointer select-none ${isActive("requestDate") || isActive("receiptId") ? "text-primary underline" : "text-muted-foreground hover:text-primary"}`}
                                     onClick={() => setActiveDropdown(activeDropdown === "date" ? null : "date")}
                                 >
                                     {t("order.receptionInfo", "Thông tin tiếp nhận")}
                                 </span>
                                 {activeDropdown === "date" && (
-                                    <div ref={dropdownRef} className="absolute top-full right-0 mt-2 w-72 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 text-left">
+                                    <div
+                                        ref={dropdownRef}
+                                        className="absolute top-full right-0 mt-2 w-72 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 text-left normal-case tracking-normal"
+                                    >
                                         <div className="space-y-4">
                                             {/* Receipt ID Filter */}
                                             <div>
@@ -571,7 +580,9 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                             </th>
 
                             {/* Actions */}
-                            <th className="px-6 py-4 text-center text-sm font-semibold text-foreground min-w-size-small">{t("common.actions")}</th>
+                            <th className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground sticky right-0 z-30 bg-muted/95 backdrop-blur-sm border-l border-border">
+                                {t("common.actions")}
+                            </th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -591,26 +602,28 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                             orders.map((order) => (
                                 <tr key={order.orderId} className="hover:bg-muted/50 transition-colors">
                                     {/* Code */}
-                                    <td className="px-6 py-4 text-sm font-medium text-primary cursor-pointer align-top" onClick={() => onViewDetail(order)}>
+                                    <td className="px-3 py-2 text-sm font-medium text-primary cursor-pointer align-top" onClick={() => onViewDetail(order)}>
                                         <div>{order.orderId}</div>
                                         <div className="text-xs text-muted-foreground mt-0.5">{order.createdAt ? formatDate(order.createdAt) : "--"}</div>
                                     </td>
 
                                     {/* Client */}
-                                    <td className="px-6 py-4 text-sm text-foreground align-top">
-                                        <div className="font-medium text-primary cursor-pointer hover:underline">{order.client?.clientName || "Unknown Client"}</div>
-                                        <div className="text-xs text-muted-foreground mt-0.5">{order.contactPerson?.contactName || "N/A"}</div>
+                                    <td className="px-3 py-2 text-sm text-foreground align-top group max-w-[200px]">
+                                        <div className="font-medium text-primary cursor-pointer hover:underline line-clamp-2" title={order.client?.clientName}>
+                                            {order.client?.clientName || "Unknown Client"}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{order.contactPerson?.contactName || "N/A"}</div>
                                     </td>
 
                                     {/* Sale Person */}
-                                    <td className="px-6 py-4 text-sm text-foreground align-top">{order.salePerson || "-"}</td>
+                                    <td className="px-3 py-2 text-sm text-foreground align-top line-clamp-1">{order.salePerson || "-"}</td>
 
                                     {/* Status (Merged) */}
-                                    <td className="px-6 py-4 text-sm text-foreground align-top">
+                                    <td className="px-3 py-2 text-sm text-foreground align-top">
                                         <div className="space-y-1">
                                             {order.orderStatus && (
                                                 <span
-                                                    className={`block w-fit px-2 py-1 rounded-full text-xs font-medium ${
+                                                    className={`block w-fit px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
                                                         order.orderStatus === "Completed"
                                                             ? "bg-green-100 text-green-700"
                                                             : order.orderStatus === "Cancelled"
@@ -623,7 +636,7 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                                             )}
                                             {order.paymentStatus && (
                                                 <span
-                                                    className={`block w-fit px-2 py-1 rounded-full text-xs font-medium ${
+                                                    className={`block w-fit px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
                                                         order.paymentStatus === "Paid"
                                                             ? "bg-green-100 text-green-700"
                                                             : order.paymentStatus === "Debt"
@@ -640,20 +653,20 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                                     </td>
 
                                     {/* Order Value */}
-                                    <td className="px-6 py-4 text-right text-sm font-medium text-foreground align-top">{formatCurrency(order.totalAmount || 0)}</td>
+                                    <td className="px-3 py-2 text-right text-sm font-medium text-foreground align-top whitespace-nowrap">{formatCurrency(order.totalAmount || 0)}</td>
 
                                     {/* Total Paid */}
-                                    <td className="px-6 py-4 text-right text-sm text-foreground align-top">
+                                    <td className="px-3 py-2 text-right text-sm text-foreground align-top whitespace-nowrap">
                                         <div>{formatCurrency(order.totalPaid || 0)}</div>
                                         {order.paymentDate && <div className="text-xs text-muted-foreground mt-0.5">{formatDate(order.paymentDate)}</div>}
                                     </td>
 
                                     {/* Invoice Numbers */}
-                                    <td className="px-6 py-4 text-sm text-foreground align-top">
+                                    <td className="px-3 py-2 text-sm text-foreground align-top">
                                         {order.invoiceNumbers && order.invoiceNumbers.length > 0 ? (
                                             <div className="space-y-0.5">
                                                 {order.invoiceNumbers.map((inv, idx) => (
-                                                    <div key={idx} className="bg-muted px-2 py-0.5 rounded text-xs w-fit">
+                                                    <div key={idx} className="bg-muted px-2 py-0.5 rounded text-xs w-fit max-w-full truncate" title={inv}>
                                                         {inv}
                                                     </div>
                                                 ))}
@@ -664,14 +677,15 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                                     </td>
 
                                     {/* Reception Info */}
-                                    <td className="px-6 py-4 text-center text-sm text-foreground align-top">
+                                    <td className="px-3 py-2 text-center text-sm text-foreground align-top whitespace-nowrap">
                                         {order.receiptId && <div className="font-medium text-primary mb-0.5">{order.receiptId}</div>}
                                         <div className="text-muted-foreground">{order.requestDate ? formatDate(order.requestDate) : "--"}</div>
                                     </td>
 
-                                    {/* IPv4 Actions + Note */}
-                                    <td className="px-6 py-4 align-top">
-                                        <div className="flex items-center justify-center gap-2">
+                                    {/* Actions */}
+                                    <td className="px-3 py-2 align-top text-right sticky right-0 z-30 bg-background/95 backdrop-blur-sm border-l border-border">
+                                        {/* Desktop Actions */}
+                                        <div className="hidden md:flex items-center justify-end gap-1">
                                             {/* Note Icon */}
                                             {order.orderNote && (
                                                 <div className="relative group">
@@ -679,7 +693,7 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                                                         <StickyNote className="w-4 h-4" fill="currentColor" />
                                                     </div>
                                                     {/* Tooltip */}
-                                                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-popover text-popover-foreground text-xs rounded-lg shadow-lg border border-border opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap max-w-xs truncate z-50 pointer-events-none">
+                                                    <div className="absolute right-0 bottom-full mb-2 px-3 py-2 bg-popover text-popover-foreground text-xs rounded-lg shadow-lg border border-border opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap max-w-xs truncate z-50 pointer-events-none">
                                                         {order.orderNote}
                                                     </div>
                                                 </div>
@@ -721,6 +735,51 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                                                 <FileText className="w-4 h-4" />
                                             </button>
                                         </div>
+
+                                        {/* Mobile Actions */}
+                                        <div className="md:hidden flex justify-center">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <button className="h-8 w-8 p-0 hover:bg-muted rounded-full flex items-center justify-center transition-colors">
+                                                        <span className="sr-only">Open menu</span>
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuLabel>{t("common.actions")}</DropdownMenuLabel>
+                                                    {order.orderNote && (
+                                                        <>
+                                                            <DropdownMenuSeparator />
+                                                            <div className="px-2 py-1.5 text-xs text-muted-foreground max-w-[200px] break-words">
+                                                                <span className="font-semibold block mb-1">Note:</span>
+                                                                {order.orderNote}
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onClick={() => onViewDetail(order)}>
+                                                        <Eye className="mr-2 h-4 w-4" />
+                                                        {t("common.view")}
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => onEdit(order)}>
+                                                        <Pencil className="mr-2 h-4 w-4" />
+                                                        {t("common.edit")}
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => onDuplicate(order)}>
+                                                        <Copy className="mr-2 h-4 w-4" />
+                                                        {t("common.duplicate")}
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => onPrint(order)}>
+                                                        <FileDown className="mr-2 h-4 w-4" />
+                                                        {t("order.downloadReport")}
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => onPrintSampleRequest(order)}>
+                                                        <FileText className="mr-2 h-4 w-4" />
+                                                        {t("order.print.sampleRequest")}
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
                                     </td>
                                 </tr>
                             ))
@@ -728,7 +787,7 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                     </tbody>
                 </table>
             </div>
-            <div className="border-t border-border p-4 flex items-center justify-between bg-muted/20">
+            <div className="border-t border-border p-2 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-0 bg-muted/20">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span>{t("pagination.showing")}</span>
                     <select

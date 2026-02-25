@@ -1,13 +1,22 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Pencil, Trash2, Search, Eye } from "lucide-react";
+import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { Matrix, ParameterGroup } from "@/types/parameter";
+import type { Matrix } from "@/types/parameter";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { getMatrices, deleteMatrix, getParameterGroups, deleteParameterGroup } from "@/api/index";
+import { getMatrices, deleteMatrix, getParameters, deleteParameter } from "@/api/index";
 import { toast } from "sonner";
 import { Pagination } from "@/components/common/Pagination";
 import { MatrixModal } from "@/components/parameter/MatrixModal";
-import { ParameterGroupModal } from "@/components/parameter/ParameterGroupModal";
+import { ParameterModal } from "@/components/parameter/ParameterModal";
+
+const parseSimpleMarkdown = (text?: string) => {
+    if (!text) return "";
+    let html = text
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.*?)\*/g, "<em>$1</em>")
+        .replace(/\n/g, "<br/>");
+    return html;
+};
 
 interface ParametersPageProps {
     activeMenu: string;
@@ -18,7 +27,7 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
     const { t } = useTranslation();
 
     // Tab State
-    const [activeTab, setActiveTab] = useState<"parameters" | "groups">("parameters");
+    const [activeTab, setActiveTab] = useState<"matrix" | "parameters">("matrix");
 
     // Common State
     const [searchQuery, setSearchQuery] = useState("");
@@ -30,15 +39,15 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
     const [totalItems, setTotalItems] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(20);
 
-    // Matrix State
+    // Matrices (Danh mục chỉ tiêu - phương pháp)
     const [matrices, setMatrices] = useState<Matrix[]>([]);
     const [isMatrixModalOpen, setIsMatrixModalOpen] = useState(false);
     const [selectedMatrix, setSelectedMatrix] = useState<Matrix | null>(null);
 
-    // Group State
-    const [groups, setGroups] = useState<ParameterGroup[]>([]);
-    const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
-    const [selectedGroup, setSelectedGroup] = useState<ParameterGroup | null>(null);
+    // Parameters (Danh mục chỉ tiêu)
+    const [parameters, setParameters] = useState<any[]>([]);
+    const [isParamModalOpen, setIsParamModalOpen] = useState(false);
+    const [selectedParameter, setSelectedParameter] = useState<any | null>(null);
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -51,26 +60,25 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
             };
 
             let response;
-            if (activeTab === "parameters") {
+            if (activeTab === "matrix") {
                 response = await getMatrices({ query });
             } else {
-                response = await getParameterGroups({ query });
+                response = await getParameters({ query });
             }
 
             if (response.success && response.data) {
-                if (activeTab === "parameters") {
+                if (activeTab === "matrix") {
                     setMatrices(response.data as Matrix[]);
                 } else {
-                    setGroups(response.data as ParameterGroup[]);
+                    setParameters(response.data as any[]);
                 }
                 if (response.meta) {
                     setTotalPages(response.meta.totalPages || 0);
                     setTotalItems(response.meta.total || 0);
                 }
             } else {
-                // Silent fail or toast?
-                if (activeTab === "parameters") setMatrices([]);
-                else setGroups([]);
+                if (activeTab === "matrix") setMatrices([]);
+                else setParameters([]);
             }
         } catch (error) {
             console.error(error);
@@ -87,7 +95,7 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
         return () => clearTimeout(timer);
     }, [fetchData]);
 
-    const handleTabChange = (tab: "parameters" | "groups") => {
+    const handleTabChange = (tab: "matrix" | "parameters") => {
         setActiveTab(tab);
         setPage(1);
         setSearchQuery("");
@@ -108,10 +116,10 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
         }
     };
 
-    const handleDeleteGroup = async (id: string) => {
+    const handleDeleteParameter = async (id: string) => {
         if (!confirm(t("parameter.confirmDelete"))) return;
         try {
-            const res = await deleteParameterGroup({ body: { parameterGroupId: id } });
+            const res = await deleteParameter({ body: { parameterId: id } });
             if (res.success) {
                 toast.success(t("common.success"));
                 fetchData();
@@ -124,12 +132,12 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
     };
 
     const handleAdd = () => {
-        if (activeTab === "parameters") {
+        if (activeTab === "matrix") {
             setSelectedMatrix(null);
             setIsMatrixModalOpen(true);
         } else {
-            setSelectedGroup(null);
-            setIsGroupModalOpen(true);
+            setSelectedParameter(null);
+            setIsParamModalOpen(true);
         }
     };
 
@@ -138,9 +146,9 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
         setIsMatrixModalOpen(true);
     };
 
-    const handleEditGroup = (item: ParameterGroup) => {
-        setSelectedGroup(item);
-        setIsGroupModalOpen(true);
+    const handleEditParameter = (item: any) => {
+        setSelectedParameter(item);
+        setIsParamModalOpen(true);
     };
 
     const headerContent = (
@@ -151,7 +159,7 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
             </div>
             <button onClick={handleAdd} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium">
                 <Plus className="w-4 h-4" />
-                {t(activeTab === "parameters" ? "parameter.add" : "common.add")}
+                <span className="hidden sm:inline">{t(activeTab === "matrix" ? "analysis.addMethod" : "parameter.add", activeTab === "matrix" ? "Thêm CTPT" : "Thêm CT")}</span>
             </button>
         </div>
     );
@@ -164,20 +172,20 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
                     {/* Tabs */}
                     <div className="flex gap-2">
                         <button
+                            onClick={() => handleTabChange("matrix")}
+                            className={`px-3 py-1.5 rounded-lg transition-colors text-sm font-medium ${
+                                activeTab === "matrix" ? "bg-primary text-primary-foreground" : "bg-card border border-border text-foreground hover:bg-muted"
+                            }`}
+                        >
+                            {t("parameter.subtitle", "Danh mục chỉ tiêu - phương pháp")}
+                        </button>
+                        <button
                             onClick={() => handleTabChange("parameters")}
-                            className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                            className={`px-3 py-1.5 rounded-lg transition-colors text-sm font-medium ${
                                 activeTab === "parameters" ? "bg-primary text-primary-foreground" : "bg-card border border-border text-foreground hover:bg-muted"
                             }`}
                         >
-                            {t("parameter.subtitle") || "Parameters"}
-                        </button>
-                        <button
-                            onClick={() => handleTabChange("groups")}
-                            className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
-                                activeTab === "groups" ? "bg-primary text-primary-foreground" : "bg-card border border-border text-foreground hover:bg-muted"
-                            }`}
-                        >
-                            {t("parameter.group") || "Group"}
+                            {t("parameter.management", "Danh mục chỉ tiêu")}
                         </button>
                     </div>
 
@@ -187,7 +195,7 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
                         <input
                             type="text"
                             placeholder={t("analysis.searchPlaceholder")}
-                            className="w-full pl-9 pr-4 py-2 border border-border rounded-lg bg-input text-foreground text-sm"
+                            className="w-full pl-9 pr-4 py-1.5 border border-border rounded-lg bg-input text-foreground text-sm"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -200,52 +208,65 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
                         <table className="w-full">
                             <thead className="bg-muted/50 sticky top-0 z-10 shadow-sm">
                                 <tr>
-                                    {activeTab === "parameters" ? (
+                                    {activeTab === "matrix" ? (
                                         <>
-                                            <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-large">{t("parameter.name")}</th>
-                                            <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("order.sampleMatrix")}</th>
-                                            <th className="px-6 py-4 text-right text-sm font-semibold text-foreground min-w-size-medium">{t("parameter.unitPrice")}</th>
-                                            <th className="px-6 py-4 text-center text-sm font-semibold text-foreground min-w-size-small">{t("parameter.tax")}</th>
-                                            <th className="px-6 py-4 text-right text-sm font-semibold text-foreground min-w-size-medium">{t("order.lineTotal")}</th>
+                                            <th className="px-3 py-2 text-left text-sm font-semibold text-foreground min-w-size-large">{t("parameter.name")}</th>
+                                            <th className="px-3 py-2 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("order.sampleMatrix")}</th>
+                                            <th className="px-3 py-2 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("parameter.protocol", "Phương pháp")}</th>
+                                            <th className="px-3 py-2 text-center text-sm font-semibold text-foreground min-w-size-small">Chứng chỉ</th>
+                                            <th className="px-3 py-2 text-right text-sm font-semibold text-foreground min-w-size-medium">{t("parameter.unitPrice")}</th>
+                                            <th className="px-3 py-2 text-center text-sm font-semibold text-foreground min-w-size-small">{t("parameter.tax")}</th>
+                                            <th className="px-3 py-2 text-right text-sm font-semibold text-foreground min-w-size-medium">{t("order.lineTotal")}</th>
                                         </>
                                     ) : (
                                         <>
-                                            <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-large">{t("parameter.groupName")}</th>
-                                            <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("order.sampleMatrix")}</th>
-                                            <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">{t("parameter.note")}</th>
-                                            <th className="px-6 py-4 text-right text-sm font-semibold text-foreground min-w-size-medium">{t("order.lineTotal")}</th>
+                                            <th className="px-3 py-2 text-left text-sm font-semibold text-foreground min-w-size-medium">Mã hệ thống</th>
+                                            <th className="px-3 py-2 text-left text-sm font-semibold text-foreground">{t("parameter.name")}</th>
+                                            <th className="px-3 py-2 text-left text-sm font-semibold text-foreground min-w-size-medium">Hiển thị (VI / EN)</th>
+                                            <th className="px-3 py-2 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("parameter.createdAt", "Ngày tạo")}</th>
                                         </>
                                     )}
-                                    <th className="px-6 py-4 text-center text-sm font-semibold text-foreground min-w-size-small">{t("common.action")}</th>
+                                    <th className="px-3 py-2 text-center text-sm font-semibold text-foreground min-w-size-small">{t("common.action")}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {isLoading ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground text-sm">
+                                        <td colSpan={6} className="px-3 py-4 text-center text-muted-foreground text-sm">
                                             Loading...
                                         </td>
                                     </tr>
-                                ) : (activeTab === "parameters" ? matrices.length === 0 : groups.length === 0) ? (
+                                ) : (activeTab === "matrix" ? matrices.length === 0 : parameters.length === 0) ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground text-sm">
+                                        <td colSpan={6} className="px-3 py-4 text-center text-muted-foreground text-sm">
                                             {t("analysis.noParametersFound")}
                                         </td>
                                     </tr>
-                                ) : activeTab === "parameters" ? (
+                                ) : activeTab === "matrix" ? (
                                     matrices.map((matrix) => (
                                         <tr key={matrix.matrixId} className="border-t border-border hover:bg-muted">
-                                            <td className="px-6 py-4 text-sm font-medium text-foreground">{matrix.parameterName}</td>
-                                            <td className="px-6 py-4 text-sm text-foreground">{matrix.sampleTypeName}</td>
-                                            <td className="px-6 py-4 text-right text-sm text-foreground">{(matrix.feeBeforeTax || 0).toLocaleString("vi-VN")} đ</td>
-                                            <td className="px-6 py-4 text-center text-sm text-foreground">{matrix.taxRate}%</td>
-                                            <td className="px-6 py-4 text-right text-sm font-medium text-foreground">
+                                            <td className="px-3 py-2 text-sm font-medium text-foreground">{matrix.parameterName}</td>
+                                            <td className="px-3 py-2 text-sm text-foreground">{matrix.sampleTypeName}</td>
+                                            <td className="px-3 py-2 text-sm text-foreground">{matrix.protocolCode}</td>
+                                            <td className="px-3 py-2 text-center text-sm text-foreground">
+                                                <div className="flex flex-wrap gap-1 justify-center">
+                                                    {matrix.protocolAccreditation?.VILAS997 && (
+                                                        <span className="px-2 py-0.5 bg-blue-100/50 border border-blue-200 text-blue-700 rounded text-xs font-semibold">VILAS 997</span>
+                                                    )}
+                                                    {matrix.protocolAccreditation?.["107"] && (
+                                                        <span className="px-2 py-0.5 bg-green-100/50 border border-green-200 text-green-700 rounded text-xs font-semibold">107</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-3 py-2 text-right text-sm text-foreground">{(matrix.feeBeforeTax || 0).toLocaleString("vi-VN")} đ</td>
+                                            <td className="px-3 py-2 text-center text-sm text-foreground">{matrix.taxRate}%</td>
+                                            <td className="px-3 py-2 text-right text-sm font-medium text-foreground">
                                                 {((matrix as any).feeAfterTax ? Number((matrix as any).feeAfterTax) : (matrix.feeBeforeTax || 0) * (1 + (matrix.taxRate || 0) / 100)).toLocaleString(
                                                     "vi-VN",
                                                 )}{" "}
                                                 đ
                                             </td>
-                                            <td className="px-6 py-4 text-center">
+                                            <td className="px-3 py-2 text-center">
                                                 <div className="flex items-center justify-center gap-2">
                                                     <button
                                                         onClick={() => handleEditMatrix(matrix)}
@@ -266,32 +287,27 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
                                         </tr>
                                     ))
                                 ) : (
-                                    groups.map((group) => (
-                                        <tr key={group.parameterGroupId} className="border-t border-border hover:bg-muted">
-                                            <td className="px-6 py-4 text-sm font-medium text-foreground">{group.groupName}</td>
-                                            <td className="px-6 py-4 text-sm text-foreground">{group.sampleTypeName}</td>
-                                            <td className="px-6 py-4 text-sm text-foreground max-w-xs truncate" title={group.groupNote}>
-                                                {group.groupNote}
+                                    parameters.map((param) => (
+                                        <tr key={param.parameterId} className="border-t border-border hover:bg-muted">
+                                            <td className="px-3 py-2 text-sm text-foreground">{param.parameterId}</td>
+                                            <td className="px-3 py-2 text-sm font-medium text-foreground">{param.parameterName}</td>
+                                            <td className="px-3 py-2 text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                                                {param.displayStyle?.default && <div className="mb-2" dangerouslySetInnerHTML={{ __html: parseSimpleMarkdown(param.displayStyle.default) }} />}
+                                                {param.displayStyle?.eng && <div className="text-muted-foreground" dangerouslySetInnerHTML={{ __html: parseSimpleMarkdown(param.displayStyle.eng) }} />}
+                                                {!param.displayStyle?.default && !param.displayStyle?.eng && <span className="text-muted-foreground">-</span>}
                                             </td>
-                                            <td className="px-6 py-4 text-right text-sm font-medium text-foreground">{(group.feeAfterTax || 0).toLocaleString("vi-VN")} đ</td>
-                                            <td className="px-6 py-4 text-center">
+                                            <td className="px-3 py-2 text-sm text-foreground">{param.createdAt ? new Date(param.createdAt).toLocaleDateString("vi-VN") : ""}</td>
+                                            <td className="px-3 py-2 text-center">
                                                 <div className="flex items-center justify-center gap-2">
                                                     <button
-                                                        onClick={() => handleEditGroup(group)}
-                                                        className="p-2 text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors"
-                                                        title={t("common.view")}
-                                                    >
-                                                        <Eye className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleEditGroup(group)}
+                                                        onClick={() => handleEditParameter(param)}
                                                         className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
                                                         title={t("common.edit")}
                                                     >
                                                         <Pencil className="w-4 h-4" />
                                                     </button>
                                                     <button
-                                                        onClick={() => handleDeleteGroup(group.parameterGroupId)}
+                                                        onClick={() => handleDeleteParameter(param.parameterId)}
                                                         className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                                                         title={t("common.delete")}
                                                     >
@@ -306,7 +322,7 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
                         </table>
                     </div>
 
-                    {!isLoading && (activeTab === "parameters" ? matrices.length > 0 : groups.length > 0) && (
+                    {!isLoading && (activeTab === "matrix" ? matrices.length > 0 : parameters.length > 0) && (
                         <Pagination
                             currentPage={page}
                             totalPages={totalPages}
@@ -322,24 +338,22 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
                 </div>
             </div>
 
-            {/* Matrix Modal */}
             <MatrixModal
                 isOpen={isMatrixModalOpen}
                 onClose={() => setIsMatrixModalOpen(false)}
                 onSuccess={() => {
-                    if (activeTab === "parameters") fetchData();
+                    if (activeTab === "matrix") fetchData();
                 }}
                 initialData={selectedMatrix}
             />
 
-            {/* Group Modal */}
-            <ParameterGroupModal
-                isOpen={isGroupModalOpen}
-                onClose={() => setIsGroupModalOpen(false)}
+            <ParameterModal
+                isOpen={isParamModalOpen}
+                onClose={() => setIsParamModalOpen(false)}
                 onSuccess={() => {
-                    if (activeTab === "groups") fetchData();
+                    if (activeTab === "parameters") fetchData();
                 }}
-                initialData={selectedGroup}
+                initialData={selectedParameter}
             />
         </MainLayout>
     );

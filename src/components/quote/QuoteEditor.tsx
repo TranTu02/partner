@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { ClientSectionNew } from "@/components/client/ClientSectionNew";
 import { SampleCard } from "@/components/order/SampleCard";
 import { PricingSummary } from "@/components/quote/PricingSummary";
+import { OtherItemsSection } from "@/components/order/OtherItemsSection";
 import { AnalysisModalNew } from "@/components/parameter/AnalysisModalNew";
 import { AddClientModal } from "@/components/client/AddClientModal";
 import { EditClientModal } from "@/components/client/EditClientModal";
@@ -15,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { EditorMode } from "../order/OrderEditor";
 import type { SampleWithQuantity, AnalysisWithQuantity } from "@/components/order/SampleCard";
 import { getClients, createClient, updateClient, createQuote, updateQuote } from "@/api/index";
+import type { OtherItem } from "@/types/order";
 import { toast } from "sonner";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -71,7 +73,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
     const [contactIdentity, setContactIdentity] = useState("");
     const [contactEmail, setContactEmail] = useState("");
     const [contactAddress, setContactAddress] = useState("");
-    const [reportEmail, setReportEmail] = useState("");
+    const [reportRecipient, setReportRecipient] = useState<{ receiverName?: string; receiverPhone?: string; receiverAddress?: string; receiverEmail?: string }>(initialData?.reportRecipient || {});
 
     // Invoice Info
     const [taxName, setTaxName] = useState("");
@@ -82,6 +84,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
     const [samples, setSamples] = useState<SampleWithQuantity[]>([]);
     const [discountRate, setDiscountRate] = useState(initialData?.discountRate || 0);
     const [commission, setCommission] = useState(0);
+    const [otherItems, setOtherItems] = useState<OtherItem[]>([]);
 
     // UI State
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -118,7 +121,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 setContactIdentity(contact.identityId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
                 setContactAddress(contact.contactAddress || "");
-                setReportEmail(contact.contactEmail || (contact as any).email || "");
             }
             if (initialData.samples && initialData.samples.length > 0) {
                 const mappedSamples = initialData.samples.map((s: any) => ({
@@ -134,6 +136,9 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             // Ensure discountRate is synced from initialData
             if (initialData.discountRate !== undefined) {
                 setDiscountRate(initialData.discountRate);
+            }
+            if (initialData.otherItems && Array.isArray(initialData.otherItems)) {
+                setOtherItems(initialData.otherItems);
             }
         }
     }, [initialData]);
@@ -175,14 +180,12 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 setContactIdentity(contact.identityId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
                 setContactAddress(contact.contactAddress || "");
-                setReportEmail(contact.contactEmail || (contact as any).email || "");
             } else {
                 setContactPerson("");
                 setContactPhone("");
                 setContactIdentity("");
                 setContactEmail("");
                 setContactAddress("");
-                setReportEmail("");
             }
         } else if (selectedClient && initialData && selectedClient.clientId !== initialData.client?.clientId) {
             // Overwrite on client change
@@ -202,7 +205,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 setContactIdentity(contact.identityId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
                 setContactAddress(contact.contactAddress || "");
-                setReportEmail(contact.contactEmail || (contact as any).email || "");
             }
         }
     }, [selectedClient, initialData]);
@@ -329,21 +331,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
     };
 
     const calculatePricing = () => {
-        if (isReadOnly && !hasUnsavedChanges && initialData?.totalAmount !== undefined) {
-            const storedSubtotal = Number(initialData.totalFeeBeforeTax) || 0;
-            const storedDiscount = Number(initialData.totalDiscountValue) || 0;
-            const storedNet = Number(initialData.totalFeeBeforeTaxAndDiscount) || storedSubtotal - storedDiscount;
-            const storedTax = Number(initialData.totalTaxValue) || 0;
-            const storedTotal = Number(initialData.totalAmount) || 0;
-
-            return {
-                subtotal: storedSubtotal,
-                discountAmount: storedDiscount,
-                feeBeforeTax: storedNet,
-                tax: storedTax,
-                total: storedTotal,
-            };
-        }
+        // Removed caching of stored read-only totals because we need to dynamically incorporate otherItems correctly on frontend view mode too.
 
         let totalFeeBeforeTax = 0; // Sum of Analysis Net Prices
         let sumVAT = 0; // Sum of Analysis VATs
@@ -378,13 +366,21 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
         // Final VAT (Reduced by Quote Discount)
         const totalTax = sumVAT * (1 - discountRate / 100);
 
-        const total = totalFeeBeforeTaxAndDiscount + totalTax;
+        // Include Other Items (phụ phí)
+        let otherFeeBeforeTax = 0;
+        let otherVAT = 0;
+        otherItems.forEach((i) => {
+            otherFeeBeforeTax += Number(i.feeBeforeTax || 0);
+            otherVAT += (Number(i.feeBeforeTax || 0) * Number(i.taxRate || 0)) / 100;
+        });
+
+        const total = totalFeeBeforeTaxAndDiscount + totalTax + otherFeeBeforeTax + otherVAT;
 
         return {
             subtotal: totalFeeBeforeTax,
             discountAmount: discountAmount,
-            feeBeforeTax: totalFeeBeforeTaxAndDiscount,
-            tax: totalTax,
+            feeBeforeTax: totalFeeBeforeTaxAndDiscount + otherFeeBeforeTax,
+            tax: totalTax + otherVAT,
             total,
         };
     };
@@ -465,6 +461,8 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 discountRate,
                 // commission, // Quote might not have commission in backend schema? Adding just in case.
 
+                otherItems,
+
                 totalFeeBeforeTax: pricing.subtotal,
                 totalDiscountValue: pricing.discountAmount,
                 totalFeeBeforeTaxAndDiscount: pricing.feeBeforeTax,
@@ -520,7 +518,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             contactPerson,
             contactPhone,
             contactIdentity,
-            reportEmail,
+            reportRecipient,
             contactEmail,
             contactAddress,
 
@@ -559,7 +557,8 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             pricing,
             discountRate,
             commission: 0,
-        };
+            otherItems,
+        } as any;
         setPrintData(data);
         setIsPrintModalOpen(true);
     };
@@ -572,7 +571,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
 
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-background text-foreground">
-            <div className="flex-1 overflow-auto p-8 bg-background">
+            <div className="flex-1 overflow-auto p-4 md:p-8 bg-background">
                 <div className="space-y-6">
                     <div>
                         <ClientSectionNew
@@ -586,7 +585,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                             contactIdentity={contactIdentity}
                             contactEmail={contactEmail}
                             contactAddress={contactAddress}
-                            reportEmail={reportEmail}
+                            reportRecipient={reportRecipient}
                             taxName={taxName}
                             taxCode={taxCode}
                             taxAddress={taxAddress}
@@ -596,7 +595,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                             onContactPersonChange={setContactPerson}
                             onContactPhoneChange={setContactPhone}
                             onContactIdentityChange={setContactIdentity}
-                            onReportEmailChange={setReportEmail}
+                            onReportRecipientChange={setReportRecipient}
                             onContactEmailChange={setContactEmail}
                             onContactAddressChange={setContactAddress}
                             onClientPhoneChange={setClientPhone}
@@ -609,6 +608,8 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                             onEditClient={() => setIsEditClientModalOpen(true)}
                             isReadOnly={isReadOnly}
                         />
+
+                        <OtherItemsSection otherItems={otherItems} onOtherItemsChange={setOtherItems} isReadOnly={isReadOnly} />
                     </div>
 
                     <div className="space-y-4">
@@ -645,7 +646,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
 
                     {samples.length > 0 && (
                         <div className="flex justify-end">
-                            <div className="w-[600px]">
+                            <div className="w-full md:w-[600px]">
                                 <PricingSummary
                                     subtotal={pricing.subtotal}
                                     discountRate={discountRate}
@@ -654,6 +655,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                                     tax={pricing.tax}
                                     total={pricing.total}
                                     commission={commission}
+                                    otherItems={otherItems}
                                     onDiscountRateChange={setDiscountRate}
                                     onCommissionChange={setCommission}
                                     isReadOnly={isReadOnly}
@@ -702,7 +704,6 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                                     setContactIdentity(contact.identityId || "");
                                     setContactEmail(contact.contactEmail || "");
                                     setContactAddress(contact.contactAddress || "");
-                                    setReportEmail(contact.contactEmail || "");
                                 }
 
                                 setIsEditClientModalOpen(false);

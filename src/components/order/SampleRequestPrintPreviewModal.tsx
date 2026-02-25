@@ -73,7 +73,7 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-card w-full max-w-5xl min-w-[900px] h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-border">
+            <div className="bg-card w-full max-w-5xl md:min-w-[900px] h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-border">
                 <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
                     <h2 className="text-lg font-bold text-foreground flex items-center gap-2">{t("sampleRequest.header", "Phiếu gửi mẫu thử nghiệm")}</h2>
                     <div className="flex items-center gap-2">
@@ -83,7 +83,7 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
                             title="In Phiếu"
                         >
                             <Printer className="w-4 h-4" />
-                            <span>{t("common.print") || "In"}</span>
+                            <span className="hidden sm:inline">{t("common.print") || "In"}</span>
                         </button>
 
                         <button
@@ -95,7 +95,7 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
                             title="Lấy link hiện tại để gửi khách"
                         >
                             <LinkIcon className="w-4 h-4" />
-                            {t("Lấy Link")}
+                            <span className="hidden sm:inline">{t("Lấy Link")}</span>
                         </button>
 
                         <button
@@ -104,7 +104,7 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
                             title="Tạo lại link mới (Reset phiếu)"
                         >
                             <LinkIcon className="w-4 h-4" />
-                            {t("Tạo Link Mới")}
+                            <span className="hidden sm:inline">{t("Tạo Link Mới")}</span>
                         </button>
                         <button onClick={onClose} className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors">
                             <X className="w-5 h-5" />
@@ -140,6 +140,9 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
                                 * { margin: 0; padding: 0; box-sizing: border-box; }
                                 body { 
                                     width: 210mm;
+                                    min-width: 210mm;
+                                    display: inline-block;
+                                    vertical-align: top;
                                     margin: 10px auto !important; 
                                     padding: 5mm !important; 
                                     background-color: white; 
@@ -147,6 +150,7 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
                                     line-height: 1.3;
                                     min-height: 297mm;
                                     box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                                    text-align: left;
                                 }
                                 table[data-mce-selected="1"] {
                                     outline: none !important;
@@ -167,9 +171,9 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
                                 
                                 .layout-table td, .layout-table th { border: none !important; }
                                 
-                                html { background-color: #f0f0f0; display: flex; justify-content: center; }
+                                html { background-color: #f0f0f0; display: block; overflow: auto; text-align: center; }
                                 @media print {
-                                    body { margin: 0 !important; box-shadow: none !important; width: 100% !important; padding: 0 !important; }
+                                    body { margin: 0 !important; box-shadow: none !important; width: 100% !important; padding: 0 !important; display: block; }
                                     html { background: none; display: block; }
                                     @page { margin: 5mm; size: A4 portrait; }
                                     .mceEditable { border-bottom: none !important; }

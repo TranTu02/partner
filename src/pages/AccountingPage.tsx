@@ -130,7 +130,7 @@ export function AccountingPage({ activeMenu, onMenuClick }: AccountingPageProps)
                 className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
             >
                 <Upload className="w-4 h-4" />
-                {t("accounting.bulkPayment.button")}
+                <span className="hidden sm:inline">{t("accounting.bulkPayment.button")}</span>
             </button>
         </div>
     );
@@ -139,13 +139,13 @@ export function AccountingPage({ activeMenu, onMenuClick }: AccountingPageProps)
         <MainLayout activeMenu={activeMenu} onMenuClick={onMenuClick} headerContent={headerContent}>
             <div>
                 {/* Search Bar */}
-                <div className="bg-card rounded-lg border border-border p-4 mb-4">
+                <div className="bg-card rounded-lg border border-border p-2 mb-2">
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <input
                             type="text"
                             placeholder={t("accounting.searchPlaceholder")}
-                            className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm"
+                            className="w-full pl-9 pr-4 py-1.5 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && fetchOrders()}

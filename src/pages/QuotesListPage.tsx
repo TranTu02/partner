@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft, Copy } from "lucide-react";
+import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft, Copy, MoreHorizontal } from "lucide-react";
 import type { QuoteEditorRef } from "@/components/quote/QuoteEditor";
 import { QuoteEditor } from "@/components/quote/QuoteEditor";
-// import type { Quote } from "../data/mockData";
-// import { mockQuotes } from "../data/mockData";
 
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
@@ -15,6 +13,7 @@ import { Pagination } from "@/components/common/Pagination";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { QuotePrintPreviewModal } from "@/components/quote/QuotePrintPreviewModal";
 import type { QuotePrintData } from "@/components/quote/QuotePrintTemplate";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface QuotesListPageProps {
     activeMenu: string;
@@ -278,8 +277,8 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                                 {isCreate
                                     ? t("quote.create")
                                     : viewMode === "edit"
-                                    ? `${t("quote.edit")} ${selectedQuote?.quoteId ? `- ${selectedQuote.quoteId}` : ""}`
-                                    : `${t("quote.detail")} ${selectedQuote?.quoteId ? `- ${selectedQuote.quoteId}` : ""}`}
+                                      ? `${t("quote.edit")} ${selectedQuote?.quoteId ? `- ${selectedQuote.quoteId}` : ""}`
+                                      : `${t("quote.detail")} ${selectedQuote?.quoteId ? `- ${selectedQuote.quoteId}` : ""}`}
                             </h1>
                         </div>
                     </div>
@@ -315,7 +314,7 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                                 className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
                             >
                                 <Save className="w-4 h-4" />
-                                {t("common.save")}
+                                <span className="hidden sm:inline">{t("common.save")}</span>
                             </button>
                         )}
                     </div>
@@ -337,74 +336,80 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
             </div>
             <button onClick={handleCreate} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium">
                 <Plus className="w-4 h-4" />
-                {t("quote.create")}
+                <span className="hidden sm:inline">{t("quote.create")}</span>
             </button>
         </div>
     );
 
     return (
         <MainLayout activeMenu={activeMenu} onMenuClick={onMenuClick} headerContent={headerContent}>
-            <div className="space-y-4">
+            <div className="space-y-2">
+                {" "}
+                {/* Reduced padding: space-y-4 -> space-y-2 */}
                 {/* Filters */}
-                <div className="bg-card rounded-lg border border-border p-4">
+                <div className="bg-card rounded-lg border border-border p-2">
+                    {" "}
+                    {/* Reduced padding: p-4 -> p-2 */}
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <input
                             type="text"
                             placeholder={t("quote.searchPlaceholder")}
-                            className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm"
+                            className="w-full pl-9 pr-4 py-1.5 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm" // Reduced padding
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
                 </div>
-
                 {/* Quotes List */}
                 <div className="bg-card rounded-lg border border-border overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="bg-muted border-b border-border">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("quote.code")}</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("quote.client")}</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.salePerson")}</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("order.total")}</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("quote.createdDate")}</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("quote.status")}</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("common.actions")}</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("quote.code")}</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider min-w-[250px]">{t("quote.client")}</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden md:table-cell">{t("order.salePerson")}</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider min-w-[150px]">{t("order.total")}</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden sm:table-cell">{t("quote.createdDate")}</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("quote.status")}</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("common.actions")}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
                                 {isLoading ? (
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-4 text-center text-sm text-muted-foreground">
+                                        <td colSpan={7} className="px-3 py-2 text-center text-sm text-muted-foreground">
                                             Loading...
                                         </td>
                                     </tr>
                                 ) : quotes.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-4 text-center text-sm text-muted-foreground">
+                                        <td colSpan={7} className="px-3 py-2 text-center text-sm text-muted-foreground">
                                             {t("common.noData")}
                                         </td>
                                     </tr>
                                 ) : (
                                     quotes.map((quote) => (
                                         <tr key={quote.quoteId} className="hover:bg-muted/50 transition-colors">
-                                            <td className="px-6 py-4 text-sm font-medium text-primary cursor-pointer" onClick={() => handleViewDetail(quote)}>
+                                            <td className="px-3 py-2 text-sm font-medium text-primary cursor-pointer whitespace-nowrap" onClick={() => handleViewDetail(quote)}>
                                                 {quote.quoteId}
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-foreground">
-                                                <div>{quote.client?.clientName || "Unknown Client"}</div>
-                                                <div className="text-xs text-muted-foreground">{quote.contactPerson?.contactName || "N/A"}</div>
+                                            <td className="px-3 py-2 text-sm text-foreground">
+                                                <div className="font-medium line-clamp-2">{quote.client?.clientName || "Unknown Client"}</div>
+                                                <div className="text-xs text-muted-foreground line-clamp-1">{quote.contactPerson?.contactName || "N/A"}</div>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-foreground">{quote.salePerson || "-"}</td>
-                                            <td className="px-6 py-4 text-right text-sm font-medium text-foreground">{(quote.totalAmount || 0).toLocaleString("vi-VN")} đ</td>
-                                            <td className="px-6 py-4 text-sm text-muted-foreground">{quote.createdAt ? new Date(quote.createdAt).toLocaleDateString("vi-VN") : "N/A"}</td>
-                                            <td className="px-6 py-4">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800`}>{quote.quoteStatus}</span>
+                                            <td className="px-3 py-2 text-sm text-foreground hidden md:table-cell">{quote.salePerson || "-"}</td>
+                                            <td className="px-3 py-2 text-left text-sm font-medium text-foreground">{(quote.totalAmount || 0).toLocaleString("vi-VN")} đ</td>
+                                            <td className="px-3 py-2 text-sm text-muted-foreground hidden sm:table-cell">
+                                                {quote.createdAt ? new Date(quote.createdAt).toLocaleDateString("vi-VN") : "N/A"}
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
+                                            <td className="px-3 py-2">
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold bg-gray-100 text-gray-800`}>{quote.quoteStatus}</span>
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                {/* Desktop: Show buttons directly */}
+                                                <div className="hidden md:flex items-center gap-2">
                                                     <button
                                                         onClick={() => handleViewDetail(quote)}
                                                         className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors"
@@ -433,6 +438,38 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                                                     >
                                                         <FileDown className="w-4 h-4" />
                                                     </button>
+                                                </div>
+
+                                                {/* Mobile: Show Dropdown */}
+                                                <div className="md:hidden">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <button className="h-8 w-8 p-0 hover:bg-muted rounded-full flex items-center justify-center transition-colors">
+                                                                <span className="sr-only">Open menu</span>
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuLabel>{t("common.actions")}</DropdownMenuLabel>
+                                                            <DropdownMenuItem onClick={() => handleViewDetail(quote)}>
+                                                                <Eye className="mr-2 h-4 w-4" />
+                                                                {t("common.view")}
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleEdit(quote)}>
+                                                                <Pencil className="mr-2 h-4 w-4" />
+                                                                {t("common.edit")}
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleDuplicate(quote)}>
+                                                                <Copy className="mr-2 h-4 w-4" />
+                                                                {t("common.duplicate")}
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem onClick={() => handlePrint(quote)}>
+                                                                <FileDown className="mr-2 h-4 w-4" />
+                                                                {t("quote.download")}
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </div>
                                             </td>
                                         </tr>

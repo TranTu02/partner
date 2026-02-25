@@ -9,6 +9,7 @@ interface PaymentRow {
     orderId: string;
     totalPaid: string;
     paymentDate: string;
+    status?: "pending" | "processing" | "success" | "error";
     error?: string;
 }
 
@@ -20,16 +21,17 @@ interface BulkPaymentModalProps {
 
 export function BulkPaymentModal({ open, onClose, onSuccess }: BulkPaymentModalProps) {
     const { t } = useTranslation();
-    const [rows, setRows] = useState<PaymentRow[]>([{ id: crypto.randomUUID(), orderId: "", totalPaid: "", paymentDate: "" }]);
+    const [rows, setRows] = useState<PaymentRow[]>([
+        { id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10), orderId: "", totalPaid: "", paymentDate: "", status: "pending" },
+    ]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
     if (!open) return null;
 
     const addRow = () => {
-        setRows([...rows, { id: crypto.randomUUID(), orderId: "", totalPaid: "", paymentDate: "" }]);
+        setRows([...rows, { id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10), orderId: "", totalPaid: "", paymentDate: "", status: "pending" }]);
     };
-
     const removeRow = (id: string) => {
         if (rows.length === 1) return;
         setRows(rows.filter((row) => row.id !== id));
@@ -99,7 +101,7 @@ export function BulkPaymentModal({ open, onClose, onSuccess }: BulkPaymentModalP
 
             // Add new rows if needed
             while (newRows.length <= targetRowIndex) {
-                newRows.push({ id: crypto.randomUUID(), orderId: "", totalPaid: "", paymentDate: "" });
+                newRows.push({ id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10), orderId: "", totalPaid: "", paymentDate: "", status: "pending" });
             }
 
             // Fill columns starting from the current column
@@ -111,6 +113,12 @@ export function BulkPaymentModal({ open, onClose, onSuccess }: BulkPaymentModalP
                     // Clean currency values for totalPaid field
                     if (field === "totalPaid") {
                         processedValue = processedValue.replace(/[^0-9]/g, "");
+                    }
+                    // Normalize date format YYYY/MM/DD -> YYYY-MM-DD
+                    if (field === "paymentDate") {
+                        if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(processedValue)) {
+                            processedValue = processedValue.replace(/\//g, "-");
+                        }
                     }
                     newRows[targetRowIndex] = { ...newRows[targetRowIndex], [field]: processedValue };
                 }
@@ -130,12 +138,22 @@ export function BulkPaymentModal({ open, onClose, onSuccess }: BulkPaymentModalP
         if (!dateStr || !dateStr.trim()) return undefined;
         const cleanStr = dateStr.trim();
 
+        // Try YYYY-MM-DD or YYYY/MM/DD
+        const ymdParts = cleanStr.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+        if (ymdParts) {
+            const year = parseInt(ymdParts[1], 10);
+            const month = parseInt(ymdParts[2], 10);
+            const day = parseInt(ymdParts[3], 10);
+            const date = new Date(year, month - 1, day);
+            if (!isNaN(date.getTime())) return date.toISOString();
+        }
+
         // Try DD-MM-YYYY or DD/MM/YYYY
-        const parts = cleanStr.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
-        if (parts) {
-            const day = parseInt(parts[1], 10);
-            const month = parseInt(parts[2], 10);
-            const year = parseInt(parts[3], 10);
+        const dmyParts = cleanStr.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+        if (dmyParts) {
+            const day = parseInt(dmyParts[1], 10);
+            const month = parseInt(dmyParts[2], 10);
+            const year = parseInt(dmyParts[3], 10);
             const date = new Date(year, month - 1, day);
             if (!isNaN(date.getTime())) return date.toISOString();
         }
@@ -149,9 +167,9 @@ export function BulkPaymentModal({ open, onClose, onSuccess }: BulkPaymentModalP
 
     const handleSubmit = async () => {
         // Filter out empty rows
-        const validRows = rows.filter((row) => row.orderId.trim() !== "");
+        const validRowsIndices = rows.map((row, index) => ({ ...row, originalIndex: index })).filter((row) => row.orderId.trim() !== "");
 
-        if (validRows.length === 0) {
+        if (validRowsIndices.length === 0) {
             toast.error(t("accounting.bulkPayment.noData"));
             return;
         }
@@ -159,59 +177,48 @@ export function BulkPaymentModal({ open, onClose, onSuccess }: BulkPaymentModalP
         setIsSubmitting(true);
         let successCount = 0;
         let errorCount = 0;
-        const successIds: string[] = [];
-        const failedRowsUpdates: Record<string, string> = {}; // map id -> error message
 
-        for (const row of validRows) {
+        // Process sequentially
+        for (const validRow of validRowsIndices) {
+            const { id, orderId, totalPaid, paymentDate } = validRow;
+
+            // Update status to processing
+            setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: "processing", error: undefined } : r)));
+
+            // 1s Delay per request as requested
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
             try {
-                const updatedPaymentDate = parsePaymentDate(row.paymentDate);
-
-                // If user entered a date but we couldn't parse it, consider it an error?
-                // Or just ignore? Let's assume if they entered something, they want a date.
-                // But for now, if undefined, we just don't send it or send undefined.
+                const updatedPaymentDate = parsePaymentDate(paymentDate);
 
                 const response = await updateOrder({
                     body: {
-                        orderId: row.orderId.trim(),
-                        totalPaid: row.totalPaid ? parseFloat(row.totalPaid.replace(/[^0-9.-]/g, "")) : row.totalPaid === "0" ? null : undefined,
+                        orderId: orderId.trim(),
+                        totalPaid: totalPaid ? parseFloat(totalPaid.replace(/[^0-9.-]/g, "")) : totalPaid === "0" ? null : undefined,
                         paymentDate: updatedPaymentDate,
                     },
                 });
 
                 if (response.success) {
                     successCount++;
-                    successIds.push(row.id);
+                    // Update status to success (Green)
+                    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: "success", error: undefined } : r)));
                 } else {
                     errorCount++;
-                    failedRowsUpdates[row.id] = response.error?.message || "Failed";
-                    console.error(`Failed to update order ${row.orderId}:`, response.error);
+                    const errorMsg = response.error?.message || "Failed";
+                    // Update status to error (Red)
+                    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: "error", error: errorMsg } : r)));
                 }
             } catch (error) {
                 errorCount++;
-                failedRowsUpdates[row.id] = "Error occurred";
-                console.error(`Error updating order ${row.orderId}:`, error);
+                // Update status to error (Red)
+                setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: "error", error: "Error occurred" } : r)));
             }
         }
 
         setIsSubmitting(false);
 
-        // Update rows: Remove successful ones, update errors on failed ones
-        setRows((prevRows) => {
-            const nextRows = prevRows
-                .filter((row) => !successIds.includes(row.id))
-                .map((row) => {
-                    if (failedRowsUpdates[row.id]) {
-                        return { ...row, error: failedRowsUpdates[row.id] };
-                    }
-                    return row;
-                });
-
-            if (nextRows.length === 0) {
-                return [{ id: crypto.randomUUID(), orderId: "", totalPaid: "", paymentDate: "" }];
-            }
-            return nextRows;
-        });
-
+        // Show summary toast
         if (successCount > 0) {
             toast.success(t("accounting.bulkPayment.successCount", { count: successCount }));
             onSuccess();
@@ -220,14 +227,52 @@ export function BulkPaymentModal({ open, onClose, onSuccess }: BulkPaymentModalP
             toast.error(t("accounting.bulkPayment.errorCount", { count: errorCount }));
         }
 
-        if (successCount > 0 && errorCount === 0) {
-            onClose();
-        }
+        // Delay slightly before clearing successful rows so user can see the green state
+        setTimeout(() => {
+            setRows((prevRows) => {
+                // Keep only rows that are NOT success (i.e., keep pending, error, or empty rows if any)
+                // Actually we just want to remove the ones we successfully processed.
+                // If there are errors, they stay.
+                const nextRows = prevRows.filter((row) => row.status !== "success");
+
+                if (nextRows.length === 0) {
+                    // Reset to one empty row if all cleared
+                    // Also close modal if everything was successful?
+                    // The requirement says "xóa hết hàng xanh đi và giữ lại các hàng bị error".
+                    // If no error rows left, we can arguably close or leave one empty row.
+                    // Usually if all success, we might want to close.
+                    // But let's stick to "delete successful rows".
+                    return [{ id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10), orderId: "", totalPaid: "", paymentDate: "", status: "pending" }];
+                }
+                return nextRows;
+            });
+
+            // If complete success (no errors), close modal?
+            // Requirement says "giữ lại các hàng bị error". If errorCount == 0, then we might auto close.
+            if (errorCount === 0 && successCount > 0) {
+                onClose();
+            }
+        }, 1000);
     };
 
     const handleClose = () => {
-        setRows([{ id: crypto.randomUUID(), orderId: "", totalPaid: "", paymentDate: "" }]);
+        setRows([{ id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10), orderId: "", totalPaid: "", paymentDate: "", status: "pending" }]);
         onClose();
+    };
+
+    // Helper for row styles
+    const getRowClass = (row: PaymentRow) => {
+        if (row.status === "success") return "bg-green-50 border-green-200";
+        if (row.status === "error") return "bg-red-50 border-red-200";
+        if (row.status === "processing") return "bg-blue-50 border-blue-200"; // Optional feedback for processing
+        return "hover:bg-muted/30";
+    };
+
+    const getBorderClass = (row: PaymentRow) => {
+        if (row.status === "success") return "border-green-300";
+        if (row.status === "error") return "border-red-300";
+        if (row.status === "processing") return "border-blue-300";
+        return "border-border";
     };
 
     return (
@@ -236,7 +281,7 @@ export function BulkPaymentModal({ open, onClose, onSuccess }: BulkPaymentModalP
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
                     <h2 className="text-lg font-bold text-foreground">{t("accounting.bulkPayment.title")}</h2>
-                    <button onClick={handleClose} className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors">
+                    <button onClick={handleClose} disabled={isSubmitting} className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors disabled:opacity-50">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -255,54 +300,59 @@ export function BulkPaymentModal({ open, onClose, onSuccess }: BulkPaymentModalP
                         </thead>
                         <tbody className="bg-card">
                             {rows.map((row, index) => (
-                                <tr key={row.id} className={`hover:bg-muted/30 ${row.error ? "bg-red-50 border-red-200" : ""}`}>
+                                <tr key={row.id} className={getRowClass(row)}>
                                     <td className="border border-border px-4 py-2 text-sm text-muted-foreground text-center relative">
                                         {index + 1}
-                                        {row.error && <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500" title={row.error} />}
+                                        {row.status === "error" && <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500" title={row.error} />}
+                                        {row.status === "success" && <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500" />}
                                     </td>
-                                    <td className={`border p-0 ${row.error ? "border-red-300" : "border-border"}`}>
+                                    <td className={`border p-0 ${getBorderClass(row)}`}>
                                         <input
                                             type="text"
                                             value={row.orderId}
                                             onChange={(e) => updateRow(row.id, "orderId", e.target.value)}
                                             onKeyDown={(e) => handleCellKeyDown(e, index, "orderId")}
                                             onPaste={(e) => handlePaste(e, index, getColIndex("orderId"))}
-                                            className="w-full px-4 py-2 bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground"
+                                            disabled={isSubmitting || row.status === "success"}
+                                            className="w-full px-4 py-2 bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground disabled:opacity-70"
                                             placeholder={t("accounting.bulkPayment.orderIdPlaceholder")}
                                         />
                                     </td>
-                                    <td className={`border p-0 ${row.error ? "border-red-300" : "border-border"}`}>
+                                    <td className={`border p-0 ${getBorderClass(row)}`}>
                                         <input
                                             type="text"
                                             value={formatCurrencyDisplay(row.totalPaid)}
                                             onChange={(e) => handleCurrencyInput(row.id, e.target.value)}
                                             onKeyDown={(e) => handleCellKeyDown(e, index, "totalPaid")}
                                             onPaste={(e) => handlePaste(e, index, getColIndex("totalPaid"))}
-                                            className="w-full px-4 py-2 bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground text-right"
+                                            disabled={isSubmitting || row.status === "success"}
+                                            className="w-full px-4 py-2 bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground text-right disabled:opacity-70"
                                             placeholder={t("accounting.bulkPayment.amountPlaceholder")}
                                         />
                                     </td>
-                                    <td className={`border p-0 ${row.error ? "border-red-300" : "border-border"}`}>
+                                    <td className={`border p-0 ${getBorderClass(row)}`}>
                                         <input
                                             type="text"
                                             value={row.paymentDate}
                                             onChange={(e) => updateRow(row.id, "paymentDate", e.target.value)}
                                             onKeyDown={(e) => handleCellKeyDown(e, index, "paymentDate")}
                                             onPaste={(e) => handlePaste(e, index, getColIndex("paymentDate"))}
-                                            className="w-full px-4 py-2 bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground"
-                                            placeholder="DD-MM-YYYY"
+                                            disabled={isSubmitting || row.status === "success"}
+                                            className="w-full px-4 py-2 bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm text-foreground disabled:opacity-70"
+                                            placeholder="YYYY-MM-DD"
                                         />
                                     </td>
-                                    <td className={`border px-2 py-2 text-center ${row.error ? "border-red-300" : "border-border"}`}>
+                                    <td className={`border px-2 py-2 text-center ${getBorderClass(row)}`}>
                                         <div className="flex items-center justify-center gap-2">
                                             {row.error && (
                                                 <span className="text-xs text-red-500 font-medium" title={row.error}>
                                                     Error
                                                 </span>
                                             )}
+                                            {row.status === "success" && <span className="text-xs text-green-600 font-medium">Done</span>}
                                             <button
                                                 onClick={() => removeRow(row.id)}
-                                                disabled={rows.length === 1}
+                                                disabled={rows.length === 1 || isSubmitting}
                                                 className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                                             >
                                                 <Trash2 className="w-4 h-4" />
@@ -318,7 +368,8 @@ export function BulkPaymentModal({ open, onClose, onSuccess }: BulkPaymentModalP
                     <div className="p-4">
                         <button
                             onClick={addRow}
-                            className="flex items-center gap-2 px-4 py-2 text-sm text-primary border border-dashed border-primary/50 rounded-lg hover:bg-primary/10 transition-colors"
+                            disabled={isSubmitting}
+                            className="flex items-center gap-2 px-4 py-2 text-sm text-primary border border-dashed border-primary/50 rounded-lg hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <Plus className="w-4 h-4" />
                             {t("accounting.bulkPayment.addRow")}

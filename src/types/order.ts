@@ -1,5 +1,19 @@
 import type { Client } from "./client";
 
+export interface OtherItem {
+    itemName: string; // e.g. "Phí làm nhanh"
+    feeBeforeTax: number;
+    taxRate: number; // percentage, e.g. 8
+    feeAfterTax: number;
+}
+
+export interface ReportRecipient {
+    receiverName?: string;
+    receiverPhone?: string;
+    receiverAddress?: string;
+    receiverEmail?: string;
+}
+
 export interface Order {
     orderId: string; // Custom Text ID (PK)
     quoteId?: string; // FK
@@ -32,6 +46,10 @@ export interface Order {
     invoiceNumbers?: string[]; // List of issued invoices
     requestDate?: string; // Information regarding request date
     orderNote?: string; // Order Note
+
+    otherItems?: OtherItem[]; // jsonb[] - Phụ phí (surcharges)
+
+    reportRecipient?: ReportRecipient; // jsonb - Người nhận báo cáo
 
     transactions?: any[]; // jsonb[]
     contactPerson?: {

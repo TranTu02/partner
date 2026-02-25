@@ -3,11 +3,13 @@ import { Plus, Search as SearchIcon } from "lucide-react";
 import { ClientSectionNew } from "@/components/client/ClientSectionNew";
 import { SampleCard } from "@/components/order/SampleCard";
 import { PricingSummary } from "@/components/quote/PricingSummary";
+import { OtherItemsSection } from "@/components/order/OtherItemsSection";
 import { AnalysisModalNew } from "@/components/parameter/AnalysisModalNew";
 import { AddClientModal } from "@/components/client/AddClientModal";
 import { EditClientModal } from "@/components/client/EditClientModal";
 import type { Client } from "@/types/client";
 import type { Matrix } from "@/types/parameter";
+import type { OtherItem } from "@/types/order";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import { OrderPrintPreviewModal } from "@/components/order/OrderPrintPreviewModal";
 import { SampleRequestPrintPreviewModal } from "@/components/order/SampleRequestPrintPreviewModal";
@@ -78,7 +80,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     const [contactIdentity, setContactIdentity] = useState("");
     const [contactEmail, setContactEmail] = useState("");
     const [contactAddress, setContactAddress] = useState("");
-    const [reportEmail, setReportEmail] = useState("");
+    const [reportRecipient, setReportRecipient] = useState<{ receiverName?: string; receiverPhone?: string; receiverAddress?: string; receiverEmail?: string }>(initialData?.reportRecipient || {});
 
     // Invoice Info
     const [taxName, setTaxName] = useState("");
@@ -94,6 +96,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     const [orderUri, setOrderUri] = useState(initialData?.orderUri || "");
     const [requestForm, setRequestForm] = useState(initialData?.requestForm || "");
     const [orderNote, setOrderNote] = useState(initialData?.orderNote || "");
+    const [otherItems, setOtherItems] = useState<OtherItem[]>([]);
 
     useEffect(() => {
         setOrderUri(initialData?.orderUri || "");
@@ -139,8 +142,11 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 setContactIdentity(contact.identityId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
                 setContactAddress(contact.contactAddress || "");
-                setContactAddress(contact.contactAddress || "");
-                setReportEmail(contact.contactEmail || (contact as any).email || "");
+            }
+
+            // reportRecipient
+            if (initialData.reportRecipient) {
+                setReportRecipient(initialData.reportRecipient);
             }
 
             if (initialData.orderNote) {
@@ -194,8 +200,14 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             if (initialData.discountRate !== undefined) {
                 setDiscountRate(initialData.discountRate);
             }
+            if (initialData.commissionRate !== undefined) {
+                setCommission(initialData.commissionRate);
+            }
             if (initialData.commission !== undefined) {
                 setCommission(initialData.commission);
+            }
+            if (initialData.otherItems && Array.isArray(initialData.otherItems)) {
+                setOtherItems(initialData.otherItems);
             }
         }
     }, [initialData]);
@@ -252,7 +264,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 setContactIdentity(contact.identityId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
                 setContactAddress(contact.contactAddress || "");
-                setReportEmail(contact.contactEmail || (contact as any).email || "");
             } else {
                 // Clear contact fields if no contact
                 setContactPerson("");
@@ -261,7 +272,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 setContactIdentity("");
                 setContactEmail("");
                 setContactAddress("");
-                setReportEmail("");
             }
         }
     };
@@ -302,7 +312,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         setContactIdentity(contact.identityId || "");
                         setContactEmail(contact.contactEmail || (contact as any).email || "");
                         setContactAddress(contact.contactAddress || "");
-                        setReportEmail(contact.contactEmail || (contact as any).email || "");
                     }
 
                     setDiscountRate(foundQuote.discountRate || 0);
@@ -315,7 +324,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                 id: `temp-sample-${Date.now()}-${Math.random().toString(36).slice(2)}-${i}`,
                                 sampleId: undefined, // Create new sample for order
                                 sampleName: s.sampleName || s.name || "Sample",
-                                sampleMatrix: s.sampleMatrix || s.matrix || "Water",
+                                sampleMatrix: s.sampleMatrix || s.matrix || "",
                                 sampleNote: s.sampleNote || "",
                                 analyses: (s.analyses || []).map((a: any) => ({
                                     ...a,
@@ -345,23 +354,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     };
 
     const calculatePricing = () => {
-        // If in view mode and we have initial data, prefer stored totals
-        // We assume stored data matches the calculation model at the time of saving
-        if (isReadOnly && !hasUnsavedChanges && initialData?.totalAmount !== undefined) {
-            const storedSubtotal = Number(initialData.totalFeeBeforeTax) || 0;
-            const storedDiscount = Number(initialData.totalDiscountValue) || 0;
-            const storedNet = Number(initialData.totalFeeBeforeTaxAndDiscount) || storedSubtotal - storedDiscount;
-            const storedTax = Number(initialData.totalTaxValue) || 0;
-            const storedTotal = Number(initialData.totalAmount) || 0;
-
-            return {
-                subtotal: storedSubtotal,
-                discountAmount: storedDiscount,
-                feeBeforeTax: storedNet,
-                tax: storedTax,
-                total: storedTotal,
-            };
-        }
+        // Removed caching of stored read-only totals because we need to dynamically incorporate otherItems correctly on frontend view mode too.
 
         let totalFeeBeforeTax = 0; // Sum of Analysis Net Prices (after item discount)
         let sumVAT = 0; // Sum of Analysis VATs (calculated on item net price)
@@ -395,14 +388,22 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         // Formula: SumVAT * (1 - OrderDiscount%)
         const totalTax = sumVAT * (1 - discountRate / 100);
 
+        // Include Other Items (phụ phí)
+        let otherFeeBeforeTax = 0;
+        let otherVAT = 0;
+        otherItems.forEach((i) => {
+            otherFeeBeforeTax += Number(i.feeBeforeTax || 0);
+            otherVAT += (Number(i.feeBeforeTax || 0) * Number(i.taxRate || 0)) / 100;
+        });
+
         // Grand Total
-        const total = totalFeeBeforeTaxAndDiscount + totalTax;
+        const total = totalFeeBeforeTaxAndDiscount + totalTax + otherFeeBeforeTax + otherVAT;
 
         return {
             subtotal: totalFeeBeforeTax,
             discountAmount,
-            feeBeforeTax: totalFeeBeforeTaxAndDiscount,
-            tax: totalTax,
+            feeBeforeTax: totalFeeBeforeTaxAndDiscount + otherFeeBeforeTax,
+            tax: totalTax + otherVAT,
             total,
         };
     };
@@ -437,7 +438,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             contactPerson,
             contactPhone,
             contactIdentity,
-            reportEmail,
+            reportRecipient,
             contactEmail,
             contactAddress,
 
@@ -478,7 +479,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             discountRate,
             orderUri: orderUri,
             requestForm: requestForm,
-        };
+            otherItems,
+        } as any;
         setPreviewData(data);
         setIsPreviewOpen(true);
     };
@@ -665,6 +667,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 clientId: selectedClient.clientId,
                 client: clientSnapshot as any,
                 contactPerson: contactData,
+                reportRecipient,
 
                 quoteId,
                 orderNote: orderNote?.trim() || null,
@@ -690,6 +693,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
                 discountRate,
                 commission,
+
+                otherItems,
 
                 totalFeeBeforeTax: pricing.subtotal,
                 totalDiscountValue: pricing.discountAmount,
@@ -726,10 +731,11 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-background text-foreground">
-            <div className="flex-1 overflow-auto p-8 bg-background">
+            <div className="flex-1 overflow-auto p-4 md:p-8 bg-background">
                 <div className="space-y-6">
+                    {/* Quote search block – create mode only */}
                     {!isReadOnly && mode === "create" && (
-                        <div className="bg-card rounded-lg border border-border p-6">
+                        <div className="bg-card rounded-lg border border-border p-4 md:p-6">
                             <h3 className="mb-4 text-base font-semibold">{t("order.information")}</h3>
                             <div>
                                 <label className="block mb-2 text-sm font-medium text-foreground">{t("order.quoteCode")}</label>
@@ -749,7 +755,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                         onClick={handleLoadQuote}
                                         className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50"
                                         disabled={isReadOnly}
-                                        // TODO: Add loading state
                                     >
                                         <SearchIcon className="w-4 h-4" />
                                         {t("order.loadQuote")}
@@ -757,6 +762,14 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-1">{t("order.quoteNote")}</p>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Quote ID read-only display in view/edit mode */}
+                    {quoteId && mode !== "create" && (
+                        <div className="bg-card rounded-lg border border-border p-4 md:p-6 flex items-center gap-3">
+                            <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">{t("order.quoteCode", "Mã báo giá")}:</label>
+                            <span className="px-3 py-1.5 bg-muted/50 border border-border rounded-lg text-sm font-semibold text-primary">{quoteId}</span>
                         </div>
                     )}
 
@@ -772,7 +785,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         contactIdentity={contactIdentity}
                         contactEmail={contactEmail}
                         contactAddress={contactAddress}
-                        reportEmail={reportEmail}
+                        reportRecipient={reportRecipient}
+                        onReportRecipientChange={setReportRecipient}
                         taxName={taxName}
                         taxCode={taxCode}
                         taxAddress={taxAddress}
@@ -783,7 +797,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         onContactIdChange={setContactId}
                         onContactPhoneChange={setContactPhone}
                         onContactIdentityChange={setContactIdentity}
-                        onReportEmailChange={setReportEmail}
                         onContactEmailChange={setContactEmail}
                         onContactAddressChange={setContactAddress}
                         onClientPhoneChange={setClientPhone}
@@ -796,6 +809,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         onEditClient={() => setIsEditClientModalOpen(true)}
                         isReadOnly={isReadOnly}
                     />
+
+                    <OtherItemsSection otherItems={otherItems} onOtherItemsChange={setOtherItems} isReadOnly={isReadOnly} />
 
                     <div className="space-y-4">
                         <h3 className="text-base font-semibold text-foreground">{t("order.samples")}</h3>
@@ -852,6 +867,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                     tax={pricing.tax}
                                     total={pricing.total}
                                     commission={commission}
+                                    otherItems={otherItems}
                                     onDiscountRateChange={setDiscountRate}
                                     onCommissionChange={setCommission}
                                     isReadOnly={isReadOnly}
@@ -907,7 +923,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                     setContactIdentity(contact.identityId || "");
                                     setContactEmail(contact.contactEmail || "");
                                     setContactAddress(contact.contactAddress || "");
-                                    setReportEmail(contact.contactEmail || "");
                                 }
 
                                 setIsEditClientModalOpen(false);

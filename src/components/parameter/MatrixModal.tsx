@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { X, Save } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { getSampleTypes, createMatrix, updateMatrix } from "@/api/index";
-import type { Matrix, SampleType } from "@/types/parameter";
+import { getSampleTypes, createMatrix, updateMatrix, getParameters } from "@/api/index";
+import type { Matrix, SampleType, Parameter } from "@/types/parameter";
 
 interface MatrixModalProps {
     isOpen: boolean;
@@ -18,44 +18,55 @@ export function MatrixModal({ isOpen, onClose, onSuccess, initialData }: MatrixM
     const [isSaving, setIsSaving] = useState(false);
 
     // Lists for dropdowns
-    // Lists for dropdowns
     const [sampleTypes, setSampleTypes] = useState<SampleType[]>([]);
     const [sampleTypeInput, setSampleTypeInput] = useState("");
     const [showSampleDropdown, setShowSampleDropdown] = useState(false);
 
+    const [parameters, setParameters] = useState<Parameter[]>([]);
+    const [parameterInput, setParameterInput] = useState("");
+    const [showParameterDropdown, setShowParameterDropdown] = useState(false);
+
     // Form State
     const [formData, setFormData] = useState({
-        parameterName: "",
+        parameterId: "",
         sampleTypeId: "",
         protocolCode: "",
         feeBeforeTax: 0,
-        taxRate: 8,
+        taxRate: 5,
         feeAfterTax: 0,
+        accVilas: false,
+        acc107: false,
     });
 
     useEffect(() => {
         if (isOpen) {
-            fetchSampleTypesData();
+            fetchInitialData();
             if (initialData) {
                 setFormData({
-                    parameterName: initialData.parameterName || "",
+                    parameterId: initialData.parameterId || "",
                     sampleTypeId: initialData.sampleTypeId,
                     protocolCode: initialData.protocolCode || "",
                     feeBeforeTax: initialData.feeBeforeTax || 0,
                     taxRate: initialData.taxRate !== undefined ? initialData.taxRate : 5,
                     feeAfterTax: initialData.feeAfterTax || (initialData.feeBeforeTax || 0) * (1 + (initialData.taxRate !== undefined ? initialData.taxRate : 5) / 100),
+                    accVilas: initialData.protocolAccreditation?.VILAS997 || false,
+                    acc107: initialData.protocolAccreditation?.["107"] || false,
                 });
                 setSampleTypeInput(initialData.sampleTypeName || "");
+                setParameterInput(initialData.parameterName || "");
             } else {
                 setFormData({
-                    parameterName: "",
+                    parameterId: "",
                     sampleTypeId: "",
                     protocolCode: "",
                     feeBeforeTax: 0,
                     taxRate: 5,
                     feeAfterTax: 0,
+                    accVilas: false,
+                    acc107: false,
                 });
                 setSampleTypeInput("");
+                setParameterInput("");
             }
         }
     }, [isOpen, initialData]);
@@ -66,16 +77,24 @@ export function MatrixModal({ isOpen, onClose, onSuccess, initialData }: MatrixM
         }
     };
 
-    const fetchSampleTypesData = async () => {
+    const fetchInitialData = async () => {
         setIsLoading(true);
         try {
-            const res = await getSampleTypes({ query: { itemsPerPage: 1000 } });
-            if (res.success && res.data) {
-                setSampleTypes(res.data as SampleType[]);
-                // If editing and we have ID but no Name (edge case), try to fill name from list
+            const [sampleTypesRes, paramsRes] = await Promise.all([getSampleTypes({ query: { itemsPerPage: 1000 } }), getParameters({ query: { itemsPerPage: 1000 } })]);
+
+            if (sampleTypesRes.success && sampleTypesRes.data) {
+                setSampleTypes(sampleTypesRes.data as SampleType[]);
                 if (initialData?.sampleTypeId && !initialData.sampleTypeName) {
-                    const found = (res.data as SampleType[]).find((st) => st.sampleTypeId === initialData.sampleTypeId);
+                    const found = (sampleTypesRes.data as SampleType[]).find((st) => st.sampleTypeId === initialData.sampleTypeId);
                     if (found) setSampleTypeInput(found.sampleTypeName);
+                }
+            }
+
+            if (paramsRes.success && paramsRes.data) {
+                setParameters(paramsRes.data as Parameter[]);
+                if (initialData?.parameterId && !initialData.parameterName) {
+                    const found = (paramsRes.data as Parameter[]).find((p) => p.parameterId === initialData.parameterId);
+                    if (found) setParameterInput(found.parameterName);
                 }
             }
         } catch (error) {
@@ -113,14 +132,26 @@ export function MatrixModal({ isOpen, onClose, onSuccess, initialData }: MatrixM
         setShowSampleDropdown(false);
     };
 
-    // Filter sample types
+    const handleParameterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setParameterInput(e.target.value);
+        setFormData((prev) => ({ ...prev, parameterId: "" }));
+        setShowParameterDropdown(true);
+    };
+
+    const handleSelectParameter = (p: Parameter) => {
+        setParameterInput(p.parameterName);
+        setFormData((prev) => ({ ...prev, parameterId: p.parameterId }));
+        setShowParameterDropdown(false);
+    };
+
+    // Filter helpers
     const filteredSampleTypes = sampleTypes.filter((st) => st.sampleTypeName.toLowerCase().includes(sampleTypeInput.toLowerCase()));
+    const filteredParameters = parameters.filter((p) => p.parameterName.toLowerCase().includes(parameterInput.toLowerCase()));
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!formData.parameterName || !sampleTypeInput) {
-            // Check sampleTypeInput instead of ID
+        if (!formData.parameterId || !formData.sampleTypeId) {
             toast.error(t("validation.fillAll"));
             return;
         }
@@ -128,8 +159,16 @@ export function MatrixModal({ isOpen, onClose, onSuccess, initialData }: MatrixM
         setIsSaving(true);
         try {
             const payload = {
-                ...formData,
-                sampleTypeName: sampleTypeInput,
+                parameterId: formData.parameterId,
+                sampleTypeId: formData.sampleTypeId,
+                protocolCode: formData.protocolCode,
+                feeBeforeTax: formData.feeBeforeTax,
+                taxRate: formData.taxRate,
+                feeAfterTax: formData.feeAfterTax,
+                protocolAccreditation: {
+                    VILAS997: formData.accVilas,
+                    "107": formData.acc107,
+                },
             };
 
             let response;
@@ -171,18 +210,55 @@ export function MatrixModal({ isOpen, onClose, onSuccess, initialData }: MatrixM
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    {/* Parameter Name (Direct Input) */}
-                    <div>
+                    {/* Parameter Input/Dropdown */}
+                    <div className="relative">
                         <label className="block text-sm font-medium text-foreground mb-1">
                             {t("parameter.name")} <span className="text-destructive">*</span>
                         </label>
-                        <input
-                            type="text"
-                            className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none bg-input text-foreground"
-                            value={formData.parameterName}
-                            onChange={(e) => setFormData({ ...formData, parameterName: e.target.value })}
-                            required
-                        />
+                        {!formData.parameterId ? (
+                            <>
+                                <input
+                                    type="text"
+                                    className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none bg-input text-foreground"
+                                    value={parameterInput}
+                                    onChange={handleParameterChange}
+                                    onFocus={() => setShowParameterDropdown(true)}
+                                    onBlur={() => setTimeout(() => setShowParameterDropdown(false), 200)}
+                                    placeholder={t("common.searchOrEnter")}
+                                />
+                                {showParameterDropdown && filteredParameters.length > 0 && (
+                                    <div className="absolute z-20 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                        {filteredParameters.map((p) => (
+                                            <div
+                                                key={p.parameterId}
+                                                className="px-3 py-2 cursor-pointer hover:bg-muted text-sm text-foreground flex justify-between items-center gap-4 border-b border-border/50 last:border-0"
+                                                onClick={() => handleSelectParameter(p)}
+                                            >
+                                                <span className="font-medium truncate">{p.parameterName}</span>
+                                                <span className="text-muted-foreground text-xs whitespace-nowrap">{p.parameterId}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <div className="flex items-center justify-between p-3 border border-border rounded-lg bg-muted/50">
+                                <div className="flex flex-col">
+                                    <span className="font-medium text-foreground text-sm">{parameterInput}</span>
+                                    <span className="text-xs text-muted-foreground">{formData.parameterId}</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setFormData((prev) => ({ ...prev, parameterId: "" }));
+                                        setParameterInput("");
+                                    }}
+                                    className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Sample Type Input/Dropdown */}
@@ -212,15 +288,40 @@ export function MatrixModal({ isOpen, onClose, onSuccess, initialData }: MatrixM
                     </div>
 
                     {/* Protocol Code (Direct Input) */}
-                    <div>
-                        <label className="block text-sm font-medium text-foreground mb-1">{t("parameter.protocol")}</label>
-                        <input
-                            type="text"
-                            className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none bg-input text-foreground"
-                            value={formData.protocolCode}
-                            onChange={(e) => setFormData({ ...formData, protocolCode: e.target.value })}
-                            placeholder="e.g. TCVN 1234:2010"
-                        />
+                    <div className="flex gap-4 items-end">
+                        <div className="flex-1">
+                            <label className="block text-sm font-medium text-foreground mb-1">{t("parameter.protocol")}</label>
+                            <input
+                                type="text"
+                                className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none bg-input text-foreground"
+                                value={formData.protocolCode}
+                                onChange={(e) => setFormData({ ...formData, protocolCode: e.target.value })}
+                                placeholder="e.g. TCVN 1234:2010"
+                            />
+                        </div>
+
+                        {/* Accreditations */}
+                        <div className="flex gap-4 pb-2">
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                                    checked={formData.accVilas}
+                                    onChange={(e) => setFormData({ ...formData, accVilas: e.target.checked })}
+                                />
+                                VILAS 997
+                            </label>
+
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                                    checked={formData.acc107}
+                                    onChange={(e) => setFormData({ ...formData, acc107: e.target.checked })}
+                                />
+                                107
+                            </label>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-4">
@@ -246,6 +347,7 @@ export function MatrixModal({ isOpen, onClose, onSuccess, initialData }: MatrixM
                                 className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none bg-input text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 value={formData.taxRate}
                                 onChange={(e) => handlePriceChange("tax", Number(e.target.value))}
+                                onFocus={(e) => e.target.select()}
                                 onKeyDown={handleNumberKeyDown}
                                 onWheel={(e) => e.currentTarget.blur()}
                                 min={0}

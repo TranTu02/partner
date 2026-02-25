@@ -180,37 +180,43 @@ export function SampleRequestFormPage() {
 
     return (
         <div className="h-screen flex flex-col bg-background">
-            <div className="h-14 border-b border-border flex items-center justify-between px-4 bg-card">
-                <div className="flex items-center gap-3">
+            <div className="h-14 border-b border-border flex items-center justify-between px-3 md:px-4 bg-card shrink-0 z-20">
+                <div className="flex items-center gap-3 overflow-hidden">
                     {/* Back button removed */}
-                    <div className="flex flex-col">
-                        <div className="text-lg font-semibold">{t("sampleRequest.header")}</div>
-                        <div className="text-xs text-muted-foreground">{orderId ? `Order ID: ${orderId}` : "/orders/form/request?orderId=..."}</div>
+                    <div className="flex flex-col overflow-hidden">
+                        <div className="text-base sm:text-lg font-semibold truncate">{t("sampleRequest.header")}</div>
+                        <div className="text-xs text-muted-foreground truncate">{orderId ? `Order ID: ${orderId}` : "/orders/form/request?orderId=..."}</div>
                     </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 shrink-0">
                     <button
                         onClick={handleExportPdf}
                         disabled={loading}
-                        className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors shadow-sm"
+                        className="flex items-center gap-2 px-3 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors shadow-sm"
+                        title="Xuất PDF"
                     >
                         <FileDown className="w-4 h-4" />
-                        <span className="text-sm font-medium">PDF</span>
+                        <span className="text-sm font-medium hidden sm:inline">PDF</span>
                     </button>
 
                     <button
                         onClick={handleSave}
                         disabled={loading}
-                        className="flex items-center gap-2 px-4 py-2 rounded-md transition-colors shadow-sm bg-secondary text-secondary-foreground hover:bg-secondary/90 border border-border"
+                        className="flex items-center gap-2 px-3 py-2 rounded-md transition-colors shadow-sm bg-secondary text-secondary-foreground hover:bg-secondary/90 border border-border"
+                        title={t("common.save") || "Lưu"}
                     >
                         <Save className="w-4 h-4" />
-                        <span className="text-sm font-medium">{t("common.save") || "Lưu"}</span>
+                        <span className="text-sm font-medium hidden sm:inline">{t("common.save") || "Lưu"}</span>
                     </button>
 
-                    <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-sm">
+                    <button
+                        onClick={handlePrint}
+                        className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-sm"
+                        title={t("common.print") || "In"}
+                    >
                         <Printer className="w-4 h-4" />
-                        <span className="text-sm font-medium">{t("common.print") || "In"}</span>
+                        <span className="text-sm font-medium hidden sm:inline">{t("common.print") || "In"}</span>
                     </button>
                 </div>
             </div>
@@ -219,21 +225,21 @@ export function SampleRequestFormPage() {
                 {/* Mobile Guide Button */}
                 <button
                     onClick={() => setShowGuide(!showGuide)}
-                    className="fixed top-20 right-4 z-50 xl:hidden bg-primary text-primary-foreground p-3 rounded-full shadow-lg hover:bg-primary/90 transition-all"
+                    className="fixed bottom-6 right-4 z-50 xl:hidden bg-primary text-primary-foreground p-3 rounded-full shadow-lg hover:bg-primary/90 transition-all"
                     title="Hướng dẫn"
                 >
                     <HelpCircle className="w-6 h-6" />
                 </button>
 
                 {/* Main Content Area */}
-                <div className="flex-1 flex flex-col items-center overflow-y-auto h-full scroll-smooth">
+                <div className="flex-1 overflow-auto h-full scroll-smooth p-4 md:p-8">
                     {/* Locked warning removed */}
-                    {loading && <div className="p-4">{t("common.loading")}</div>}
+                    {loading && <div className="p-4 text-center">{t("common.loading")}</div>}
 
                     {data && (
-                        <div className="relative w-full max-w-[1200px] mx-auto flex flex-col">
+                        <div className="relative w-full max-w-[1200px] mx-auto flex flex-col items-center">
                             {/* Toolbar container - full width */}
-                            <div className="w-full bg-white shadow-lg rounded-t-lg" id="tinymce-toolbar-container"></div>
+                            <div className="w-full bg-white shadow-lg rounded-t-lg hidden" id="tinymce-toolbar-container"></div>
 
                             {/* Editor container - A4 width centered */}
                             <div className="w-[794px] min-w-[794px] mx-auto bg-white shadow-lg">

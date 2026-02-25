@@ -267,7 +267,7 @@ export function AccountingTable({ orders, loading, pagination, onPageChange, onI
                     <thead className="bg-muted/50 sticky top-0 z-20 shadow-sm">
                         <tr>
                             <th
-                                className={`px-6 py-4 text-left text-sm font-semibold min-w-size-medium cursor-pointer transition-colors select-none ${
+                                className={`px-3 py-2 text-left text-sm font-semibold min-w-size-medium cursor-pointer transition-colors select-none ${
                                     isActive("createdAt") ? "text-primary underline" : "text-foreground hover:text-primary/80"
                                 }`}
                                 onClick={() => setActiveDropdown(activeDropdown === "created" ? null : "created")}
@@ -314,9 +314,9 @@ export function AccountingTable({ orders, loading, pagination, onPageChange, onI
                                     </div>
                                 )}
                             </th>
-                            <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-large">{t("accounting.table.client")}</th>
+                            <th className="px-3 py-2 text-left text-sm font-semibold text-foreground min-w-size-large">{t("accounting.table.client")}</th>
                             <th
-                                className={`px-6 py-4 text-left text-sm font-semibold min-w-size-medium cursor-pointer transition-colors select-none ${
+                                className={`px-3 py-2 text-left text-sm font-semibold min-w-size-medium cursor-pointer transition-colors select-none ${
                                     isActive("invoiceNumbers") ? "text-primary underline" : "text-foreground hover:text-primary/80"
                                 }`}
                                 onClick={handleInvoiceClick}
@@ -327,10 +327,10 @@ export function AccountingTable({ orders, loading, pagination, onPageChange, onI
                                     <span className="ml-1 text-xs no-underline">({filters.invoiceNumbers[0] === "IS NOT NULL" ? "Not Empty" : "Empty"})</span>
                                 )}
                             </th>
-                            <th className="px-6 py-4 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("accounting.table.salePerson")}</th>
+                            <th className="px-3 py-2 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("accounting.table.salePerson")}</th>
 
                             {/* Status Filter Dropdown */}
-                            <th className="px-6 py-4 text-left text-sm font-semibold min-w-size-medium relative">
+                            <th className="px-3 py-2 text-left text-sm font-semibold min-w-size-medium relative">
                                 <span
                                     className={`cursor-pointer select-none ${
                                         isActive("orderStatus") || isActive("paymentStatus") ? "text-primary underline" : "text-foreground hover:text-primary/80"
@@ -388,7 +388,7 @@ export function AccountingTable({ orders, loading, pagination, onPageChange, onI
                             </th>
 
                             {/* Total Amount Filter Dropdown */}
-                            <th className="px-6 py-4 text-right text-sm font-semibold min-w-size-medium relative">
+                            <th className="px-3 py-2 text-right text-sm font-semibold min-w-size-medium relative">
                                 <span
                                     className={`cursor-pointer select-none ${isActive("totalAmount") ? "text-primary underline" : "text-foreground hover:text-primary/80"}`}
                                     onClick={() => setActiveDropdown(activeDropdown === "amount" ? null : "amount")}
@@ -440,7 +440,7 @@ export function AccountingTable({ orders, loading, pagination, onPageChange, onI
                             </th>
 
                             {/* Total Paid Filter Dropdown */}
-                            <th className="px-6 py-4 text-right text-sm font-semibold min-w-size-medium relative">
+                            <th className="px-3 py-2 text-right text-sm font-semibold min-w-size-medium relative">
                                 <span
                                     className={`cursor-pointer select-none ${isActive("totalPaid") || isActive("paymentDate") ? "text-primary underline" : "text-foreground hover:text-primary/80"}`}
                                     onClick={() => setActiveDropdown(activeDropdown === "payment" ? null : "payment")}
@@ -530,7 +530,7 @@ export function AccountingTable({ orders, loading, pagination, onPageChange, onI
                             </th>
 
                             {/* Reception Info (Request Date + Receipt ID) */}
-                            <th className="px-6 py-4 text-center text-sm font-semibold min-w-size-medium relative">
+                            <th className="px-3 py-2 text-center text-sm font-semibold min-w-size-medium relative">
                                 <span
                                     className={`cursor-pointer select-none ${isActive("requestDate") || isActive("receiptId") ? "text-primary underline" : "text-foreground hover:text-primary/80"}`}
                                     onClick={() => setActiveDropdown(activeDropdown === "date" ? null : "date")}
@@ -618,34 +618,34 @@ export function AccountingTable({ orders, loading, pagination, onPageChange, onI
                                     </div>
                                 )}
                             </th>
-                            <th className="px-6 py-4 text-center text-sm font-semibold text-foreground min-w-size-small">{t("common.action")}</th>
+                            <th className="px-3 py-2 text-center text-sm font-semibold text-foreground min-w-size-small">{t("common.action")}</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={9} className="px-6 py-8 text-center text-muted-foreground text-sm">
+                                <td colSpan={9} className="px-3 py-4 text-center text-muted-foreground text-sm">
                                     {t("common.loading")}
                                 </td>
                             </tr>
                         ) : orders.length === 0 ? (
                             <tr>
-                                <td colSpan={9} className="px-6 py-8 text-center text-muted-foreground text-sm">
+                                <td colSpan={9} className="px-3 py-4 text-center text-muted-foreground text-sm">
                                     {t("accounting.noInvoicesFound")}
                                 </td>
                             </tr>
                         ) : (
                             orders.map((order) => (
                                 <tr key={order.orderId} className="border-t border-border hover:bg-muted">
-                                    <td className="px-6 py-4 text-sm font-medium text-primary">
+                                    <td className="px-3 py-2 text-sm font-medium text-primary">
                                         <div>{order.orderId}</div>
                                         <div className="text-xs text-muted-foreground mt-0.5">{order.createdAt ? formatDate(order.createdAt) : "--"}</div>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-foreground">
+                                    <td className="px-3 py-2 text-sm text-foreground">
                                         <div>{order.client?.clientName || "--"}</div>
                                         <div className="text-xs text-muted-foreground mt-0.5">{order.client?.legalId || "--"}</div>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-foreground">
+                                    <td className="px-3 py-2 text-sm text-foreground">
                                         {order.invoiceNumbers && order.invoiceNumbers.length > 0 ? (
                                             <div className="space-y-0.5">
                                                 {order.invoiceNumbers.map((inv, idx) => (
@@ -658,8 +658,8 @@ export function AccountingTable({ orders, loading, pagination, onPageChange, onI
                                             "--"
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-foreground">{order.salePerson || "--"}</td>
-                                    <td className="px-6 py-4 text-sm text-foreground">
+                                    <td className="px-3 py-2 text-sm text-foreground">{order.salePerson || "--"}</td>
+                                    <td className="px-3 py-2 text-sm text-foreground">
                                         <div className="space-y-1">
                                             {order.orderStatus && (
                                                 <span
@@ -691,17 +691,17 @@ export function AccountingTable({ orders, loading, pagination, onPageChange, onI
                                             )}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-right text-sm font-medium text-foreground">{formatCurrency(order.totalAmount || 0)}</td>
-                                    <td className="px-6 py-4 text-right text-sm text-foreground">
+                                    <td className="px-3 py-2 text-right text-sm font-medium text-foreground">{formatCurrency(order.totalAmount || 0)}</td>
+                                    <td className="px-3 py-2 text-right text-sm text-foreground">
                                         <div>{formatCurrency(order.totalPaid || 0)}</div>
                                         {order.paymentDate && <div className="text-xs text-muted-foreground mt-0.5">{formatDate(order.paymentDate)}</div>}
                                     </td>
                                     {/* Reception Info */}
-                                    <td className="px-6 py-4 text-center text-sm text-foreground align-top">
+                                    <td className="px-3 py-2 text-center text-sm text-foreground align-top">
                                         {order.receiptId && <div className="font-medium text-primary mb-0.5">{order.receiptId}</div>}
                                         <div className="text-muted-foreground">{order.requestDate ? formatDate(order.requestDate) : "--"}</div>
                                     </td>
-                                    <td className="px-6 py-4 text-center">
+                                    <td className="px-3 py-2 text-center">
                                         <div className="flex items-center justify-center gap-2">
                                             {/* Note Icon */}
                                             <div className="relative group">
@@ -739,7 +739,7 @@ export function AccountingTable({ orders, loading, pagination, onPageChange, onI
             </div>
 
             {/* Pagination Controls */}
-            <div className="border-t border-border p-4 flex items-center justify-between bg-muted/20">
+            <div className="border-t border-border p-2 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-0 bg-muted/20">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span>{t("pagination.showing")}</span>
                     <select

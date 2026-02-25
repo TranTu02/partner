@@ -160,19 +160,13 @@ export function SampleCard({
             const newTaxRate = Number(value);
             updatedAnalysis.taxRate = newTaxRate;
 
-            // Recalculate unitPrice to keep feeAfterTax constant?
-            // Previous logic: "Ä‘Æ¡n giÃ¡ sáº½ Ä‘iá»u chá»‰nh".
-            // Let's stick to that: Maintain Total, adjust Unit Price.
-            const currentFeeAfterTax = updatedAnalysis.feeAfterTax ?? calculateFeeAfterTax(updatedAnalysis);
-            updatedAnalysis.feeAfterTax = currentFeeAfterTax;
-
             const quantity = updatedAnalysis.quantity || 1;
             const discountRate = updatedAnalysis.discountRate || 0;
+            const currentUnitPrice = updatedAnalysis.unitPrice || 0;
 
-            const denominator = quantity * (1 - discountRate / 100) * (1 + newTaxRate / 100);
-            if (denominator !== 0) {
-                updatedAnalysis.unitPrice = currentFeeAfterTax / denominator;
-            }
+            const feeBeforeTax = currentUnitPrice * quantity;
+            const afterDiscount = feeBeforeTax * (1 - discountRate / 100);
+            updatedAnalysis.feeAfterTax = afterDiscount * (1 + newTaxRate / 100);
         }
         // Discount rate change? Not exposed in UI per row yet, but if we did:
 
@@ -198,7 +192,7 @@ export function SampleCard({
             method: "",
             unitPrice: 0,
             quantity: 1,
-            taxRate: 8, // Default tax rate
+            taxRate: 5, // Default tax rate
             feeAfterTax: 0,
             analysisType: "Manual",
             matrix: sample.sampleMatrix,
@@ -444,6 +438,7 @@ export function SampleCard({
                                                                 className="w-16 px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent text-center"
                                                                 value={analysis.taxRate}
                                                                 onChange={(e) => handleAnalysisChange(index, "taxRate", e.target.value)}
+                                                                onFocus={(e) => e.target.select()}
                                                                 onKeyDown={handleNumberKeyDown}
                                                                 onWheel={(e) => e.currentTarget.blur()}
                                                             />
