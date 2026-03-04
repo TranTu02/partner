@@ -421,6 +421,13 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                 }</td>
             </tr>
         </table>
+
+        <table>
+            <tr>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 120px; font-weight: 700;">${t("sampleRequest.section5.title")}</td>
+                <td style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;"></td>
+            </tr>
+        </table>
       </div>
 
 

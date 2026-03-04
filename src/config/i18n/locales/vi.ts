@@ -567,6 +567,9 @@ export default {
                 request: "Yêu cầu Viện IRDOP thử nghiệm theo các nội dung dưới đây:",
                 quote: "(Trường hợp Khách hàng không xác định được phương pháp thử, vui lòng thống nhất với IRDOP)",
             },
+            section5: {
+                title: "GIẤY TỜ ĐI KÈM:",
+            },
             institute: {
                 name: "VIỆN NGHIÊN CỨU VÀ PHÁT TRIỂN SẢN PHẨM THIÊN NHIÊN",
                 address: "Add: 12 Phùng Khoang 2, P. Đại Mỗ, TP. Hà Nội",

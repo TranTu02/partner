@@ -547,6 +547,9 @@ export default {
                 request: "Request IRDOP Institute to perform testing as specified below:",
                 quote: "(If the Customer cannot specify the testing method, please notify IRDOP)",
             },
+            section5: {
+                title: "ATTACHMENT",
+            },
             signer: {
                 customer: "CUSTOMER",
                 confirm: "I confirm that I have read and agreed to the attached general terms and conditions.",

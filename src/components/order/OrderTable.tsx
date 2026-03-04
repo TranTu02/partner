@@ -237,16 +237,16 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
         <div className="bg-card rounded-lg border border-border overflow-visible flex flex-col relative z-0">
             <div className="overflow-x-auto flex-1 min-h-[400px]">
                 <table className="w-full">
-                    <thead className="bg-muted border-b border-border sticky top-0 z-20 shadow-sm">
+                    <thead className="bg-muted/50 sticky top-0 z-20 shadow-sm">
                         <tr>
                             {/* Order Code + Created Date */}
                             <th
-                                className={`px-3 py-2 text-left text-xs font-medium uppercase tracking-wider min-w-[120px] cursor-pointer transition-colors select-none ${isActive("createdAt") ? "text-primary underline" : "text-muted-foreground hover:text-primary"}`}
+                                className={`px-3 py-2 text-left text-sm font-semibold min-w-size-medium cursor-pointer transition-colors select-none ${isActive("createdAt") ? "text-primary underline" : "text-foreground hover:text-primary/80"}`}
                                 onClick={() => setActiveDropdown(activeDropdown === "created" ? null : "created")}
                             >
                                 {t("order.code")}
                                 {activeDropdown === "created" && (
-                                    <div ref={dropdownRef} className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 normal-case tracking-normal">
+                                    <div ref={dropdownRef} className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg p-4 z-50">
                                         <div className="space-y-3">
                                             <div className="text-xs font-semibold text-muted-foreground mb-2">{t("order.createdDate", "Ngày tạo đơn")}</div>
                                             <div className="space-y-2">
@@ -288,21 +288,21 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                             </th>
 
                             {/* Client */}
-                            <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground min-w-[200px]">{t("order.client")}</th>
+                            <th className="px-3 py-2 text-left text-sm font-semibold text-foreground min-w-size-large">{t("order.client")}</th>
 
                             {/* Sale Person */}
-                            <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground min-w-[120px]">{t("order.salePerson")}</th>
+                            <th className="px-3 py-2 text-left text-sm font-semibold text-foreground min-w-size-medium">{t("order.salePerson")}</th>
 
                             {/* Status (Merged) */}
-                            <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider min-w-[180px] relative">
+                            <th className="px-3 py-2 text-left text-sm font-semibold min-w-size-medium relative">
                                 <span
-                                    className={`cursor-pointer select-none ${isActive("orderStatus") || isActive("paymentStatus") ? "text-primary underline" : "text-muted-foreground hover:text-primary"}`}
+                                    className={`cursor-pointer select-none ${isActive("orderStatus") || isActive("paymentStatus") ? "text-primary underline" : "text-foreground hover:text-primary/80"}`}
                                     onClick={() => setActiveDropdown(activeDropdown === "status" ? null : "status")}
                                 >
                                     {t("accounting.table.status")}
                                 </span>
                                 {activeDropdown === "status" && (
-                                    <div ref={dropdownRef} className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 normal-case tracking-normal">
+                                    <div ref={dropdownRef} className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg p-4 z-50">
                                         <div className="space-y-4">
                                             <div>
                                                 <div className="text-xs font-semibold text-muted-foreground mb-2">{t("order.status")}</div>
@@ -350,18 +350,15 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                             </th>
 
                             {/* Total Amount (Order Value) */}
-                            <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider min-w-[120px] relative">
+                            <th className="px-3 py-2 text-right text-sm font-semibold min-w-size-medium relative">
                                 <span
-                                    className={`cursor-pointer select-none ${isActive("totalAmount") ? "text-primary underline" : "text-muted-foreground hover:text-primary"}`}
+                                    className={`cursor-pointer select-none ${isActive("totalAmount") ? "text-primary underline" : "text-foreground hover:text-primary/80"}`}
                                     onClick={() => setActiveDropdown(activeDropdown === "amount" ? null : "amount")}
                                 >
                                     {t("order.orderValue", "Giá trị đơn")}
                                 </span>
                                 {activeDropdown === "amount" && (
-                                    <div
-                                        ref={dropdownRef}
-                                        className="absolute top-full right-0 mt-2 w-72 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 text-left normal-case tracking-normal"
-                                    >
+                                    <div ref={dropdownRef} className="absolute top-full right-0 mt-2 w-72 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 text-left">
                                         <div className="space-y-3">
                                             <div className="text-xs font-semibold text-muted-foreground mb-2">{t("accounting.filter.amountFilter")}</div>
                                             <div>
@@ -405,18 +402,15 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                             </th>
 
                             {/* Total Paid */}
-                            <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider min-w-[120px] relative">
+                            <th className="px-3 py-2 text-right text-sm font-semibold min-w-size-medium relative">
                                 <span
-                                    className={`cursor-pointer select-none ${isActive("totalPaid") || isActive("paymentDate") ? "text-primary underline" : "text-muted-foreground hover:text-primary"}`}
+                                    className={`cursor-pointer select-none ${isActive("totalPaid") || isActive("paymentDate") ? "text-primary underline" : "text-foreground hover:text-primary/80"}`}
                                     onClick={() => setActiveDropdown(activeDropdown === "payment" ? null : "payment")}
                                 >
                                     {t("accounting.table.totalPaid")}
                                 </span>
                                 {activeDropdown === "payment" && (
-                                    <div
-                                        ref={dropdownRef}
-                                        className="absolute top-full right-0 mt-2 w-72 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 text-left normal-case tracking-normal"
-                                    >
+                                    <div ref={dropdownRef} className="absolute top-full right-0 mt-2 w-72 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 text-left">
                                         <div className="space-y-4">
                                             <div>
                                                 <div className="text-xs font-semibold text-muted-foreground mb-2">{t("accounting.filter.paymentFilter")}</div>
@@ -486,29 +480,26 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
 
                             {/* Invoice Numbers */}
                             <th
-                                className={`px-3 py-2 text-left text-xs font-medium uppercase tracking-wider min-w-[150px] cursor-pointer transition-colors select-none ${isActive("invoiceNumbers") ? "text-primary underline" : "text-muted-foreground hover:text-primary"}`}
+                                className={`px-3 py-2 text-left text-sm font-semibold min-w-size-medium cursor-pointer transition-colors select-none ${isActive("invoiceNumbers") ? "text-primary underline" : "text-foreground hover:text-primary/80"}`}
                                 onClick={handleInvoiceClick}
-                                title="Click to filter"
+                                title="Click to filter (Has Invoice / No Invoice / All)"
                             >
                                 {t("accounting.table.invoiceNumbers")}
                                 {itemsPerPage && isActive("invoiceNumbers") && (
-                                    <span className="ml-1 text-xs no-underline">({filters.invoiceNumbers[0] === "IS NOT NULL" ? "Has Invoice" : "No Invoice"})</span>
+                                    <span className="ml-1 text-xs no-underline">({filters.invoiceNumbers[0] === "IS NOT NULL" ? "Not Empty" : "Empty"})</span>
                                 )}
                             </th>
 
                             {/* Reception Info (Request Date + Receipt ID) */}
-                            <th className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider min-w-[150px] relative">
+                            <th className="px-3 py-2 text-center text-sm font-semibold min-w-size-medium relative">
                                 <span
-                                    className={`cursor-pointer select-none ${isActive("requestDate") || isActive("receiptId") ? "text-primary underline" : "text-muted-foreground hover:text-primary"}`}
+                                    className={`cursor-pointer select-none ${isActive("requestDate") || isActive("receiptId") ? "text-primary underline" : "text-foreground hover:text-primary/80"}`}
                                     onClick={() => setActiveDropdown(activeDropdown === "date" ? null : "date")}
                                 >
                                     {t("order.receptionInfo", "Thông tin tiếp nhận")}
                                 </span>
                                 {activeDropdown === "date" && (
-                                    <div
-                                        ref={dropdownRef}
-                                        className="absolute top-full right-0 mt-2 w-72 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 text-left normal-case tracking-normal"
-                                    >
+                                    <div ref={dropdownRef} className="absolute top-full right-0 mt-2 w-72 bg-popover border border-border rounded-lg shadow-lg p-4 z-50 text-left">
                                         <div className="space-y-4">
                                             {/* Receipt ID Filter */}
                                             <div>
@@ -541,22 +532,28 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                                             <div className="border-t border-border pt-3">
                                                 <div className="text-xs font-semibold text-muted-foreground mb-2">{t("order.requestDate", "Ngày tiếp nhận")}</div>
                                                 <div className="space-y-2">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="__-__-20__"
-                                                        value={dateRange.from}
-                                                        onChange={(e) => handleDateInput("from", e.target.value)}
-                                                        maxLength={10}
-                                                        className="w-full px-2 py-1 text-sm border border-border rounded bg-background"
-                                                    />
-                                                    <input
-                                                        type="text"
-                                                        placeholder="__-__-20__"
-                                                        value={dateRange.to}
-                                                        onChange={(e) => handleDateInput("to", e.target.value)}
-                                                        maxLength={10}
-                                                        className="w-full px-2 py-1 text-sm border border-border rounded bg-background"
-                                                    />
+                                                    <div>
+                                                        <label className="text-xs text-muted-foreground block mb-1">{t("accounting.filter.fromDate")}</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="__-__-20__"
+                                                            value={dateRange.from}
+                                                            onChange={(e) => handleDateInput("from", e.target.value)}
+                                                            maxLength={10}
+                                                            className="w-full px-2 py-1 text-sm border border-border rounded bg-background"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs text-muted-foreground block mb-1">{t("accounting.filter.toDate")}</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="__-__-20__"
+                                                            value={dateRange.to}
+                                                            onChange={(e) => handleDateInput("to", e.target.value)}
+                                                            maxLength={10}
+                                                            className="w-full px-2 py-1 text-sm border border-border rounded bg-background"
+                                                        />
+                                                    </div>
                                                 </div>
                                                 <div className="flex gap-2 mt-3">
                                                     <button
@@ -580,9 +577,7 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                             </th>
 
                             {/* Actions */}
-                            <th className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground sticky right-0 z-30 bg-muted/95 backdrop-blur-sm border-l border-border">
-                                {t("common.actions")}
-                            </th>
+                            <th className="px-3 py-2 text-center text-sm font-semibold text-foreground min-w-size-small">{t("common.actions")}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
