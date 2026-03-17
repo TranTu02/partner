@@ -6,7 +6,7 @@ import { formatMoneyToWords } from "../../utils/textUtils";
 import type { OrderPrintData } from "./OrderPrintTemplate";
 import type { OtherItem } from "@/types/order";
 import { useTranslation } from "react-i18next";
-import { convertHtmlToPdf } from "@/api/index";
+import { convertHtmlToPdfForm2 } from "@/api/index";
 import { toast } from "sonner";
 const LOGO_URL = "https://documents-sea.bildr.com/rc19670b8d48b4c5ba0f89058aa6e7e4b/doc/IRDOP%20LOGO%20with%20Name.w8flZn8NnkuLrYinAamIkw.PAAKeAHDVEm9mFvCFtA46Q.svg";
 import { format } from "date-fns";
@@ -315,7 +315,7 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
 
         try {
             const content = editorRef.current.getContent();
-            const blob = await convertHtmlToPdf({
+            const blob = await convertHtmlToPdfForm2({
                 body: {
                     requestForm: content,
                     orderId: data.orderId,

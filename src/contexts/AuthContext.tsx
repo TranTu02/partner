@@ -1,35 +1,9 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import Cookies from "js-cookie";
-import { login as apiLogin, checkSessionStatus } from "@/api";
+import type { User, UserRoleLegacy, UserRoleV2 } from "@/types/auth";
+import { login as apiLogin, verifyToken } from "@/api";
 
-export interface User {
-    email: string;
-    roles: UserRole;
-    identityId: string;
-    identityName: string;
-}
-
-// Keep UserRole simple alias or import it but since it's used in interface above which is exported,
-// we might want to just import User from types/auth if possible OR redefine it to match perfectly.
-// To avoid duplication and circular deps, let's try to import or just ensure structure matches keys.
-// The user provided the structure in types/auth.ts, let's use that structure here.
-export type UserRole = {
-    IT: boolean;
-    bot: boolean;
-    admin: boolean;
-    accountant: boolean;
-    superAdmin: boolean;
-    technician: boolean;
-    collaborator: boolean;
-    dispatchClerk: boolean;
-    sampleManager: boolean;
-    administrative: boolean;
-    qualityControl: boolean;
-    customerService: boolean;
-    marketingCommunications: boolean;
-    documentManagementSpecialist: boolean;
-};
 
 interface AuthContextType {
     user: User | null;
@@ -42,108 +16,180 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Role-based access control matrix (Simplified/Updated)
+// Helper outside to avoid duplication
+const parseRoles = (rolesArr: any): UserRoleLegacy => {
+    const map: UserRoleLegacy = {};
+    if (!rolesArr || !Array.isArray(rolesArr)) return map;
+
+    rolesArr.forEach((r) => {
+        if (typeof r === 'string') {
+            // Direct mappings
+            if (r === "ROLE_SUPER_ADMIN" || r === "ROLE_ADMIN") map.superAdmin = true;
+            if (r === "ROLE_DIRECTOR") map.director = true;
+            if (r === "ROLE_TECH_MANAGER" || r === "ROLE_MANAGER") map.techManager = true;
+            if (r === "ROLE_QA_MANAGER" || r === "ROLE_QA") map.qaManager = true;
+            
+            if (r === "ROLE_SECTION_HEAD") map.sectionHead = true;
+            if (r === "ROLE_VALIDATOR") map.validator = true;
+            if (r === "ROLE_SENIOR_ANALYST") map.seniorAnalyst = true;
+            if (r === "ROLE_TECHNICIAN") map.technician = true;
+            if (r === "ROLE_IPC_INSPECTOR") map.ipcInspector = true;
+            if (r === "ROLE_RND_SPECIALIST") map.rndSpecialist = true;
+            
+            if (r === "ROLE_RECEPTIONIST") map.receptionist = true;
+            if (r === "ROLE_SAMPLER") map.sampler = true;
+            if (r === "ROLE_SAMPLE_CUSTODIAN") map.sampleCustodian = true;
+            if (r === "ROLE_EQUIPMENT_MGR") map.equipmentMgr = true;
+            if (r === "ROLE_INVENTORY_MGR") map.inventoryMgr = true;
+            
+            if (r === "ROLE_SALES_MANAGER") map.salesManager = true;
+            if (r === "ROLE_SALES_EXEC") map.salesExec = true;
+            if (r === "ROLE_CS") map.cs = true;
+            if (r === "ROLE_ACCOUNTANT") map.accountant = true;
+            if (r === "ROLE_REPORT_OFFICER") map.reportOfficer = true;
+            
+            if (r === "ROLE_DOC_CONTROLLER") map.docController = true;
+            if (r === "ROLE_HSE_OFFICER") map.hseOfficer = true;
+
+            // Inheritance Logic
+            if (r === "ROLE_LAB_MANAGER") {
+                 map.sectionHead = true;
+                 map.technician = true;
+            }
+            if (r === "ROLE_QA_MANAGER" || r === "ROLE_QA") {
+                 map.validator = true;
+                 map.docController = true;
+            }
+            if (r === "ROLE_SALES_MANAGER") {
+                 map.salesExec = true;
+            }
+        }
+    });
+    return map;
+};
+
 // Role-based access control matrix
 const accessMatrix: Record<string, string[]> = {
-    // Admin roles
-    admin: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters", "accounting", "settings","admin"],
-    superAdmin: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters", "accounting", "settings","admin"],
-    IT: ["dashboard", "clients", "quotes", "orders", "parameters", "accounting", "settings"],
+    // 1. Executive
+    director: ["dashboard", "clients", "quotes", "orders", "parameters", "accounting", "settings"],
+    techManager: ["dashboard", "parameters", "settings", "orders"],
+    qaManager: ["dashboard", "parameters", "settings", "orders"],
 
-    // Functional Roles
-    customerService: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters", "accounting", "settings"],
-    collaborator: ["dashboard", "clients", "quotes", "quotes-create", "settings"],
-    accountant: ["dashboard", "clients", "quotes", "orders", "accounting", "settings"],
+    // 2. Technical Operations
+    sectionHead: ["dashboard", "orders", "parameters"],
+    validator: ["dashboard", "orders", "parameters"],
+    seniorAnalyst: ["dashboard", "orders", "parameters"],
+    technician: ["dashboard", "orders", "parameters"],
+    ipcInspector: ["dashboard", "orders"],
+    rndSpecialist: ["dashboard", "parameters"],
 
-    technician: ["dashboard", "orders", "orders-create", "parameters", "settings"],
-    sampleManager: ["dashboard", "orders", "orders-create", "parameters", "settings"],
-    qualityControl: ["dashboard", "parameters", "settings"],
-    administrative: ["dashboard", "clients", "settings"],
+    // 3. Sample & Logistics
+    receptionist: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create"],
+    sampler: ["dashboard", "orders"],
+    sampleCustodian: ["dashboard", "orders"],
+    equipmentMgr: ["dashboard", "settings"],
+    inventoryMgr: ["dashboard", "settings"],
 
-    // Others (limited access or defined elsewhere)
-    dispatchClerk: ["dashboard", "settings"],
-    marketingCommunications: ["dashboard", "settings"],
-    documentManagementSpecialist: ["dashboard", "settings"],
-    bot: [],
+    // 4. Commercial & Admin
+    salesManager: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create"],
+    salesExec: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create"],
+    cs: ["dashboard", "clients", "quotes", "orders"],
+    accountant: ["dashboard", "accounting", "orders"],
+    reportOfficer: ["dashboard", "orders"],
 
-    // External
+    // 5. System Support
+    superAdmin: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters", "accounting", "settings", "admin"],
+    docController: ["dashboard", "settings"],
+    hseOfficer: ["dashboard", "settings"],
+
+    // Legacy/External
     client: ["parameters", "quotes", "quotes-create", "orders", "orders-create", "settings"],
     guest: ["parameters", "quotes"],
 };
 
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(() => {
-        // Hydrate from localStorage/Cookies if needed
+        // Hydrate from localStorage
         const savedUser = localStorage.getItem("user");
         return savedUser ? JSON.parse(savedUser) : null;
     });
-    const [sessionId, setSessionId] = useState<string | null>(() => localStorage.getItem("sessionId"));
     const [isGuest, setIsGuest] = useState(false);
 
     // Check session status on mount
     useEffect(() => {
         const verifySession = async () => {
-            if (!sessionId) return;
+            // Try to get token from legacy storage if cookie is missing
+            let token = Cookies.get("authToken");
+            const legacySessionId = localStorage.getItem("sessionId");
+            
+            if (!token && legacySessionId) {
+                console.log("Migrating legacy sessionId to authToken...");
+                token = legacySessionId;
+                Cookies.set("authToken", token, { expires: 7 });
+            }
+
+            if (!token) {
+                console.log("No auth token found, staying as guest/logged out.");
+                return;
+            }
 
             try {
-                const response = await checkSessionStatus({ body: { sessionId } });
-                if (!response.success || response.data?.sessionStatus !== "active") {
-                    console.log("Session invalid or expired, logging out...");
-                    logout();
-                } else {
-                    console.log("Session verified:", response.data);
-                    const identity = response.data.identity;
-                    if (identity) {
-                        setUser((_prev) => {
-                            // Construct a fresh user object to ensure all new fields (identityId, etc.) are present
-                            // This handles migration from old localStorage data (id, username) to new structure
-                            const updatedUser: User = {
-                                identityId: identity.identityId,
-                                identityName: identity.identityName,
-                                roles: identity.roles,
-                                email: identity.email || "",
-                            };
-
-                            localStorage.setItem("user", JSON.stringify(updatedUser));
-                            return updatedUser;
-                        });
-                    }
+                const response = await verifyToken({});
+                // API v2 verify might return {valid: true, identity: {...}} 
+                // or just {token: "...", identity: {...}} like login
+                if (!response.success) {
+                    console.warn("Session verification API failed:", response);
+                    return;
                 }
+
+                const data = response.data;
+                const identity = data?.identity;
+
+                if (identity) {
+                    setUser((prev) => {
+                        const updatedUser: User = {
+                            ...prev,
+                            identityId: identity.identityId,
+                            identityName: identity.identityName,
+                            identityEmail: identity.identityEmail || identity.email,
+                            email: identity.email || identity.identityEmail || (prev?.email) || "",
+                            alias: identity.alias || prev?.alias,
+                            identityRoles: identity.identityRoles || identity.roles || [],
+                            roles: parseRoles(identity.identityRoles || identity.roles),
+                        };
+                        localStorage.setItem("user", JSON.stringify(updatedUser));
+                        return updatedUser;
+                    });
+                }
+
             } catch (error) {
-                console.error("Session check failed:", error);
-                logout();
+                console.error("Session verification critical error:", error);
             }
         };
 
         verifySession();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [sessionId]); // Depend on sessionId to re-verify if it changes
+    }, []);
 
-    const login = async (username: string, password: string): Promise<boolean> => {
+    const login = async (email: string, password: string): Promise<boolean> => {
         try {
-            const response = await apiLogin({ body: { username, password } });
+            const response = await apiLogin({ body: { email, password } });
             if (response.success && response.data) {
-                const identity = response.data.identity;
-                const token = response.data.token;
-                const newSessionId = response.data.sessionId;
+                const { identity, token } = response.data;
 
-                // Save Token
-                Cookies.set("authToken", token, { expires: 7 });
-
-                // Save Session ID if available
-                if (newSessionId) {
-                    setSessionId(newSessionId);
-                    localStorage.setItem("sessionId", newSessionId);
+                if (token) {
+                    Cookies.set("authToken", token, { expires: 7 });
                 }
-
-                // Map API Identity to Context User
-                // Determine primary role logic if needed for internal flags, otherwise use roles object directly
 
                 const mappedUser: User = {
                     identityId: identity.identityId,
                     identityName: identity.identityName,
-                    roles: identity.roles,
-                    email: identity.email || "",
+                    identityEmail: identity.identityEmail || identity.email,
+                    email: identity.email || identity.identityEmail || "",
+                    alias: identity.alias,
+                    identityRoles: identity.identityRoles || identity.roles || [],
+                    roles: parseRoles(identity.identityRoles || identity.roles),
                 };
 
                 setUser(mappedUser);
@@ -153,47 +199,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             return false;
         } catch (error) {
-            console.error("Login failed:", error);
+            console.error("Login API failed:", error);
             return false;
         }
     };
 
     const loginAsGuest = () => {
         setUser(null);
-        setSessionId(null);
         setIsGuest(true);
         localStorage.removeItem("user");
-        localStorage.removeItem("sessionId");
         Cookies.remove("authToken");
     };
 
     const logout = () => {
         setUser(null);
-        setSessionId(null);
         setIsGuest(false);
         localStorage.removeItem("user");
-        localStorage.removeItem("sessionId");
         Cookies.remove("authToken");
     };
 
     const hasAccess = (page: string): boolean => {
+        // Public pages
+        if (["login", "forgot-password", "/"].includes(page)) return true;
+
         if (isGuest) {
-            return accessMatrix.Guest.includes(page);
+            return accessMatrix.guest.includes(page);
         }
+        
         if (!user) {
             return false;
         }
 
-        // Check if any active role in user.roles maps to a permission list containing the page
-        const userRoles = user.roles;
-        for (const [roleKey, isActive] of Object.entries(userRoles)) {
-            if (isActive) {
-                const allowedPages = accessMatrix[roleKey] || [];
-                if (allowedPages.includes(page)) {
-                    return true;
-                }
+        const legacyRoles = user.roles || {};
+        const roleKeys = Object.entries(legacyRoles)
+            .filter(([_, active]) => active)
+            .map(([key]) => key);
+
+        // Debug access
+        console.debug(`Checking access for page: ${page}, user roles:`, roleKeys);
+
+        // SuperAdmin has access to everything in matrix
+        if (legacyRoles.superAdmin) return true;
+
+        for (const roleKey of roleKeys) {
+            const allowedPages = accessMatrix[roleKey] || [];
+            if (allowedPages.includes(page)) {
+                return true;
             }
         }
+        
         return false;
     };
 

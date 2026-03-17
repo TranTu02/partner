@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Editor } from "@tinymce/tinymce-react";
 import { Save, Printer, HelpCircle, X, FileDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { getOrderDetail, checkOrderUri, updateOrder, convertHtmlToPdf } from "@/api/index";
+import { getOrderDetail, checkOrderUri, updateOrder, convertHtmlToPdfForm1 } from "@/api/index";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import type { Client } from "@/types/client";
 import { toast } from "sonner";
@@ -138,7 +138,7 @@ export function SampleRequestFormPage() {
 
         try {
             const content = editorRef.current.getContent();
-            const blob = await convertHtmlToPdf({
+            const blob = await convertHtmlToPdfForm1({
                 body: {
                     requestForm: content,
                     orderId: orderId,

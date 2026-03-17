@@ -1,4 +1,4 @@
-﻿import { X, Trash2, Copy, Unlink, GripVertical, Check } from "lucide-react";
+import { X, Trash2, Copy, Unlink, GripVertical, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -185,34 +185,6 @@ export function SampleCard({
         onUpdateSample({ analyses: newAnalyses });
     };
 
-    const handleAddEmptyAnalysis = () => {
-        const newAnalysis: AnalysisWithQuantity = {
-            id: `manual-${Date.now()}`,
-            parameterName: "",
-            method: "",
-            unitPrice: 0,
-            quantity: 1,
-            taxRate: 5, // Default tax rate
-            feeAfterTax: 0,
-            analysisType: "Manual",
-            matrix: sample.sampleMatrix,
-            feeBeforeTax: 0,
-            description: "",
-            priceListId: "",
-            parameterId: "",
-            dicUnitId: "",
-            dicUnit: {},
-            category: {},
-            categoryId: "",
-            protocolSource: "",
-            protocolCode: "",
-            testTime: "",
-            vi: { name: "" },
-            en: { name: "" },
-        } as any;
-
-        onUpdateSample({ analyses: [...sample.analyses, newAnalysis] });
-    };
 
     const moveAnalysis = (dragIndex: number, hoverIndex: number) => {
         const newAnalyses = [...sample.analyses];
@@ -554,12 +526,9 @@ export function SampleCard({
 
             {/* Add Analysis Button */}
             {!isReadOnly && (
-                <div className="mt-4 flex gap-2">
+                <div className="mt-4">
                     <button onClick={onAddAnalysis} className="px-4 py-2 text-primary border border-primary rounded-lg hover:bg-primary/10 transition-colors text-sm font-medium">
                         + {t("order.addAnalysis")}
-                    </button>
-                    <button onClick={handleAddEmptyAnalysis} className="px-4 py-2 text-foreground border border-border rounded-lg hover:bg-muted transition-colors text-sm font-medium">
-                        + {t("order.addManualAnalysis", "ThÃªm chá»‰ tiÃªu")}
                     </button>
                 </div>
             )}
