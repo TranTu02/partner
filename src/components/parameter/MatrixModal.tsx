@@ -80,7 +80,7 @@ export function MatrixModal({ isOpen, onClose, onSuccess, initialData }: MatrixM
     const fetchInitialData = async () => {
         setIsLoading(true);
         try {
-            const [sampleTypesRes, paramsRes] = await Promise.all([getSampleTypes({ query: { itemsPerPage: 1000 } }), getParameters({ query: { itemsPerPage: 1000 } })]);
+            const [sampleTypesRes, paramsRes] = await Promise.all([getSampleTypes({ query: { itemsPerPage: 1000 } }), getParameters({ query: { itemsPerPage: 1500 } })]);
 
             if (sampleTypesRes.success && sampleTypesRes.data) {
                 setSampleTypes(sampleTypesRes.data as SampleType[]);
