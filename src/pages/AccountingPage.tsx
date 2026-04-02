@@ -84,8 +84,11 @@ export function AccountingPage({ activeMenu, onMenuClick }: AccountingPageProps)
             Object.assign(query, tableFilters);
 
             const res = await getOrders({ query });
-            if (res.data) {
-                setOrders(res.data as Order[]);
+            if (res.success && res.data) {
+                const data = res.data;
+                const ordersList = Array.isArray(data) ? data : (data as any).orders || [];
+                setOrders(ordersList as Order[]);
+
                 if (res.meta) {
                     setTotalPages(res.meta.totalPages || 1);
                     setTotalItems(res.meta.total || 0);

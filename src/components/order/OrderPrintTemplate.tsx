@@ -7,26 +7,40 @@ export interface OrderPrintData {
     orderId: string;
     client: Client | null;
 
-    // Contact Info Snapshot
+    // Basic Info
+    clientName?: string;
+    taxCode?: string;
+    clientAddress?: string;
+    clientPhone?: string;
+    clientEmail?: string;
+
+    // Contact Info
     contactPerson: string;
-    contactPhone: string;
     contactIdentity: string;
+    contactPhone: string;
     contactEmail?: string;
+
+    // Report Receiver Info
+    reportReceiverName?: string;
+    reportReceiverPhone?: string;
+    reportReceiverEmail?: string;
+    reportReceiverAddress?: string;
+
+    // Invoice Info
+    taxName?: string;
+    invoiceAddress?: string;
+    invoiceEmail?: string;
+    
+    attachedDocuments?: string;
+    reportEmail: string; // Keep for compatibility if needed elsewhere
     contactPosition?: string;
     contactAddress?: string;
-    reportEmail: string;
-    salePerson?: string;
-
-    // Address & Invoice Info Snapshot
-    clientAddress: string;
-    taxName?: string;
-    taxCode?: string;
-    taxAddress?: string;
 
     samples: {
         sampleName: string;
-        sampleMatrix: string;
         sampleNote: string;
+        sampleDesc?: string;
+        sampleInfo?: { label: string; value: string }[];
         analyses: {
             parameterName: string;
             parameterId?: string;
@@ -37,6 +51,8 @@ export interface OrderPrintData {
             unitPrice?: number;
             feeBeforeTaxAndDiscount?: number;
             quantity?: number;
+            analysisUnit?: string;
+            protocolCode?: string;
         }[];
     }[];
     pricing: {
@@ -47,6 +63,13 @@ export interface OrderPrintData {
         total: number;
     };
     discountRate: number;
+
+    // Raw fields to preserve data during persistence
+    rawClient?: any;
+    rawContactPerson?: any;
+    rawReportRecipient?: any;
+    rawSamples?: any[];
+
     orderUri?: string;
     requestForm?: string;
     otherItems?: {
@@ -121,8 +144,16 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                 {data.samples.map((sample, index) => (
                     <div key={index} style={{ marginBottom: "10px", pageBreakInside: "auto" }}>
                         <div style={{ backgroundColor: "#f0f0f0", padding: "3px 8px", fontWeight: "bold", marginBottom: "3px", fontSize: "12px" }}>
-                            {t("order.print.sample")} {index + 1}: {sample.sampleName} ({sample.sampleMatrix})
+                            {t("order.print.sample")} {index + 1}: {sample.sampleName}
                         </div>
+                        {sample.sampleInfo && sample.sampleInfo.length > 0 && (
+                            <div style={{ padding: "0 8px 5px", fontSize: "11px", color: "#333", fontStyle: "italic" }}>
+                                {sample.sampleInfo
+                                    .filter((info) => info.label !== "Tên mẫu thử" && info.value)
+                                    .map((info) => `${info.label}: ${info.value}`)
+                                    .join(" | ")}
+                            </div>
+                        )}
                         <table style={{ width: "100%", borderCollapse: "collapse" }}>
                             <thead>
                                 <tr style={{ backgroundColor: "#e6e6e6" }}>

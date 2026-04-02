@@ -81,15 +81,16 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
             };
             const response = await getOrders({ query });
             if (response.success && response.data) {
-                setOrders(response.data as Order[]);
+                const data = response.data;
+                const ordersList = Array.isArray(data) ? data : (data as any).orders || [];
+                setOrders(ordersList as Order[]);
+
                 if (response.meta) {
                     setTotalPages(response.meta.totalPages || 0);
                     setTotalItems(response.meta.total || 0);
                 }
             } else {
-                if (response.error) {
-                    console.error("Fetch orders error", response.error);
-                }
+                setOrders([]);
             }
         } catch (error) {
             console.error("Failed to fetch orders", error);
@@ -185,7 +186,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
         const storedTax = storedNet > 0 ? storedTotal - storedNet : 0;
 
         // Client & Contact Logic (Fallbacks)
-        const contact = fullOrder.client?.clientContacts?.[0] || {};
+        const contact = (fullOrder.client?.clientContacts?.[0] || {}) as any;
         const contactPerson = fullOrder.contactPerson?.contactName || contact.contactName || (contact as any).name || "";
         const contactPhone = fullOrder.contactPerson?.contactPhone || contact.contactPhone || (contact as any).phone || "";
         const contactIdentity = fullOrder.contactPerson?.identityId || contact.identityId || "";
@@ -197,7 +198,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
             orderId: fullOrder.orderId,
             createdAt: fullOrder.createdAt,
             salePerson: fullOrder.salePerson,
-            client: fullOrder.client,
+            client: fullOrder.client || null,
 
             contactPerson,
             contactPhone,
@@ -339,13 +340,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                                     <span className="hidden sm:inline">{t("order.printButton", "In Đơn hàng")}</span>
                                 </button>
                                 <button
-                                    onClick={() => {
-                                        if (selectedOrder) {
-                                            handleSampleRequestPrint(selectedOrder);
-                                        } else {
-                                            toast.error("No order selected");
-                                        }
-                                    }}
+                                    onClick={() => editorRef.current?.exportSampleRequest()}
                                     className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
                                 >
                                     <FileText className="w-4 h-4" />

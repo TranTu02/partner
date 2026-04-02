@@ -21,6 +21,7 @@ interface AccountingTableProps {
 
 export function AccountingTable({ orders, loading, pagination, onPageChange, onItemsPerPageChange, onEdit, onFilterChange }: AccountingTableProps) {
     const { t } = useTranslation();
+    const safeOrders = Array.isArray(orders) ? orders : [];
     const { page, itemsPerPage, totalItems, totalPages } = pagination;
 
     const [filters, setFilters] = useState<any>({});
@@ -628,14 +629,14 @@ export function AccountingTable({ orders, loading, pagination, onPageChange, onI
                                     {t("common.loading")}
                                 </td>
                             </tr>
-                        ) : orders.length === 0 ? (
+                        ) : safeOrders.length === 0 ? (
                             <tr>
                                 <td colSpan={9} className="px-3 py-4 text-center text-muted-foreground text-sm">
                                     {t("accounting.noInvoicesFound")}
                                 </td>
                             </tr>
                         ) : (
-                            orders.map((order) => (
+                            safeOrders.map((order) => (
                                 <tr key={order.orderId} className="border-t border-border hover:bg-muted">
                                     <td className="px-3 py-2 text-sm font-medium text-primary">
                                         <div>{order.orderId}</div>
@@ -646,7 +647,7 @@ export function AccountingTable({ orders, loading, pagination, onPageChange, onI
                                         <div className="text-xs text-muted-foreground mt-0.5">{order.client?.legalId || "--"}</div>
                                     </td>
                                     <td className="px-3 py-2 text-sm text-foreground">
-                                        {order.invoiceNumbers && order.invoiceNumbers.length > 0 ? (
+                                        {Array.isArray(order.invoiceNumbers) && order.invoiceNumbers.length > 0 ? (
                                             <div className="space-y-0.5">
                                                 {order.invoiceNumbers.map((inv, idx) => (
                                                     <div key={idx} className="bg-muted px-2 py-0.5 rounded text-xs w-fit">

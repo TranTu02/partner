@@ -49,11 +49,21 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                     sampleTotalAfterTax += lineAfterTax;
                 });
 
+                const sampleInfoHtml = sample.sampleInfo && sample.sampleInfo.length > 0
+                    ? `<div style="font-style: italic; font-size: 12px; margin-top: 2px; color: #333;">
+                        ${sample.sampleInfo
+                            .filter(info => info.label !== "Tên mẫu thử" && info.value)
+                            .map(info => `${info.label}: ${info.value}`)
+                            .join(" | ")}
+                      </div>`
+                    : "";
+
                 return `
             <div style="margin-bottom: 20px;">
                 <div style="background-color: #f0f0f0; padding: 5px 10px; margin-bottom: 5px;">
                     <div style="font-weight: bold;">${t("order.print.sample")} ${index + 1}: ${sample.sampleName}</div>
-                    ${sample.sampleNote ? `<div style="font-style: italic; margin-top: 2px;">${t("sample.note")}: ${sample.sampleNote}</div>` : ""}
+                    ${sampleInfoHtml}
+                    ${sample.sampleNote ? `<div style="font-style: italic; margin-top: 2px; color: #555;">${t("sample.note")}: ${sample.sampleNote}</div>` : ""}
                 </div>
                 <table class="data-table" style="width: 100%; border-collapse: collapse;">
                     <thead>

@@ -15,7 +15,7 @@ import { OrderPrintPreviewModal } from "@/components/order/OrderPrintPreviewModa
 import { SampleRequestPrintPreviewModal } from "@/components/order/SampleRequestPrintPreviewModal";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import { getClients, getQuoteDetail, createClient, updateClient, createOrder, updateOrder } from "@/api/index";
+import { getClients, getQuoteDetail, createClient, updateClient, createOrder, updateOrder, getEnumList } from "@/api/index";
 import { toast } from "sonner";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -65,6 +65,23 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         fetchClients();
     }, []);
 
+    const [defaultSampleInfo, setDefaultSampleInfo] = useState<{label: string, value: string}[]>([]);
+
+    useEffect(() => {
+        const fetchEnum = async () => {
+            try {
+                const res = await getEnumList({ query: { enumType: "sampleInfo" } });
+                if (res.success && Array.isArray(res.data)) {
+                    setDefaultSampleInfo(res.data);
+                }
+            } catch (err) {
+                console.error("Failed to load sampleInfo enum", err);
+            }
+        };
+        fetchEnum();
+    }, []);
+
+
     // Form State
     const [selectedClient, setSelectedClient] = useState<Client | null>(initialData?.client || null);
 
@@ -97,6 +114,55 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     const [requestForm, setRequestForm] = useState(initialData?.requestForm || "");
     const [orderNote, setOrderNote] = useState(initialData?.orderNote || "");
     const [otherItems, setOtherItems] = useState<OtherItem[]>([]);
+
+    // Synchronize sampleInfo fields for Edit mode
+    useEffect(() => {
+        if (defaultSampleInfo.length > 0 && samples.length > 0) {
+            setSamples((prev) => {
+                let changed = false;
+                const patched = prev.map((s) => {
+                    const current = s.sampleInfo || [];
+                    
+                    // Always try to sync if there's any mismatch.
+                    // We want to ENSURE all labels in defaultSampleInfo are present.
+                    // We also want to KEEP any existing labels that might be in current but NOT in defaultSampleInfo.
+                    
+                    const existingMap = new Map(current.map((i) => [i.label, i.value]));
+                    const merged = defaultSampleInfo.map((def: any) => {
+                        return { label: def.label, value: existingMap.get(def.label) || "" };
+                    });
+                    
+                    // Add back any extra labels that were in DB but not in default
+                    current.forEach(info => {
+                        if (!merged.find(m => m.label === info.label)) {
+                            merged.push(info);
+                        }
+                    });
+
+                    // Compare current and merged to see if we actually need to update
+                    let needsUpdate = false;
+                    if (current.length !== merged.length) {
+                        needsUpdate = true;
+                    } else {
+                        for (let i = 0; i < merged.length; i++) {
+                            if (current[i].label !== merged[i].label || current[i].value !== merged[i].value) {
+                                needsUpdate = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (needsUpdate) {
+                        changed = true;
+                        return { ...s, sampleInfo: merged };
+                    }
+                    return s;
+                });
+                return changed ? patched : prev;
+            });
+        }
+    }, [defaultSampleInfo, samples]);
+
 
     useEffect(() => {
         setOrderUri(initialData?.orderUri || "");
@@ -193,6 +259,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                             quantity: quantity,
                         };
                     }),
+                    sampleInfo: s.sampleInfo ? [...s.sampleInfo] : undefined,
                 }));
                 setSamples(mappedSamples);
             }
@@ -250,8 +317,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
             // Invoice
             setTaxName(client.invoiceInfo?.taxName || client.clientName);
-            setTaxCode(client.invoiceInfo?.taxCode || client.legalId);
-            setTaxAddress(client.invoiceInfo?.taxAddress || client.clientAddress);
+            setTaxCode(client.invoiceInfo?.taxCode || client.legalId || "");
+            setTaxAddress(client.invoiceInfo?.taxAddress || client.clientAddress || "");
             setTaxEmail(client.invoiceInfo?.taxEmail || "");
 
             // Contact
@@ -324,7 +391,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                 id: `temp-sample-${Date.now()}-${Math.random().toString(36).slice(2)}-${i}`,
                                 sampleId: undefined, // Create new sample for order
                                 sampleName: s.sampleName || s.name || "Sample",
-                                sampleMatrix: s.sampleMatrix || s.matrix || "",
                                 sampleNote: s.sampleNote || "",
                                 analyses: (s.analyses || []).map((a: any) => ({
                                     ...a,
@@ -410,15 +476,14 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
     const pricing = calculatePricing();
 
-    const handleExport = () => {
-        // Construct a client snapshot with updated fields
+    const prepareExportData = (): OrderPrintData => {
         const clientSnapshot = selectedClient
             ? {
                   clientId: selectedClient.clientId,
                   clientName: selectedClient.clientName,
-                  clientAddress,
-                  clientPhone,
-                  clientEmail,
+                  clientAddress: clientAddress,
+                  clientPhone: clientPhone,
+                  clientEmail: clientEmail,
                   legalId: selectedClient.legalId,
                   invoiceInfo: {
                       taxName,
@@ -429,7 +494,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
               }
             : null;
 
-        const data: OrderPrintData = {
+        return {
             orderId,
             createdAt: initialData?.createdAt,
             salePerson: mode === "create" ? user?.identityName : initialData?.salePerson,
@@ -447,33 +512,51 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             taxCode,
             taxAddress,
 
-            samples: samples.map((s) => ({
-                sampleName: s.sampleName || "",
-                sampleMatrix: s.sampleMatrix || "",
-                sampleNote: s.sampleNote || "",
-                analyses: s.analyses.map((a) => {
-                    const unitPrice = Number(a.unitPrice) || 0;
-                    const quantity = Number(a.quantity) || 1;
-                    const taxRate = Number(a.taxRate) || 0;
-                    const discountRate = Number(a.discountRate) || 0;
+            samples: samples.map((s) => {
+                const filteredSampleInfo = s.sampleInfo
+                    ? s.sampleInfo
+                          .map((info) => ({
+                              label: info.label,
+                              value: (info.label === "Tên mẫu thử" ? (s.sampleName || "").trim() : (info.value || "").trim())
+                          }))
+                          .filter((info) => info.value !== "")
+                    : undefined;
 
-                    const feeBeforeTaxAndDiscount = unitPrice * quantity;
-                    const feeBeforeTax = feeBeforeTaxAndDiscount * (1 - discountRate / 100);
-                    const feeAfterTax = feeBeforeTax * (1 + taxRate / 100);
+                // Fallback: always include at least sampleName as "Tên mẫu thử"
+                const finalSampleInfo = filteredSampleInfo && filteredSampleInfo.length > 0
+                    ? filteredSampleInfo
+                    : (s.sampleName ? [{ label: "Tên mẫu thử", value: (s.sampleName || "").trim() }] : undefined);
 
-                    return {
-                        parameterName: a.parameterName,
-                        parameterId: a.parameterId,
-                        feeBeforeTax: feeBeforeTax,
-                        feeBeforeTaxAndDiscount: feeBeforeTaxAndDiscount,
-                        taxRate: taxRate,
-                        feeAfterTax: a.feeAfterTax || feeAfterTax,
-                        discountRate: discountRate,
-                        quantity: quantity,
-                        unitPrice: unitPrice,
-                    };
-                }),
-            })),
+                return {
+                    sampleName: s.sampleName || "",
+                    sampleNote: s.sampleNote || "",
+                    sampleInfo: finalSampleInfo,
+                    analyses: s.analyses.map((a) => {
+                        const unitPrice = Number(a.unitPrice) || 0;
+                        const quantity = Number(a.quantity) || 1;
+                        const taxRate = Number(a.taxRate) || 0;
+                        const discountRate = Number(a.discountRate) || 0;
+
+                        const feeBeforeTaxAndDiscount = unitPrice * quantity;
+                        const feeBeforeTax = feeBeforeTaxAndDiscount * (1 - discountRate / 100);
+                        const feeAfterTax = feeBeforeTax * (1 + taxRate / 100);
+
+                        return {
+                            parameterName: a.parameterName,
+                            parameterId: a.parameterId,
+                            feeBeforeTax: feeBeforeTax,
+                            feeBeforeTaxAndDiscount: feeBeforeTaxAndDiscount,
+                            taxRate: taxRate,
+                            feeAfterTax: a.feeAfterTax || feeAfterTax,
+                            discountRate: discountRate,
+                            quantity: quantity,
+                            unitPrice: unitPrice,
+                            analysisUnit: a.analysisUnit,
+                            protocolCode: a.protocolCode,
+                        };
+                    }),
+                };
+            }),
 
             pricing,
             discountRate,
@@ -481,18 +564,18 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             requestForm: requestForm,
             otherItems,
         } as any;
+    };
+
+    const handleExport = () => {
+        const data = prepareExportData();
         setPreviewData(data);
         setIsPreviewOpen(true);
     };
 
     const handleExportSampleRequest = () => {
-        // Similar to handleExport
-        handleExport(); // Reuse logic or copy if slightly different
-        // Reusing handleExport for preview data construction, just toggling different modal
-        // Using the same setPreviewData logic
-        // But need to open the other modal
-        // The handleExport sets isPreviewOpen=true.
-        setIsPreviewOpen(false); // Close the other one if it opened
+        const data = prepareExportData();
+        setPreviewData(data);
+        console.log({ previewData: data });
         setIsSampleRequestPreviewOpen(true);
     };
 
@@ -521,8 +604,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             id: newId,
             sampleId: undefined,
             sampleName: "",
-            sampleMatrix: "",
             sampleNote: "",
+            sampleInfo: defaultSampleInfo.map(i => ({ ...i })),
             analyses: [],
         };
         setSamples([...samples, newSample]);
@@ -541,6 +624,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 ...sampleToDuplicate,
                 id: newSampleId,
                 sampleId: undefined,
+                sampleInfo: sampleToDuplicate.sampleInfo ? sampleToDuplicate.sampleInfo.map(i => ({...i})) : defaultSampleInfo.map(i => ({...i})),
                 analyses: sampleToDuplicate.analyses.map((a, aIdx) => ({
                     ...a,
                     id: `temp-analysis-${timestamp}-${Math.random().toString(36).slice(2)}-${aIdx}`,
@@ -675,8 +759,20 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 samples: samples.map((s) => {
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     const { id, ...rest } = s;
+
+                    // Filter sampleInfo to only include objects with non-empty values
+                    const filteredSampleInfo = s.sampleInfo
+                        ? s.sampleInfo
+                              .map((info) => ({
+                                  label: info.label,
+                                  value: (info.label === "Tên mẫu thử" ? (s.sampleName || "").trim() : (info.value || "").trim())
+                              }))
+                              .filter((info) => info.value !== "")
+                        : undefined;
+
                     return {
                         ...rest,
+                        sampleInfo: filteredSampleInfo && filteredSampleInfo.length > 0 ? filteredSampleInfo : undefined,
                         analyses: s.analyses.map((a) => ({
                             ...a, // Preserve all original properties from quote/loaded data
                             parameterName: a.parameterName,
@@ -910,8 +1006,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
                                 // Update Invoice Info
                                 setTaxName(updated.invoiceInfo?.taxName || updated.clientName);
-                                setTaxCode(updated.invoiceInfo?.taxCode || updated.legalId);
-                                setTaxAddress(updated.invoiceInfo?.taxAddress || updated.clientAddress);
+                                setTaxCode(updated.invoiceInfo?.taxCode || updated.legalId || "");
+                                setTaxAddress(updated.invoiceInfo?.taxAddress || updated.clientAddress || "");
                                 setTaxEmail(updated.invoiceInfo?.taxEmail || "");
 
                                 // Update Contact Info
@@ -946,6 +1042,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         if (newData.requestForm !== undefined) setRequestForm(newData.requestForm);
                     }}
                 />
+                
             )}
         </div>
     );

@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import Cookies from "js-cookie";
-import type { User, UserRoleLegacy, UserRoleV2 } from "@/types/auth";
+import type { User, UserRoleLegacy } from "@/types/auth";
 import { login as apiLogin, verifyToken } from "@/api";
+import { customerMe } from "@/api/customer";
 
 
 interface AuthContextType {
@@ -119,53 +120,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check session status on mount
     useEffect(() => {
         const verifySession = async () => {
-            // Try to get token from legacy storage if cookie is missing
-            let token = Cookies.get("authToken");
+            // ===== 1. STAFF SESSION (authToken) =====
+            let staffToken = Cookies.get("authToken");
             const legacySessionId = localStorage.getItem("sessionId");
-            
-            if (!token && legacySessionId) {
+
+            if (!staffToken && legacySessionId) {
                 console.log("Migrating legacy sessionId to authToken...");
-                token = legacySessionId;
-                Cookies.set("authToken", token, { expires: 7 });
+                staffToken = legacySessionId;
+                Cookies.set("authToken", staffToken, { expires: 7 });
             }
 
-            if (!token) {
-                console.log("No auth token found, staying as guest/logged out.");
+            if (staffToken) {
+                try {
+                    const response = await verifyToken({});
+                    if (response.success && response.data?.identity) {
+                        const identity = response.data.identity;
+                        setUser((prev) => {
+                            const updatedUser: User = {
+                                ...prev,
+                                identityId: identity.identityId,
+                                identityName: identity.identityName,
+                                identityEmail: identity.identityEmail || identity.email,
+                                email: identity.email || identity.identityEmail || (prev?.email) || "",
+                                alias: identity.alias || prev?.alias,
+                                identityRoles: identity.identityRoles || identity.roles || [],
+                                roles: parseRoles(identity.identityRoles || identity.roles),
+                            };
+                            localStorage.setItem("user", JSON.stringify(updatedUser));
+                            return updatedUser;
+                        });
+                    } else {
+                        console.warn("Staff session invalid:", response);
+                    }
+                } catch (error) {
+                    console.error("Staff session verification error:", error);
+                }
+                return; // Staff token exists — stop checking
+            }
+
+            // ===== 2. CUSTOMER SESSION (customerAuthToken) =====
+            const customerToken = Cookies.get("customerAuthToken");
+            if (customerToken) {
+                console.log("Customer token found, verifying via /customer/v1/auth/me...");
+                try {
+                    const response = await customerMe({});
+                    if (response.success && response.data) {
+                        const identity = response.data?.identity || response.data;
+                        const customerUser: User = {
+                            identityId: identity.clientId || identity.identityId || "",
+                            identityName: identity.clientName || identity.identityName || "Customer",
+                            identityEmail: identity.clientEmail || identity.email || "",
+                            email: identity.email || identity.clientEmail || "",
+                            identityRoles: identity.roles || ["ROLE_CUSTOMER"],
+                            roles: { client: true },
+                        };
+                        setUser(customerUser);
+                        localStorage.setItem("user", JSON.stringify(customerUser));
+                        localStorage.setItem("customer", JSON.stringify(identity));
+                    } else {
+                        console.warn("Customer session invalid, clearing...");
+                        Cookies.remove("customerAuthToken");
+                        localStorage.removeItem("customer");
+                        localStorage.removeItem("user");
+                        setUser(null);
+                    }
+                } catch (err) {
+                    console.error("Customer session verification error:", err);
+                }
                 return;
             }
 
-            try {
-                const response = await verifyToken({});
-                // API v2 verify might return {valid: true, identity: {...}} 
-                // or just {token: "...", identity: {...}} like login
-                if (!response.success) {
-                    console.warn("Session verification API failed:", response);
-                    return;
-                }
-
-                const data = response.data;
-                const identity = data?.identity;
-
-                if (identity) {
-                    setUser((prev) => {
-                        const updatedUser: User = {
-                            ...prev,
-                            identityId: identity.identityId,
-                            identityName: identity.identityName,
-                            identityEmail: identity.identityEmail || identity.email,
-                            email: identity.email || identity.identityEmail || (prev?.email) || "",
-                            alias: identity.alias || prev?.alias,
-                            identityRoles: identity.identityRoles || identity.roles || [],
-                            roles: parseRoles(identity.identityRoles || identity.roles),
-                        };
-                        localStorage.setItem("user", JSON.stringify(updatedUser));
-                        return updatedUser;
-                    });
-                }
-
-            } catch (error) {
-                console.error("Session verification critical error:", error);
-            }
+            console.log("No auth token found, staying as guest/logged out.");
         };
 
         verifySession();
@@ -215,7 +240,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setIsGuest(false);
         localStorage.removeItem("user");
-        Cookies.remove("authToken");
+        localStorage.removeItem("customer");
+        Cookies.remove("authToken");         // Staff token
+        Cookies.remove("customerAuthToken"); // Customer token
     };
 
     const hasAccess = (page: string): boolean => {

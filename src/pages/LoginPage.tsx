@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { LogIn, UserCircle } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import LogoFull from "@/assets/LOGO-FULL.png";
 
 export function LoginPage() {
-    const { login, loginAsGuest } = useAuth();
+    const { login } = useAuth();
+    const navigate = useNavigate();
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [searchParams] = useSearchParams();
@@ -37,7 +38,7 @@ export function LoginPage() {
     };
 
     const handleSkip = () => {
-        loginAsGuest();
+        navigate("/customer/login");
     };
 
     return (

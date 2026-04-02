@@ -1,4 +1,4 @@
-import type { Client, ClientContact } from "./client";
+import type { Client } from "./client";
 
 // =============================================================================
 // ORDER TYPES - Sync với DB: crm.orders + CRM API v2
@@ -68,6 +68,7 @@ export interface OrderSample {
     sampleMatrix?: string;      // Tên nền mẫu
     sampleTypeName?: string;    // Tên loại mẫu
     sampleNote?: string;
+    sampleInfo?: { label: string; value: string }[]; // Thông tin chi tiết mẫu
     quantity?: number;
     analyses: OrderAnalysis[];
 }

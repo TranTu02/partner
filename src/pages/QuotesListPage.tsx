@@ -160,12 +160,12 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
         const storedTax = storedNet > 0 ? storedTotal - storedNet : 0;
 
         // Contacts
-        const contact = fullQuote.client?.clientContacts?.[0] || {};
-        const contactPerson = fullQuote.contactPerson?.contactName || contact.contactName || (contact as any).name || "";
-        const contactPhone = fullQuote.contactPerson?.contactPhone || contact.contactPhone || (contact as any).phone || "";
+        const contact = (fullQuote.client?.clientContacts?.[0] || {}) as any;
+        const contactPerson = fullQuote.contactPerson?.contactName || contact.contactName || contact.name || "";
+        const contactPhone = fullQuote.contactPerson?.contactPhone || contact.contactPhone || contact.phone || "";
         const contactIdentity = fullQuote.contactPerson?.identityId || contact.identityId || "";
-        const contactEmail = fullQuote.contactPerson?.contactEmail || contact.contactEmail || (contact as any).email || "";
-        const contactPosition = contact.contactPosition || (contact as any).position || "";
+        const contactEmail = fullQuote.contactPerson?.contactEmail || contact.contactEmail || contact.email || "";
+        const contactPosition = contact.contactPosition || contact.position || "";
         const contactAddress = contact.contactAddress || "";
 
         const data: QuotePrintData = {
@@ -226,7 +226,7 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                 tax: storedTax,
                 total: storedTotal,
             },
-            discountRate: fullQuote.discountRate || 0,
+            discountRate: Number(fullQuote.discountRate) || 0,
             commission: 0,
         };
 
@@ -479,7 +479,7 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                         </table>
                     </div>
 
-                    {!isLoading && quotes.length > 0 && (
+                    {!isLoading && totalPages > 0 && (
                         <Pagination
                             currentPage={currentPage}
                             totalPages={totalPages}

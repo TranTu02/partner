@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Editor } from "@tinymce/tinymce-react";
-import { Save, Printer, HelpCircle, X, FileDown } from "lucide-react";
+import { Save, Printer, HelpCircle, X, FileDown, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getOrderDetail, checkOrderUri, updateOrder, convertHtmlToPdfForm1 } from "@/api/index";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
@@ -103,6 +103,43 @@ export function SampleRequestFormPage() {
                     orderId,
                     requestForm: content,
                     orderUri: uri || undefined,
+                    client: {
+                        ...data?.client,
+                        clientName: data?.clientName,
+                        clientAddress: data?.clientAddress,
+                        clientPhone: data?.clientPhone,
+                        clientEmail: data?.clientEmail,
+                        invoiceInfo: {
+                            ...data?.client?.invoiceInfo,
+                            taxName: data?.taxName,
+                            taxCode: data?.taxCode,
+                            taxAddress: data?.invoiceAddress,
+                            taxEmail: data?.invoiceEmail,
+                        }
+                    },
+                    contactPerson: {
+                        ...(data as any)?.rawContactPerson,
+                        contactName: data?.contactPerson,
+                        contactPhone: data?.contactPhone,
+                        contactId: data?.contactIdentity,
+                        contactEmail: data?.contactEmail,
+                    },
+                    reportRecipient: {
+                        receiverName: data?.reportReceiverName,
+                        receiverPhone: data?.reportReceiverPhone,
+                        receiverEmail: data?.reportReceiverEmail,
+                        receiverAddress: data?.reportReceiverAddress,
+                    },
+                    samples: (data?.samples || []).map((s: any, idx: number) => ({
+                        ...(data as any)?.rawSamples?.[idx],
+                        sampleName: s.sampleName,
+                        sampleDesc: s.sampleDesc,
+                        analyses: (s.analyses || []).map((a: any, aidx: number) => ({
+                            ...(data as any)?.rawSamples?.[idx]?.analyses?.[aidx],
+                            protocolCode: a.protocolCode,
+                            analysisUnit: a.analysisUnit,
+                        }))
+                    }))
                 },
             });
 
@@ -176,13 +213,51 @@ export function SampleRequestFormPage() {
         }
     };
 
-    // handleProcessPdf removed
+    const updateTopLevelData = (field: string, value: string) => {
+        if (!data) return;
+        const newData = { ...data, [field]: value };
+        setData(newData);
+        
+        if (editorRef.current) {
+            const html = generateSampleRequestHtml(newData, t);
+            editorRef.current.setContent(html);
+        }
+    };
+
+    const updateSampleData = (sampleIndex: number, field: string, value: string) => {
+        if (!data) return;
+        const newSamples = [...data.samples];
+        newSamples[sampleIndex] = { ...newSamples[sampleIndex], [field]: value };
+        const newData = { ...data, samples: newSamples };
+        setData(newData);
+        
+        if (editorRef.current) {
+            const html = generateSampleRequestHtml(newData, t);
+            editorRef.current.setContent(html);
+        }
+    };
+
+    const updateAnalysisData = (sampleIndex: number, analysisIndex: number, field: string, value: string) => {
+        if (!data) return;
+        const newSamples = [...data.samples];
+        const newAnalyses = [...newSamples[sampleIndex].analyses];
+        newAnalyses[analysisIndex] = { ...newAnalyses[analysisIndex], [field]: value };
+        newSamples[sampleIndex] = { ...newSamples[sampleIndex], analyses: newAnalyses };
+        const newData = { ...data, samples: newSamples };
+        setData(newData);
+        
+        if (editorRef.current) {
+            const html = generateSampleRequestHtml(newData, t);
+            editorRef.current.setContent(html);
+        }
+    };
+
+    const [isTinyMCELocked, setIsTinyMCELocked] = useState(true);
 
     return (
         <div className="h-screen flex flex-col bg-background">
             <div className="h-14 border-b border-border flex items-center justify-between px-3 md:px-4 bg-card shrink-0 z-20">
                 <div className="flex items-center gap-3 overflow-hidden">
-                    {/* Back button removed */}
                     <div className="flex flex-col overflow-hidden">
                         <div className="text-base sm:text-lg font-semibold truncate">{t("sampleRequest.header")}</div>
                         <div className="text-xs text-muted-foreground truncate">{orderId ? `Order ID: ${orderId}` : "/orders/form/request?orderId=..."}</div>
@@ -190,6 +265,20 @@ export function SampleRequestFormPage() {
                 </div>
 
                 <div className="flex gap-2 shrink-0">
+                    <button
+                        onClick={() => {
+                            setIsTinyMCELocked(!isTinyMCELocked);
+                            if (editorRef.current) {
+                                editorRef.current.mode.set(isTinyMCELocked ? "design" : "readonly");
+                                toast.success(isTinyMCELocked ? "Đã mở khóa chỉnh sửa" : "Đã khóa chỉnh sửa");
+                            }
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 rounded-md transition-colors shadow-sm bg-gray-100 text-gray-700 hover:bg-gray-200 border border-border"
+                        title="Khóa/Mở khóa"
+                    >
+                        {isTinyMCELocked ? <span className="text-sm font-medium">Mở khóa sửa</span> : <span className="text-sm font-medium">Khóa mẫu</span>}
+                    </button>
+
                     <button
                         onClick={handleExportPdf}
                         disabled={loading}
@@ -231,9 +320,253 @@ export function SampleRequestFormPage() {
                     <HelpCircle className="w-6 h-6" />
                 </button>
 
+                {/* Left Form Panel */}
+                {data && (
+                    <div className="hidden lg:flex w-[480px] flex-col bg-white border-r border-border h-full overflow-hidden shrink-0 shadow-sm">
+                        <div className="px-5 py-4 border-b border-border bg-gray-50/80">
+                            <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-primary" />
+                                Thông tin phiếu gửi mẫu
+                            </h3>
+                            <p className="text-xs text-muted-foreground mt-1">Sửa trực tiếp thông tin ở đây sẽ cập nhật vào bản xem trước</p>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-5 scroll-smooth space-y-6">
+                            {/* Section 1: Thông tin cơ bản */}
+                            <div className="bg-card rounded-lg border border-border p-4 shadow-sm relative pt-5">
+                                <div className="absolute top-0 left-0 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-br-lg text-[10px] font-bold uppercase tracking-wider">
+                                    Thông tin cơ bản
+                                </div>
+                                <div className="space-y-3 mt-1">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="col-span-2 sm:col-span-1">
+                                            <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Tên khách hàng *</label>
+                                            <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                                value={data.clientName || ""}
+                                                onChange={(e) => updateTopLevelData("clientName", e.target.value)} />
+                                        </div>
+                                        <div className="col-span-2 sm:col-span-1">
+                                            <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Mã số thuế</label>
+                                            <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                                value={data.taxCode || ""}
+                                                onChange={(e) => updateTopLevelData("taxCode", e.target.value)} />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="col-span-2 sm:col-span-1">
+                                            <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Địa chỉ *</label>
+                                            <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                                value={data.clientAddress || ""}
+                                                onChange={(e) => updateTopLevelData("clientAddress", e.target.value)} />
+                                        </div>
+                                        <div className="col-span-2 sm:col-span-1">
+                                            <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Số điện thoại</label>
+                                            <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                                value={data.clientPhone || ""}
+                                                onChange={(e) => updateTopLevelData("clientPhone", e.target.value)} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Email</label>
+                                        <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                            value={data.clientEmail || ""}
+                                            onChange={(e) => updateTopLevelData("clientEmail", e.target.value)} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Section 2: Thông tin liên hệ */}
+                            <div className="bg-card rounded-lg border border-border p-4 shadow-sm relative pt-5">
+                                <div className="absolute top-0 left-0 bg-green-100 text-green-700 px-2 py-0.5 rounded-br-lg text-[10px] font-bold uppercase tracking-wider">
+                                    Thông tin liên hệ
+                                </div>
+                                <div className="space-y-3 mt-1">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Người liên hệ *</label>
+                                            <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                                value={data.contactPerson || ""}
+                                                onChange={(e) => updateTopLevelData("contactPerson", e.target.value)} />
+                                        </div>
+                                        <div>
+                                            <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Căn cước công dân</label>
+                                            <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                                value={data.contactIdentity || ""}
+                                                onChange={(e) => updateTopLevelData("contactIdentity", e.target.value)} />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Số điện thoại liên hệ *</label>
+                                            <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                                value={data.contactPhone || ""}
+                                                onChange={(e) => updateTopLevelData("contactPhone", e.target.value)} />
+                                        </div>
+                                        <div>
+                                            <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Email liên hệ</label>
+                                            <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                                value={data.contactEmail || ""}
+                                                onChange={(e) => updateTopLevelData("contactEmail", e.target.value)} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Section 3: Người nhận báo cáo */}
+                            <div className="bg-card rounded-lg border border-border p-4 shadow-sm relative pt-5">
+                                <div className="absolute top-0 left-0 bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-br-lg text-[10px] font-bold uppercase tracking-wider">
+                                    Người nhận báo cáo
+                                </div>
+                                <div className="space-y-3 mt-1">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Tên người nhận</label>
+                                            <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                                value={data.reportReceiverName || ""}
+                                                onChange={(e) => updateTopLevelData("reportReceiverName", e.target.value)} />
+                                        </div>
+                                        <div>
+                                            <label className="block mb-1 text-[11px] font-medium text-muted-foreground">SĐT người nhận</label>
+                                            <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                                value={data.reportReceiverPhone || ""}
+                                                onChange={(e) => updateTopLevelData("reportReceiverPhone", e.target.value)} />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Email người nhận</label>
+                                            <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                                value={data.reportReceiverEmail || data.reportEmail || ""}
+                                                onChange={(e) => updateTopLevelData("reportReceiverEmail", e.target.value)} />
+                                        </div>
+                                        <div>
+                                            <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Địa chỉ nhận</label>
+                                            <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                                value={data.reportReceiverAddress || ""}
+                                                onChange={(e) => updateTopLevelData("reportReceiverAddress", e.target.value)} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Section 4: Thông tin hóa đơn */}
+                            <div className="bg-card rounded-lg border border-border p-4 shadow-sm relative pt-5">
+                                <div className="absolute top-0 left-0 bg-purple-100 text-purple-700 px-2 py-0.5 rounded-br-lg text-[10px] font-bold uppercase tracking-wider">
+                                    Thông tin hóa đơn
+                                </div>
+                                <div className="space-y-3 mt-1">
+                                    <div>
+                                        <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Tên công ty (HĐ)</label>
+                                        <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                            value={data.taxName || ""}
+                                            onChange={(e) => updateTopLevelData("taxName", e.target.value)} />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Mã số thuế</label>
+                                            <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                                value={data.taxCode || ""}
+                                                onChange={(e) => updateTopLevelData("taxCode", e.target.value)} />
+                                        </div>
+                                        <div>
+                                            <label className="block mb-1 text-[11px) font-medium text-muted-foreground">Địa chỉ (HĐ)</label>
+                                            <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                                value={data.invoiceAddress || ""}
+                                                onChange={(e) => updateTopLevelData("invoiceAddress", e.target.value)} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block mb-1 text-[11px] font-medium text-muted-foreground">Email nhận hóa đơn</label>
+                                        <input type="text" className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-xs"
+                                            value={data.invoiceEmail || ""}
+                                            onChange={(e) => updateTopLevelData("invoiceEmail", e.target.value)} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Attached Documents Section (Auxiliary) */}
+                            <div className="bg-card rounded-lg border border-border p-4 shadow-sm relative pt-5">
+                                <div className="absolute top-0 left-0 bg-gray-100 text-gray-700 px-2 py-0.5 rounded-br-lg text-[10px] font-bold uppercase tracking-wider">
+                                    Tài liệu đính kèm
+                                </div>
+                                <div className="mt-1">
+                                    <label className="block mb-1.5 text-xs font-medium text-muted-foreground">Tài liệu đi kèm</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-3 py-1.5 border border-border rounded-md focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm transition-shadow"
+                                        value={data.attachedDocuments || ""}
+                                        onChange={(e) => updateTopLevelData("attachedDocuments", e.target.value)}
+                                        placeholder="Ghi chú về tài liệu đính kèm hỗ trợ in..."
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Samples Section */}
+                            {data.samples.map((sample, sampleIdx) => (
+                                <div key={sampleIdx} className="bg-card rounded-lg border border-border p-4 shadow-sm relative pt-5">
+                                    <div className="absolute top-0 left-0 bg-primary/10 text-primary px-2 py-0.5 rounded-br-lg text-[10px] font-bold uppercase tracking-wider">
+                                        Mẫu {sampleIdx + 1}
+                                    </div>
+                                    <div className="font-semibold text-sm mb-3 mt-1 text-foreground border-b pb-2">{sample.sampleName}</div>
+                                    <div className="mb-4">
+                                        <label className="block mb-1.5 text-xs font-medium text-muted-foreground">{t("sampleRequest.table.sampleDesc", "Mô tả mẫu")}</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-3 py-1.5 border border-border rounded-md focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm transition-shadow"
+                                            value={sample.sampleDesc || ""}
+                                            onChange={(e) => updateSampleData(sampleIdx, "sampleDesc", e.target.value)}
+                                            placeholder="Ghi chú thêm về mẫu này..."
+                                        />
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                            Danh sách chỉ tiêu ({sample.analyses?.length || 0})
+                                        </div>
+                                        {sample.analyses.map((analysis: any, analysisIdx: number) => (
+                                            <div key={analysisIdx} className="p-3 bg-muted/30 rounded-md border border-border/50">
+                                                <div className="flex gap-3 items-end">
+                                                    <div className="flex-1">
+                                                        <label className="block mb-1 text-[11px] font-medium text-muted-foreground">
+                                                            Chỉ tiêu
+                                                        </label>
+                                                        <input value={analysis.parameterName} disabled className="w-full px-2 py-1 border border-border rounded bg-gray-100 text-foreground text-xs truncate" />
+                                                    </div>
+                                                    <div className="w-[120px]">
+                                                        <label className="block mb-1 text-[11px] font-medium text-muted-foreground">
+                                                            {t("table.method", "Phương pháp")}
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-white text-xs"
+                                                            value={analysis.protocolCode || ""}
+                                                            onChange={(e) => updateAnalysisData(sampleIdx, analysisIdx, "protocolCode", e.target.value)}
+                                                            placeholder="Theo IRDOP"
+                                                        />
+                                                    </div>
+                                                    <div className="w-[80px]">
+                                                        <label className="block mb-1 text-[11px] font-medium text-muted-foreground">
+                                                            {t("order.print.unit", "Đơn vị")}
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-white text-xs"
+                                                            value={analysis.analysisUnit || ""}
+                                                            onChange={(e) => updateAnalysisData(sampleIdx, analysisIdx, "analysisUnit", e.target.value)}
+                                                            placeholder="Đơn vị"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Main Content Area */}
                 <div className="flex-1 overflow-auto h-full scroll-smooth p-4 md:p-8">
-                    {/* Locked warning removed */}
                     {loading && <div className="p-4 text-center">{t("common.loading")}</div>}
 
                     {data && (
@@ -257,6 +590,7 @@ export function SampleRequestFormPage() {
                                         tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
                                         onInit={(_evt: any, editor: any) => {
                                             editorRef.current = editor;
+                                            editor.mode.set(isTinyMCELocked ? "readonly" : "design");
                                             setEditorReady(true);
                                         }}
                                         initialValue={initialHtml}
@@ -401,6 +735,14 @@ function mapOrderDetailResponseToPrintData(resp: any): OrderPrintData {
     const contactAddress = isCpObj ? cp.contactAddress || "" : "";
     const contactPosition = isCpObj ? cp.contactPosition || "" : "";
 
+    const receiver = order?.reportRecipient;
+    const isRecObj = receiver && typeof receiver === "object";
+
+    const reportReceiverName = isRecObj ? receiver.receiverName || "" : "";
+    const reportReceiverPhone = isRecObj ? receiver.receiverPhone || "" : "";
+    const reportReceiverEmail = isRecObj ? receiver.receiverEmail || "" : "";
+    const reportReceiverAddress = isRecObj ? receiver.receiverAddress || "" : "";
+
     const invoice = client?.invoiceInfo;
 
     return {
@@ -416,21 +758,36 @@ function mapOrderDetailResponseToPrintData(resp: any): OrderPrintData {
         contactPosition,
         contactAddress,
 
+        clientName: client?.clientName ?? "",
         clientAddress: client?.clientAddress ?? "",
-        taxName: invoice?.taxName,
-        taxCode: invoice?.taxCode,
-        taxAddress: invoice?.taxAddress,
+        clientPhone: client?.clientPhone ?? "",
+        clientEmail: client?.clientEmail ?? "",
+
+        reportReceiverName,
+        reportReceiverPhone,
+        reportReceiverEmail,
+        reportReceiverAddress,
+
+        taxName: invoice?.taxName ?? client?.clientName ?? "",
+        taxCode: invoice?.taxCode ?? client?.legalId ?? "",
+        invoiceAddress: invoice?.taxAddress ?? client?.clientAddress ?? "",
+        invoiceEmail: invoice?.taxEmail ?? client?.clientEmail ?? "",
+
+        attachedDocuments: "",
 
         samples: (order?.samples ?? []).map((s: any) => ({
             sampleName: s?.sampleName ?? "",
             sampleMatrix: s?.sampleMatrix ?? "",
             sampleNote: s?.sampleNote ?? "",
+            sampleDesc: s?.sampleDesc ?? "",
             analyses: (s?.analyses ?? []).map((a: any) => ({
                 parameterName: a?.parameterName ?? "",
                 parameterId: a?.parameterId ?? undefined,
                 feeBeforeTax: Number(a?.feeBeforeTax ?? 0),
                 taxRate: Number(a?.taxRate ?? 0),
                 feeAfterTax: Number(a?.feeAfterTax ?? 0),
+                analysisUnit: a?.analysisUnit ?? undefined,
+                protocolCode: a?.protocolCode ?? undefined,
             })),
         })),
 
@@ -443,6 +800,12 @@ function mapOrderDetailResponseToPrintData(resp: any): OrderPrintData {
         },
 
         discountRate: Number(order?.discountRate ?? 0),
+        
+        // Keep raw objects for updating correctly back to server
+        rawClient: client,
+        rawContactPerson: order?.contactPerson,
+        rawReportRecipient: order?.reportRecipient,
+        rawSamples: order?.samples
     };
 }
 
@@ -493,16 +856,23 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
 
                     const descCell = isFirst
                         ? `
-              <td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important ; vertical-align:middle !important;">
-             
+              <td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important ; vertical-align:middle !important; text-align: center;">
+             ${sample.sampleDesc || ""}
               </td>
             `
                         : "";
 
-                    // Method and Note columns merged per sample (rowspan)
-                    const methodCell = isFirst
-                        ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;">Đã thống nhất phương pháp kiểm nghiệm với Irdop</td>`
-                        : "";
+                    const allMethodsEmpty = analyses.every((a: any) => !a.protocolCode || (a.protocolCode || "").trim() === "");
+
+                    // Method and Note columns
+                    let methodCell = "";
+                    if (allMethodsEmpty) {
+                        methodCell = isFirst
+                            ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;">Đã thống nhất phương pháp kiểm nghiệm với Irdop</td>`
+                            : "";
+                    } else {
+                        methodCell = `<td style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;">${analysis.protocolCode || ""}</td>`;
+                    }
 
                     const noteCell = isFirst ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;"></td>` : "";
 
@@ -512,6 +882,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             ${sampleCell}
             ${descCell}
             <td style="padding:5px; border: 1px solid #000 !important;">${analysis.parameterName || ""}</td>
+            <td style="padding:5px; border: 1px solid #000 !important; text-align: center;">${analysis.analysisUnit || ""}</td>
             ${methodCell}
             ${noteCell}
           </tr>
@@ -584,7 +955,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
         <div style="display: flex; flex-direction: column; gap: 2px;">
           <div style="display: flex; align-items: baseline; font-size: 14px; margin-bottom: 2px;">
             <span class="label-text" style="min-width: 120px;">  ${t("sampleRequest.clientName")}</span>
-            <span class="field-dotted" style="flex-grow: 1; font-weight: 700;">${data.client?.clientName || ""}</span>
+            <span class="field-dotted" style="flex-grow: 1; font-weight: 700;">${data.clientName || data.client?.clientName || ""}</span>
           </div>
 
           <div style="display: flex; align-items: baseline; font-size: 14px; margin-bottom: 2px;">
@@ -657,26 +1028,22 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             </colgroup>
             <tr>
                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.section4.taxName")}</td>
-               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;" class="field-dotted">${data.client?.invoiceInfo?.taxName || ""}</td>
+               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;" class="field-dotted">${data.taxName || data.client?.invoiceInfo?.taxName || ""}</td>
             </tr>
            <tr>
                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.address")}</td>
-               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;" class="field-dotted">${
-                   (data.client as any)?.invoiceAddress || data.client?.invoiceInfo?.taxAddress || ""
-               }</td>
+               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;" class="field-dotted">${data.invoiceAddress || data.client?.invoiceInfo?.taxAddress || (data.client as any)?.invoiceAddress || ""}</td>
             </tr>
             <tr>
                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.taxId")}</td>
-               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;" class="field-dotted">${data.client?.legalId || data.taxCode || ""}</td>
+               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;" class="field-dotted">${data.taxCode || data.client?.legalId || ""}</td>
             </tr>
             <tr>
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.contactPhone")}</td>
                 <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
                 
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.email")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: 700;" class="field-dotted">${
-                    (data.client as any)?.invoiceEmail || data.client?.invoiceInfo?.taxEmail || ""
-                }</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.invoiceEmail || data.client?.invoiceInfo?.taxEmail || (data.client as any)?.invoiceEmail || ""}</td>
             </tr>
         </table>
         <table>
@@ -698,20 +1065,32 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
               <th style="border: 1px solid #1e293b; padding: 8px 8px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 40px;">
                 ${t("table.stt")}
               </th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 195px;">
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 175px;">
                 ${t("sample.name")}</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 90px;">
                 ${t("sampleRequest.table.sampleDesc")}</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700;">
                 ${t("sampleRequest.table.parameters")}</th>
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 55px;">
+                Đơn vị</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 115px;">
                 ${t("table.method")}</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 70px;">
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 60px;">
                 ${t("sample.note")}</th>
             </tr>
           </thead>
           ${samplesHtml}
         </table>
+
+        ${
+            data.attachedDocuments
+                ? `
+        <div style="font-size: 13px; font-weight: 700; margin: 10px 0;">
+             Tài liệu đính kèm: <span style="font-weight: 400; font-style: italic;">${data.attachedDocuments}</span>
+        </div>
+        `
+                : ""
+        }
 
         <div style="font-size: 12px; font-style: italic;">
         ${t("sampleRequest.section4.quote")}</div>

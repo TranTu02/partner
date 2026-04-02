@@ -15,33 +15,25 @@ export interface ApiInput {
 
 function adaptV2Response(raw: any): ApiResponse {
     if (!raw) return { success: false, statusCode: 500 };
+    
+    // Only skip if it's already fully adapted (has meta)
+    if (raw.meta && typeof raw.success === "boolean") return raw;
 
-    // If already wrapped (auth endpoints), pass through
-    if (typeof raw.success === "boolean") return raw;
+    const pagination = raw.pagination || raw.meta || {};
+    const data = raw.data !== undefined ? raw.data : (raw.items !== undefined ? raw.items : (Array.isArray(raw) ? raw : raw));
 
-    // V2 list response: { data: [...], pagination: {...} }
-    if (raw.data !== undefined || raw.pagination !== undefined) {
-        return {
-            success: true,
-            statusCode: 200,
-            data: raw.data,
-            meta: raw.pagination
-                ? {
-                      page: raw.pagination.page,
-                      total: raw.pagination.totalItems,
-                      totalPages: raw.pagination.totalPages,
-                      itemsPerPage: raw.pagination.itemsPerPage,
-                  }
-                : undefined,
-        };
+    // Safeguard
+    let total = Number(pagination.totalItems ?? pagination.total ?? raw.totalItems ?? raw.total ?? 0);
+    if (Array.isArray(data) && data.length > total) total = data.length;
+
+    const itemsPerPage = Number(pagination.itemsPerPage ?? raw.itemsPerPage ?? 20);
+    const totalPages = Number(pagination.totalPages ?? raw.totalPages ?? (total > 0 ? Math.ceil(total / itemsPerPage) : 0));
+    const page = Number(pagination.page ?? raw.page ?? 1);
+
+    if (Array.isArray(data) || total > 0) {
+        return { success: true, statusCode: 200, data, meta: { page, total, totalPages, itemsPerPage } };
     }
-
-    // V2 single object response: client/order/quote object directly
-    return {
-        success: true,
-        statusCode: 200,
-        data: raw,
-    };
+    return { success: true, statusCode: 200, data: raw };
 }
 
 // Wrapper to call API and normalize v2 response
@@ -364,6 +356,15 @@ export const convertHtmlToPdfForm2 = async ({ headers, body, query }: ApiInput):
 export const convertHtmlToPdf = convertHtmlToPdfForm2;
 
 // =============================================================================
+// ENUMS (v2: /v2/enum/...)
+// =============================================================================
+
+/** GET /v2/enum/get/list */
+export const getEnumList = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return getV2("/v2/enum/get/list", { headers, query: query || body });
+};
+
+// =============================================================================
 // EXPORT
 // =============================================================================
 
@@ -378,6 +379,7 @@ const apis = {
     sampleTypes: { getSampleTypes, createSampleType, getSampleTypeDetail, updateSampleType, deleteSampleType },
     parameterGroups: { getParameterGroups, createParameterGroup, getParameterGroupDetail, updateParameterGroup, deleteParameterGroup },
     utils: { convertHtmlToPdf, convertHtmlToPdfForm1, convertHtmlToPdfForm2 },
+    enums: { getEnumList },
 };
 
 export default apis;
