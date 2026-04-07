@@ -7,8 +7,8 @@ import { customerGetOrders, customerGetOrderDetail } from "@/api/customer";
 import type { Order } from "@/types/order";
 import { toast } from "sonner";
 import { Pagination } from "@/components/common/Pagination";
-import { OrderPrintPreviewModal } from "@/components/order/OrderPrintPreviewModal";
-import { SampleRequestPrintPreviewModal } from "@/components/order/SampleRequestPrintPreviewModal";
+import { CustomerOrderPrintPreviewModal } from "@/customerComponents/order/CustomerOrderPrintPreviewModal";
+import { CustomerSampleRequestPrintPreviewModal } from "@/customerComponents/order/CustomerSampleRequestPrintPreviewModal";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 
 export function CustomerOrdersPage() {
@@ -243,7 +243,7 @@ export function CustomerOrdersPage() {
                         initialQuoteId={quoteId || undefined}
                     />
                 </div>
-                {printData && <SampleRequestPrintPreviewModal isOpen={isSampleRequestModalOpen} onClose={() => setIsSampleRequestModalOpen(false)} data={printData} />}
+                {printData && <CustomerSampleRequestPrintPreviewModal isOpen={isSampleRequestModalOpen} onClose={() => setIsSampleRequestModalOpen(false)} data={printData} />}
             </div>
         );
     }
@@ -366,8 +366,21 @@ export function CustomerOrdersPage() {
                 )}
             </div>
 
-            {printData && <OrderPrintPreviewModal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} data={printData} />}
-            {printData && <SampleRequestPrintPreviewModal isOpen={isSampleRequestModalOpen} onClose={() => setIsSampleRequestModalOpen(false)} data={printData} />}
+            {isPrintModalOpen && printData && (
+                <CustomerOrderPrintPreviewModal
+                    isOpen={isPrintModalOpen}
+                    onClose={() => setIsPrintModalOpen(false)}
+                    data={printData}
+                />
+            )}
+
+            {isSampleRequestModalOpen && printData && (
+                <CustomerSampleRequestPrintPreviewModal
+                    isOpen={isSampleRequestModalOpen}
+                    onClose={() => setIsSampleRequestModalOpen(false)}
+                    data={printData}
+                />
+            )}
         </div>
     );
 }

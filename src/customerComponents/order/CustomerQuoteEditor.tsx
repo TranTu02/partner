@@ -1,14 +1,14 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Plus } from "lucide-react";
-import { SampleCard } from "@/components/order/SampleCard";
 import { PricingSummary } from "@/components/quote/PricingSummary";
+import { CustomerSampleCard } from "./CustomerSampleCard";
+import type { SampleWithQuantity, AnalysisWithQuantity } from "./CustomerSampleCard";
 import { OtherItemsSection } from "@/components/order/OtherItemsSection";
 import { AnalysisModalNew } from "@/components/parameter/AnalysisModalNew";
-import { QuotePrintPreviewModal } from "@/components/quote/QuotePrintPreviewModal";
+import { CustomerQuotePrintPreviewModal } from "./CustomerQuotePrintPreviewModal";
 import type { QuotePrintData } from "@/components/quote/QuotePrintTemplate";
 import type { Matrix } from "@/types/parameter";
 import type { EditorMode } from "@/components/order/OrderEditor";
-import type { SampleWithQuantity, AnalysisWithQuantity } from "@/components/order/SampleCard";
 import { customerCreateQuote, customerUpdateQuote } from "@/api/customer";
 import type { OtherItem } from "@/types/order";
 import { toast } from "sonner";
@@ -477,18 +477,18 @@ export const CustomerQuoteEditor = forwardRef<CustomerQuoteEditorRef, CustomerQu
                             <h3 className="text-base font-semibold text-foreground">Danh sách mẫu</h3>
                             <DndProvider backend={HTML5Backend}>
                                 {samples.map((sample, index) => (
-                                    <SampleCard
-                                        key={sample.id}
-                                        sample={sample}
-                                        sampleIndex={index}
-                                        onRemoveSample={() => handleRemoveSample(sample.id)}
-                                        onDuplicateSample={(count) => handleDuplicateSample(sample.id, count)}
-                                        onUpdateSample={(updates) => handleUpdateSample(sample.id, updates)}
-                                        onAddAnalysis={() => handleOpenModal(index)}
-                                        onRemoveAnalysis={(analysisId) => handleRemoveAnalysis(sample.id, analysisId)}
-                                        isReadOnly={isReadOnly}
-                                        showSampleQuantity={true}
-                                    />
+                                <CustomerSampleCard
+                                    key={sample.id}
+                                    sample={sample}
+                                    sampleIndex={index}
+                                    onRemoveSample={() => handleRemoveSample(sample.id)}
+                                    onDuplicateSample={(count) => handleDuplicateSample(sample.id, count)}
+                                    onUpdateSample={(updates) => handleUpdateSample(sample.id, updates)}
+                                    onAddAnalysis={() => handleOpenModal(index)}
+                                    onRemoveAnalysis={(analysisId) => handleRemoveAnalysis(sample.id, analysisId)}
+                                    isReadOnly={isReadOnly}
+                                    showSampleQuantity={true}
+                                />
                                 ))}
                             </DndProvider>
                             {!isReadOnly && (
@@ -521,7 +521,7 @@ export const CustomerQuoteEditor = forwardRef<CustomerQuoteEditorRef, CustomerQu
                 </div>
 
                 <AnalysisModalNew isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onConfirm={handleAddAnalyses} />
-                {printData && <QuotePrintPreviewModal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} data={printData} />}
+                {printData && <CustomerQuotePrintPreviewModal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} data={printData} />}
             </div>
         );
     }

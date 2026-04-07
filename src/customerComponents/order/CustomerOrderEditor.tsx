@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import { Plus, Search as SearchIcon } from "lucide-react";
-import { SampleCard } from "@/components/order/SampleCard";
+import { CustomerSampleCard } from "./CustomerSampleCard";
 import { PricingSummary } from "@/components/quote/PricingSummary";
 import { OtherItemsSection } from "@/components/order/OtherItemsSection";
 import { AnalysisModalNew } from "@/components/parameter/AnalysisModalNew";
-import { OrderPrintPreviewModal } from "@/components/order/OrderPrintPreviewModal";
-import { SampleRequestPrintPreviewModal } from "@/components/order/SampleRequestPrintPreviewModal";
+import { CustomerOrderPrintPreviewModal } from "./CustomerOrderPrintPreviewModal";
+import { CustomerSampleRequestPrintPreviewModal } from "./CustomerSampleRequestPrintPreviewModal";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import type { Matrix } from "@/types/parameter";
 import type { EditorMode } from "@/components/order/OrderEditor";
-import type { SampleWithQuantity, AnalysisWithQuantity } from "@/components/order/SampleCard";
+import type { SampleWithQuantity, AnalysisWithQuantity } from "./CustomerSampleCard";
+import { useTranslation } from "react-i18next";
 import { customerCreateOrder, customerUpdateOrder, customerGetQuoteDetail } from "@/api/customer";
 import type { OtherItem } from "@/types/order";
 import { toast } from "sonner";
@@ -33,6 +34,7 @@ export interface CustomerOrderEditorRef {
 
 export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOrderEditorProps>(
     ({ mode, initialData, onSaveSuccess, initialQuoteId }, ref) => {
+        const { t } = useTranslation();
         const [internalMode, setInternalMode] = useState<EditorMode>(mode);
         const isReadOnly = internalMode === "view";
         useEffect(() => { setInternalMode(mode); }, [mode]);
@@ -586,7 +588,6 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                                 <textarea value={orderNote} onChange={(e) => setOrderNote(e.target.value)} readOnly={isReadOnly} rows={2} className="w-full px-3 py-2 text-sm bg-input border border-border rounded-lg focus:ring-1 focus:ring-primary outline-none resize-none" />
                             </div>
                         </div>
-
                         <OtherItemsSection otherItems={otherItems} onOtherItemsChange={setOtherItems} isReadOnly={isReadOnly} />
 
                         {/* Samples */}
@@ -594,30 +595,49 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                             <h3 className="text-base font-semibold text-foreground">Danh sách mẫu</h3>
                             <DndProvider backend={HTML5Backend}>
                                 {samples.map((sample, index) => (
-                                    <SampleCard
-                                        key={sample.id}
-                                        sample={sample}
-                                        sampleIndex={index}
-                                        onRemoveSample={() => handleRemoveSample(sample.id)}
-                                        onDuplicateSample={(count) => handleDuplicateSample(sample.id, count)}
-                                        onUpdateSample={(updates) => handleUpdateSample(sample.id, updates)}
-                                        onAddAnalysis={() => handleOpenModal(index)}
-                                        onRemoveAnalysis={(analysisId) => handleRemoveAnalysis(sample.id, analysisId)}
-                                        isReadOnly={isReadOnly}
-                                        showSampleQuantity={false}
-                                    />
+                                    <div key={sample.id}>
+                                        <CustomerSampleCard
+                                            sample={sample}
+                                            sampleIndex={index}
+                                            onRemoveSample={() => handleRemoveSample(sample.id)}
+                                            onDuplicateSample={(count) => handleDuplicateSample(sample.id, count)}
+                                            onUpdateSample={(updates) => handleUpdateSample(sample.id, updates)}
+                                            onAddAnalysis={() => handleOpenModal(index)}
+                                            onRemoveAnalysis={(analysisId) => handleRemoveAnalysis(sample.id, analysisId)}
+                                            isReadOnly={isReadOnly}
+                                            showSampleQuantity={true}
+                                        />
+                                    </div>
                                 ))}
                             </DndProvider>
+
                             {!isReadOnly && (
-                                <button onClick={handleAddSample} className="w-full py-3 border-2 border-dashed border-border rounded-lg text-primary hover:border-primary hover:bg-primary/10 transition-colors text-sm font-medium">
-                                    <Plus className="w-5 h-5 inline-block mr-2" />Thêm mẫu
+                                <button
+                                    onClick={handleAddSample}
+                                    className="w-full py-3 border-2 border-dashed border-border rounded-lg text-primary hover:border-primary hover:bg-primary/10 transition-colors text-sm font-medium"
+                                >
+                                    <Plus className="w-5 h-5 inline-block mr-2" />
+                                    {t("order.addSample")}
                                 </button>
                             )}
                         </div>
 
                         {samples.length > 0 && (
-                            <div className="flex justify-end">
-                                <div className="w-full md:w-[600px]">
+                            <div className="flex flex-col md:flex-row gap-8 items-start justify-between">
+                                <div className="flex-1 w-full">
+                                    <label className="block text-sm font-medium mb-2 text-foreground">{t("order.note", "Ghi chú")}</label>
+                                    <textarea
+                                        value={orderNote}
+                                        onChange={(e) => {
+                                            setOrderNote(e.target.value);
+                                            if (!isReadOnly) setHasUnsavedChanges(true);
+                                        }}
+                                        disabled={isReadOnly}
+                                        placeholder={t("order.notePlaceholder", "Nhập ghi chú cho đơn hàng...")}
+                                        className="w-full min-h-[150px] p-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-y"
+                                    />
+                                </div>
+                                <div className="w-full md:w-[600px] shrink-0">
                                     <PricingSummary
                                         subtotal={pricing.subtotal}
                                         discountRate={discountRate}
@@ -638,16 +658,19 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                 </div>
 
                 <AnalysisModalNew isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onConfirm={handleAddAnalyses} />
-                {previewData && <OrderPrintPreviewModal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} data={previewData} />}
                 {previewData && (
-                    <SampleRequestPrintPreviewModal 
-                        isOpen={isSampleRequestPreviewOpen} 
-                        onClose={() => setIsSampleRequestPreviewOpen(false)} 
-                        data={previewData} 
-                        onUpdateData={(newData) => {
-                            setPreviewData({ ...previewData, ...newData });
-                            // Optionally update initialData or trigger parent refresh if needed
-                        }}
+                    <CustomerOrderPrintPreviewModal
+                        isOpen={isPreviewOpen}
+                        onClose={() => setIsPreviewOpen(false)}
+                        data={previewData}
+                    />
+                )}
+                {previewData && (
+                    <CustomerSampleRequestPrintPreviewModal
+                        isOpen={isSampleRequestPreviewOpen}
+                        onClose={() => setIsSampleRequestPreviewOpen(false)}
+                        data={previewData}
+                        onUpdateData={() => {}}
                     />
                 )}
             </div>

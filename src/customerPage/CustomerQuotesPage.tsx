@@ -7,7 +7,7 @@ import { customerGetQuotes, customerGetQuoteDetail } from "@/api/customer";
 import type { Quote } from "@/types/quote";
 import { toast } from "sonner";
 import { Pagination } from "@/components/common/Pagination";
-import { QuotePrintPreviewModal } from "@/components/quote/QuotePrintPreviewModal";
+import { CustomerQuotePrintPreviewModal } from "@/customerComponents/order/CustomerQuotePrintPreviewModal";
 import type { QuotePrintData } from "@/components/quote/QuotePrintTemplate";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -220,7 +220,13 @@ export function CustomerQuotesPage() {
                 <div className="flex-1 overflow-hidden">
                     <CustomerQuoteEditor ref={editorRef} mode={viewMode} initialData={selectedQuote || undefined} onBack={handleBack} onSaveSuccess={handleSaveSuccess} />
                 </div>
-                {printData && <QuotePrintPreviewModal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} data={printData} />}
+                {isPrintModalOpen && printData && (
+                <CustomerQuotePrintPreviewModal
+                    isOpen={isPrintModalOpen}
+                    onClose={() => setIsPrintModalOpen(false)}
+                    data={printData as any}
+                />
+            )}
             </div>
         );
     }

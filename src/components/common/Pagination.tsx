@@ -76,9 +76,9 @@ export function Pagination({ currentPage, totalPages, totalItems, itemsPerPage, 
         return pages;
     };
 
-    // Simplified show logic: we always show the info part, but maybe hide controls if only 1 page?
-    // User wants it always present for consistency.
-    const showControls = totalPages > 1;
+    if (totalPages <= 1) {
+        return null;
+    }
 
     return (
         <div className="flex flex-col md:flex-row items-center justify-between px-4 py-4 md:px-6 border-t border-border bg-card gap-4">
@@ -89,91 +89,95 @@ export function Pagination({ currentPage, totalPages, totalItems, itemsPerPage, 
             </div>
 
             {/* Page controls wrapper - Top on mobile, Right on desktop */}
-            {showControls && (
-                <div className="flex flex-col md:flex-row items-center gap-4 order-1 md:order-2 w-full md:w-auto">
-                    {/* Navigation Buttons - Top row on mobile */}
-                    <div className="flex items-center gap-2 justify-center w-full md:w-auto">
-                        {/* First Page */}
-                        <button
-                            onClick={handleFirst}
-                            disabled={currentPage === 1}
-                            className="p-2 rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed hidden sm:flex"
-                            aria-label={t("pagination.first")}
-                        >
-                            <ChevronsLeft className="w-4 h-4" />
-                        </button>
+            <div className="flex flex-col md:flex-row items-center gap-4 order-1 md:order-2 w-full md:w-auto">
+                {/* Navigation Buttons - Top row on mobile */}
+                <div className="flex items-center gap-2 justify-center w-full md:w-auto">
+                    {/* First Page */}
+                    <button
+                        onClick={handleFirst}
+                        disabled={currentPage === 1}
+                        className="p-2 rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed hidden sm:flex"
+                        aria-label={t("pagination.first")}
+                        title={t("pagination.first")}
+                    >
+                        <ChevronsLeft className="w-4 h-4 text-foreground" />
+                    </button>
 
-                        <button
-                            onClick={handlePrevious}
-                            disabled={currentPage === 1}
-                            className="p-2 rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            aria-label={t("pagination.previous")}
-                        >
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
+                    {/* Previous Page */}
+                    <button
+                        onClick={handlePrevious}
+                        disabled={currentPage === 1}
+                        className="p-2 rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label={t("pagination.previous")}
+                        title={t("pagination.previous")}
+                    >
+                        <ChevronLeft className="w-4 h-4 text-foreground" />
+                    </button>
 
-                        {/* Page Numbers */}
-                        <div className="flex items-center gap-1 mx-1">
-                            {getPageNumbers().map((page, index) => (
+                    {/* Page numbers */}
+                    <div className="flex items-center gap-1">
+                        {getPageNumbers().map((page, index) =>
+                            page === "..." ? (
+                                <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground">
+                                    ...
+                                </span>
+                            ) : (
                                 <button
-                                    key={index}
-                                    onClick={() => typeof page === "number" && onPageChange(page)}
-                                    disabled={typeof page !== "number"}
-                                    className={`
-                                        min-w-[40px] h-10 flex items-center justify-center rounded-lg text-sm font-medium transition-all
-                                        ${
-                                            page === currentPage
-                                                ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-105"
-                                                : typeof page === "number"
-                                                  ? "hover:bg-accent text-muted-foreground hover:text-foreground"
-                                                  : "cursor-default text-muted-foreground"
-                                        }
-                                    `}
+                                    key={page}
+                                    onClick={() => onPageChange(page as number)}
+                                    className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-colors ${
+                                        page === currentPage ? "bg-primary text-primary-foreground" : "border border-border hover:bg-muted text-foreground"
+                                    }`}
                                 >
                                     {page}
                                 </button>
-                            ))}
-                        </div>
-
-                        <button
-                            onClick={handleNext}
-                            disabled={currentPage === totalPages}
-                            className="p-2 rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            aria-label={t("pagination.next")}
-                        >
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
-
-                        {/* Last Page */}
-                        <button
-                            onClick={handleLast}
-                            disabled={currentPage === totalPages}
-                            className="p-2 rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed hidden sm:flex"
-                            aria-label={t("pagination.last")}
-                        >
-                            <ChevronsRight className="w-4 h-4" />
-                        </button>
+                            ),
+                        )}
                     </div>
 
-                    {/* Page Size Selector - Optional extra if passed down */}
-                    {onItemsPerPageChange && (
-                        <div className="flex items-center gap-2 border-l border-border pl-4 hidden md:flex">
-                            <span className="text-sm text-muted-foreground whitespace-nowrap">{t("pagination.size")}:</span>
-                            <select
-                                value={itemsPerPage}
-                                onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-                                className="bg-transparent text-sm font-medium focus:outline-none cursor-pointer hover:text-primary transition-colors"
-                            >
-                                {[10, 20, 50, 100].map((size) => (
-                                    <option key={size} value={size}>
-                                        {size}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
+                    {/* Next Page */}
+                    <button
+                        onClick={handleNext}
+                        disabled={currentPage === totalPages}
+                        className="p-2 rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label={t("pagination.next")}
+                        title={t("pagination.next")}
+                    >
+                        <ChevronRight className="w-4 h-4 text-foreground" />
+                    </button>
+
+                    {/* Last Page */}
+                    <button
+                        onClick={handleLast}
+                        disabled={currentPage === totalPages}
+                        className="p-2 rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed hidden sm:flex"
+                        aria-label={t("pagination.last")}
+                        title={t("pagination.last")}
+                    >
+                        <ChevronsRight className="w-4 h-4 text-foreground" />
+                    </button>
                 </div>
-            )}
+
+                {/* Rows per page - Middle row on mobile */}
+                {onItemsPerPageChange && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground justify-center w-full md:w-auto">
+                        <span>{t("pagination.rowsPerPage")}:</span>
+                        <select
+                            value={itemsPerPage}
+                            onChange={(e) => {
+                                onItemsPerPageChange(Number(e.target.value));
+                            }}
+                            className="h-8 w-[70px] rounded-md border border-input bg-background px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                            {[10, 20, 50, 100].map((pageSize) => (
+                                <option key={pageSize} value={pageSize}>
+                                    {pageSize}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

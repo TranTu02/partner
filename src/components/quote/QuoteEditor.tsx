@@ -233,6 +233,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             id: `S${timestamp}`,
             sampleId: undefined,
             sampleName: "",
+            sampleMatrix: "",
             sampleNote: "",
             analyses: [],
             quantity: 1,
@@ -528,6 +529,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
 
             samples: samples.map((s) => ({
                 sampleName: s.sampleName || "",
+                sampleMatrix: s.sampleMatrix || "",
                 sampleNote: s.sampleNote || "",
                 quantity: s.quantity || 1,
                 analyses: s.analyses.map((a) => {

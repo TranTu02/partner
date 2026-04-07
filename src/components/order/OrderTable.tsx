@@ -26,7 +26,6 @@ interface OrderTableProps {
 
 export function OrderTable({ orders, loading, pagination, onPageChange, onItemsPerPageChange, onViewDetail, onEdit, onDuplicate, onPrint, onPrintSampleRequest, onFilterChange }: OrderTableProps) {
     const { t } = useTranslation();
-    const safeOrders = Array.isArray(orders) ? orders : [];
     const { page, itemsPerPage, totalItems, totalPages } = pagination;
 
     // Filter States
@@ -588,14 +587,14 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                                     {t("common.loading")}
                                 </td>
                             </tr>
-                        ) : safeOrders.length === 0 ? (
+                        ) : orders.length === 0 ? (
                             <tr>
                                 <td colSpan={10} className="px-6 py-8 text-center text-muted-foreground text-sm">
                                     {t("common.noData")}
                                 </td>
                             </tr>
                         ) : (
-                            safeOrders.map((order) => (
+                            orders.map((order) => (
                                 <tr key={order.orderId} className="hover:bg-muted/50 transition-colors">
                                     {/* Code */}
                                     <td className="px-3 py-2 text-sm font-medium text-primary cursor-pointer align-top" onClick={() => onViewDetail(order)}>
@@ -659,7 +658,7 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
 
                                     {/* Invoice Numbers */}
                                     <td className="px-3 py-2 text-sm text-foreground align-top">
-                                        {Array.isArray(order.invoiceNumbers) && order.invoiceNumbers.length > 0 ? (
+                                        {order.invoiceNumbers && order.invoiceNumbers.length > 0 ? (
                                             <div className="space-y-0.5">
                                                 {order.invoiceNumbers.map((inv, idx) => (
                                                     <div key={idx} className="bg-muted px-2 py-0.5 rounded text-xs w-fit max-w-full truncate" title={inv}>
