@@ -60,8 +60,9 @@ const SortableAnalysisRow = ({ id, index, moveRow, children }: any) => {
 export interface SampleWithQuantity {
     id: string;
     sampleId?: string;
+    sampleTypeId?: string;
+    sampleTypeName?: string;
     sampleName: string;
-    sampleMatrix: string;
     sampleNote?: string;
     analyses: AnalysisWithQuantity[];
     quantity?: number;
@@ -77,6 +78,8 @@ interface SampleCardProps {
     onRemoveAnalysis: (analysisId: string) => void;
     isReadOnly?: boolean;
     showSampleQuantity?: boolean;
+    isQuote?: boolean;
+    globalDiscountRate?: number;
 }
 
 export function SampleCard({
@@ -89,6 +92,8 @@ export function SampleCard({
     onRemoveAnalysis,
     isReadOnly = false,
     showSampleQuantity = false,
+    isQuote = false,
+    globalDiscountRate = 0,
 }: SampleCardProps) {
     const { t } = useTranslation();
 
@@ -96,23 +101,17 @@ export function SampleCard({
     // User's formula: feeAfterTax = feeBeforeTax * ( 1 - discountRate/100) * ( 1 + taxRate/100)
     // where feeBeforeTax here implies unitPrice * quantity
     const calculateFeeAfterTax = (analysis: AnalysisWithQuantity) => {
-        if (analysis.feeAfterTax !== undefined) {
-            // If explicitly modified, logic might differ, but generally we rely on recalculation unless manual override?
-            // Since we recalculate on change, let's use the formula dynamic check.
-            // Actually, if we use the formula, we should probably return the calculated value, unless 'feeAfterTax' is an override.
-            // Let's fallback to stored if set, but really, for display consistency, we should compute it unless user manually edited 'Total'.
-            return analysis.feeAfterTax;
-        }
         const unitPrice = analysis.unitPrice || 0;
-        const quantity = analysis.quantity || 1;
+        const quantity = (sample.quantity || 1) * (analysis.quantity || 1);
         const discountRate = analysis.discountRate || 0;
         const taxRate = analysis.taxRate || 0;
 
         const feeBeforeTax = unitPrice * quantity;
         const afterDiscount = feeBeforeTax * (1 - discountRate / 100);
-        const afterTax = afterDiscount * (1 + taxRate / 100);
+        const afterGlobalDiscount = afterDiscount * (1 - globalDiscountRate / 100);
+        const afterTax = afterGlobalDiscount * (1 + taxRate / 100);
 
-        return afterTax;
+        return Math.round(afterTax);
     };
 
     const [duplicateCount, setDuplicateCount] = useState(1);
@@ -185,7 +184,6 @@ export function SampleCard({
         onUpdateSample({ analyses: newAnalyses });
     };
 
-
     const moveAnalysis = (dragIndex: number, hoverIndex: number) => {
         const newAnalyses = [...sample.analyses];
         const [removed] = newAnalyses.splice(dragIndex, 1);
@@ -203,25 +201,34 @@ export function SampleCard({
         sample.analyses.forEach((a) => {
             const unitPrice = a.unitPrice || 0;
             const quantity = a.quantity || 1;
-            const discountRate = a.discountRate || 0;
+            const lineDiscountRate = a.discountRate || 0;
             const taxRate = a.taxRate || 0;
 
             const feeRaw = unitPrice * quantity;
-            const discountVal = feeRaw * (discountRate / 100);
-            const feeNet = feeRaw - discountVal;
 
-            const lineAfterTax = a.feeAfterTax ?? feeNet * (1 + taxRate / 100);
+            // Apply line discount
+            const lineDiscountVal = feeRaw * (lineDiscountRate / 100);
+            const feeNetLine = feeRaw - lineDiscountVal;
+
+            // Apply global discount (Quote specific)
+            const globalDiscountVal = feeNetLine * (globalDiscountRate / 100);
+            const feeNetFinal = feeNetLine - globalDiscountVal;
+
+            // Compute total discount combining both
+            const combinedDiscountVal = lineDiscountVal + globalDiscountVal;
+
+            const lineAfterTax = feeNetFinal * (1 + taxRate / 100);
 
             totalUnitPrice += feeRaw;
-            totalDiscount += discountVal;
-            totalBeforeTax += feeNet;
-            totalAfterTax += lineAfterTax;
+            totalDiscount += combinedDiscountVal;
+            totalBeforeTax += feeNetFinal;
+            totalAfterTax += isQuote ? lineAfterTax : (a.feeAfterTax ?? lineAfterTax);
         });
 
         const sampleQuantity = sample.quantity || 1;
 
         return { totalUnitPrice, totalDiscount, totalBeforeTax, totalAfterTax, sampleQuantity };
-    }, [sample.analyses, sample.quantity]);
+    }, [sample.analyses, sample.quantity, isQuote, globalDiscountRate]);
 
     const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
 
@@ -384,7 +391,23 @@ export function SampleCard({
                                                 <td className={`px-2 py-3 text-right text-sm text-foreground w-[130px] ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
                                                     <div className="flex flex-col items-end">
                                                         {isReadOnly ? (
-                                                            (analysis.unitPrice || 0).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " đ"
+                                                            (() => {
+                                                                const originalUP = Number(analysis.unitPrice) || 0;
+                                                                const lineDiscountRate = Number(analysis.discountRate) || 0;
+                                                                const actualUP = originalUP * (1 - lineDiscountRate / 100);
+                                                                const discountedUP = actualUP * (1 - globalDiscountRate / 100);
+                                                                const hasDiscount = isQuote && discountedUP < originalUP - 0.1;
+
+                                                                if (hasDiscount) {
+                                                                    return (
+                                                                        <>
+                                                                            <span className="font-bold">{discountedUP.toLocaleString("vi-VN")} đ</span>
+                                                                            <span className="text-[10px] text-muted-foreground line-through">{originalUP.toLocaleString("vi-VN")} đ</span>
+                                                                        </>
+                                                                    );
+                                                                }
+                                                                return originalUP.toLocaleString("vi-VN") + " đ";
+                                                            })()
                                                         ) : (
                                                             <input
                                                                 type="number"
@@ -395,7 +418,7 @@ export function SampleCard({
                                                                 onWheel={(e) => e.currentTarget.blur()}
                                                             />
                                                         )}
-                                                        {(Number(analysis.discountRate) || 0) > 0 && (
+                                                        {!isQuote && (Number(analysis.discountRate) || 0) > 0 && (
                                                             <span className="text-xs text-green-600 font-medium leading-none block mt-1">(-{analysis.discountRate}%)</span>
                                                         )}
                                                     </div>
@@ -424,7 +447,25 @@ export function SampleCard({
                                                     }`}
                                                 >
                                                     {isReadOnly ? (
-                                                        calculateFeeAfterTax(analysis).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " đ"
+                                                        (() => {
+                                                            const quantity = (sample.quantity || 1) * (analysis.quantity || 1);
+                                                            const originalUP = Number(analysis.unitPrice) || 0;
+                                                            const taxRate = Number(analysis.taxRate) || 0;
+
+                                                            const originalTotal = originalUP * quantity * (1 + taxRate / 100);
+                                                            const finalTotal = calculateFeeAfterTax(analysis);
+                                                            const hasDiscount = isQuote && finalTotal < originalTotal - 0.1;
+
+                                                            if (hasDiscount) {
+                                                                return (
+                                                                    <>
+                                                                        <span className="font-bold text-primary">{finalTotal.toLocaleString("vi-VN")} đ</span>
+                                                                        <span className="text-[10px] text-muted-foreground line-through block">{originalTotal.toLocaleString("vi-VN")} đ</span>
+                                                                    </>
+                                                                );
+                                                            }
+                                                            return finalTotal.toLocaleString("vi-VN") + " đ";
+                                                        })()
                                                     ) : (
                                                         <div className="flex flex-col items-end">
                                                             <input

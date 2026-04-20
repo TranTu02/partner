@@ -48,12 +48,13 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
 
         try {
             const res: any = await generateOrderUri({ body: { orderId: data.orderId } });
-            if (res?.success && res?.data?.uri) {
-                const link = `${window.location.origin}/form/request-sample?orderId=${data.orderId}&uri=${res.data.uri}`;
+            const uriValue = res?.data?.url || res?.data?.uri;
+            if (res?.success && uriValue) {
+                const link = `${window.location.origin}${uriValue}`;
                 navigator.clipboard.writeText(link);
                 toast.success("Đã tạo và sao chép liên kết mới thành công");
                 if (onUpdateData) {
-                    onUpdateData({ orderUri: res.data.uri, requestForm: "" });
+                    onUpdateData({ orderUri: uriValue, requestForm: "" });
                 }
             } else {
                 toast.error("Không thể tạo liên kết");
@@ -66,7 +67,7 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
 
     const handleGetCurrentLink = () => {
         if (!data?.orderUri) return;
-        const link = `${window.location.origin}/form/request-sample?orderId=${data.orderId}&uri=${data.orderUri}`;
+        const link = `${window.location.origin}${data.orderUri}`;
         navigator.clipboard.writeText(link);
         toast.success("Đã sao chép liên kết hiện tại");
     };
@@ -242,20 +243,48 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                         : "";
 
                     // Method and Note columns merged per sample (rowspan)
-                    const methodCell = isFirst
-                        ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;">Đã thống nhất phương pháp kiểm nghiệm với Irdop</td>`
-                        : "";
 
-                    const noteCell = isFirst ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;"></td>` : "";
+                    const accKeys = (() => {
+                        const s = sample as any;
+                        const a = analysis as any;
+                        let acc = a.protocolAccreditation;
+                        if (typeof acc === "string" && acc.startsWith("{")) {
+                            try {
+                                acc = JSON.parse(acc);
+                            } catch {
+                                acc = null;
+                            }
+                        }
+                        const sFullType = (s.sampleTypeName || s.sampleMatrix || s.librarySampleType?.sampleTypeName || s.matrix?.matrixName || "").toString().normalize("NFC").toLowerCase().trim();
+                        const aFullType = (a.sampleTypeName || a.sampleMatrix || a.librarySampleType?.sampleTypeName || "").toString().normalize("NFC").toLowerCase().trim();
+                        const isMatch = !sFullType || !aFullType || sFullType === aFullType;
+                        let accKeys = "";
+                        if (acc && isMatch) {
+                            accKeys =
+                                typeof acc === "object"
+                                    ? Object.entries(acc)
+                                          .filter(([, v]) => v)
+                                          .map(([k]) => k)
+                                          .join(", ")
+                                    : acc.toString();
+                        }
+                        return accKeys;
+                    })();
 
                     return `
           <tr>
             ${sttCell}
             ${sampleCell}
             ${descCell}
-            <td style="padding:5px; border: 1px solid #000 !important;">${analysis.parameterName || ""}</td>
-            ${methodCell}
-            ${noteCell}
+            <td style="padding:5px; border: 1px solid #000 !important; width: 20%;">${analysis.parameterName || ""}</td>
+            <td style="padding:5px; border: 1px solid #000 !important; text-align: center; width: 7%;">${analysis.analysisUnit || ""}</td>
+            <td style="padding:5px; border: 1px solid #000 !important; text-align: left; width: 24%;">
+                <div style="font-weight: 700;">${analysis.protocolCode || "--"}</div>
+                <div style="font-size: 11px; margin-top: 2px;">
+                 ${[(analysis as any).protocolSource, accKeys].filter(Boolean).join(" ") || "--"}
+                </div>
+            </td>
+            <td style="padding:5px; border: 1px solid #000 !important; width: 10%;">${analysis.parameterNote || ""}</td>
           </tr>
         `;
                 })
@@ -438,23 +467,33 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
         <table class="content-table" style="width: 100%; border-collapse: collapse; border: none; margin: 10px 0; table-layout: fixed;">
           <thead>
             <tr>
-              <th style="border: 1px solid #1e293b; padding: 8px 8px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 40px;">
+              <th style="border: 1px solid #1e293b; padding: 8px 8px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 4%;">
                 ${t("table.stt")}
               </th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 195px;">
+               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 25%;">
                 ${t("sample.name")}</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 90px;">
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 10%;">
                 ${t("sampleRequest.table.sampleDesc")}</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700;">
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 20%;">
                 ${t("sampleRequest.table.parameters")}</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 115px;">
-                ${t("table.method")}</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 70px;">
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 7%;">
+                Đơn vị</th>
+               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 24%;">
+                Phương pháp và công nhận</th>
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 10%;">
                 ${t("sample.note")}</th>
             </tr>
           </thead>
           ${samplesHtml}
         </table>
+
+         <div style="margin-top: 8px; margin-bottom: 12px; font-size: 11px; color: #333; padding-top: 6px;">
+            <span style="font-weight: bold;">Chú thích:</span>
+            <br/><span style="margin-left: 8px;"><b>IRDOP</b>: Chỉ tiêu được thực hiện tại IRDOP.</span>
+            <br/><span style="margin-left: 8px;"><b>EX</b>: Chỉ tiêu được thực hiện bởi nhà thầu phụ.</span>
+            <br/><span style="margin-left: 8px;"><b>VILAS997</b>: Chỉ tiêu được công nhận ISO/IEC 17025:2017.</span>
+            <br/><span style="margin-left: 8px;"><b>TDC</b>: Chỉ tiêu được công nhận đánh giá sự phù hợp theo NĐ 107/2016/NĐ-CP.</span>
+        </div>
 
         <div style="font-size: 12px; font-style: italic;">
         ${t("sampleRequest.section4.quote")}</div>

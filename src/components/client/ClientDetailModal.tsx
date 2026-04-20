@@ -65,7 +65,7 @@ export function ClientDetailModal({ isOpen, onClose, client }: ClientDetailModal
                                     <Mail className="w-3 h-3 inline-block mr-1" />
                                     {t("client.invoiceEmail")}
                                 </div>
-                                <div style={{ fontSize: "14px", color: "#1890FF" }}>{client.invoiceEmail || client.clientEmail}</div>
+                                <div style={{ fontSize: "14px", color: "#1890FF" }}>{client.invoiceInfo?.taxEmail || client.invoiceEmail || client.clientEmail || "--"}</div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
@@ -91,7 +91,7 @@ export function ClientDetailModal({ isOpen, onClose, client }: ClientDetailModal
                                 <DollarSign className="w-4 h-4 text-blue-600" />
                                 <div style={{ fontSize: "12px", color: "#1890FF" }}>{t("client.totalRevenue")}</div>
                             </div>
-                            <div style={{ fontSize: "20px", fontWeight: 700, color: "#1890FF" }}>{client.totalOrderAmount.toLocaleString("vi-VN")} đ</div>
+                            <div style={{ fontSize: "20px", fontWeight: 700, color: "#1890FF" }}>{(client.totalOrderAmount || 0).toLocaleString("vi-VN")} đ</div>
                         </div>
                         <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
                             <div className="flex items-center gap-2 mb-2">
@@ -118,7 +118,7 @@ export function ClientDetailModal({ isOpen, onClose, client }: ClientDetailModal
                             </h3>
                             <div style={{ fontSize: "14px", color: "rgba(0, 0, 0, 0.65)" }}>{t("client.identityIds")}:</div>
                             <div className="flex flex-wrap gap-2 mt-2">
-                                {client.availableByIds.map((id) => (
+                                {(client.availableByIds || []).map((id) => (
                                     <span key={id} className="px-3 py-1 bg-white rounded border border-orange-300" style={{ fontSize: "12px", fontWeight: 500, color: "#FA8C16" }}>
                                         {id}
                                     </span>

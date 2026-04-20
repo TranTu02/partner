@@ -126,10 +126,31 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 const mappedSamples = initialData.samples.map((s: any) => ({
                     ...s,
                     id: s.id || `restored-sample-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                    analyses: (s.analyses || []).map((a: any) => ({
-                        ...a,
-                        id: a.id || `restored-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                    })),
+                    analyses: (s.analyses || []).map((a: any) => {
+                        const quantity = Number(a.quantity) || 1;
+                        const unitPrice = Number(a.unitPrice) || Number(a.parameterPrice) || 0;
+                        const taxRate = a.taxRate !== undefined ? Number(a.taxRate) : parseFloat(a.parameterTaxRate || "5");
+                        const discountRate = Number(a.discountRate) || 0;
+
+                        const feeBeforeTax = unitPrice * quantity * (1 - discountRate / 100);
+                        const calculatedFeeAfterTax = Math.round(feeBeforeTax * (1 + taxRate / 100));
+
+                        return {
+                            ...a,
+                            id: a.id || `restored-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                            unitPrice: unitPrice,
+                            quantity: quantity,
+                            taxRate: taxRate,
+                            discountRate: discountRate,
+                            feeBeforeTax: a.feeBeforeTax || feeBeforeTax,
+                            feeAfterTax: a.feeAfterTax && Number(a.feeAfterTax) !== 0 ? Number(a.feeAfterTax) : calculatedFeeAfterTax,
+                            sampleTypeName: a.sampleTypeName || (a.matrix && a.matrix.sampleTypeName),
+                            protocolCode: a.protocolCode || (a.protocol && a.protocol.protocolCode),
+                            protocolSource: (a as any).protocolSource || (a.protocol && a.protocol.protocolSource),
+                            protocolAccreditation: (a as any).protocolAccreditation || (a.protocol && a.protocol.protocolAccreditation),
+                        };
+                    }),
+                    sampleTypeName: s.sampleTypeName || s.sampleMatrix || "",
                 }));
                 setSamples(mappedSamples);
             }
@@ -167,9 +188,9 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             setClientEmail(selectedClient.clientEmail || "");
 
             // Invoice
-            setTaxName(selectedClient.invoiceInfo?.taxName || selectedClient.clientName);
-            setTaxCode(selectedClient.invoiceInfo?.taxCode || selectedClient.legalId);
-            setTaxAddress(selectedClient.invoiceInfo?.taxAddress || selectedClient.clientAddress);
+            setTaxName(selectedClient.invoiceInfo?.taxName || selectedClient.clientName || "");
+            setTaxCode(selectedClient.invoiceInfo?.taxCode || selectedClient.legalId || "");
+            setTaxAddress(selectedClient.invoiceInfo?.taxAddress || selectedClient.clientAddress || "");
             setTaxEmail(selectedClient.invoiceInfo?.taxEmail || "");
 
             // Contact
@@ -189,13 +210,13 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             }
         } else if (selectedClient && initialData && selectedClient.clientId !== initialData.client?.clientId) {
             // Overwrite on client change
-            setClientAddress(selectedClient.clientAddress);
+            setClientAddress(selectedClient.clientAddress || "");
             setClientPhone(selectedClient.clientPhone || "");
             setClientEmail(selectedClient.clientEmail || "");
 
-            setTaxName(selectedClient.invoiceInfo?.taxName || selectedClient.clientName);
-            setTaxCode(selectedClient.invoiceInfo?.taxCode || selectedClient.legalId);
-            setTaxAddress(selectedClient.invoiceInfo?.taxAddress || selectedClient.clientAddress);
+            setTaxName(selectedClient.invoiceInfo?.taxName || selectedClient.clientName || "");
+            setTaxCode(selectedClient.invoiceInfo?.taxCode || selectedClient.legalId || "");
+            setTaxAddress(selectedClient.invoiceInfo?.taxAddress || selectedClient.clientAddress || "");
             setTaxEmail(selectedClient.invoiceInfo?.taxEmail || "");
 
             if (selectedClient.clientContacts?.[0]) {
@@ -233,7 +254,8 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             id: `S${timestamp}`,
             sampleId: undefined,
             sampleName: "",
-            sampleMatrix: "",
+            sampleTypeId: "",
+            sampleTypeName: "",
             sampleNote: "",
             analyses: [],
             quantity: 1,
@@ -331,57 +353,53 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
     };
 
     const calculatePricing = () => {
-        // Removed caching of stored read-only totals because we need to dynamically incorporate otherItems correctly on frontend view mode too.
-
-        let totalFeeBeforeTax = 0; // Sum of Analysis Net Prices
-        let sumVAT = 0; // Sum of Analysis VATs
+        let grossSum = 0;
+        let lineLevelDiscountAmount = 0;
+        let runningNetBeforeOrderDiscount = 0;
+        let runningVATBeforeOrderDiscount = 0;
 
         samples.forEach((sample) => {
-            let sampleSubtotal = 0;
-            let sampleVAT = 0;
-
-            sample.analyses.forEach((analysis) => {
-                const quantity = Number(analysis.quantity || 1);
-                const unitPrice = Number(analysis.unitPrice || 0);
-                const lineDiscountRate = Number(analysis.discountRate || 0);
-                const taxRate = Number(analysis.taxRate || 0);
-
-                const lineTotalGross = unitPrice * quantity;
-                const lineTotalNet = lineTotalGross * (1 - lineDiscountRate / 100);
-
-                sampleSubtotal += lineTotalNet;
-
-                const lineVAT = lineTotalNet * (taxRate / 100);
-                sampleVAT += lineVAT;
-            });
-
             const sampleQty = Number(sample.quantity || 1);
-            totalFeeBeforeTax += sampleSubtotal * sampleQty;
-            sumVAT += sampleVAT * sampleQty;
+            sample.analyses.forEach((a) => {
+                const qty = Number(a.quantity || 1) * sampleQty;
+                const up = Number(a.unitPrice || 0);
+                const dr = Number(a.discountRate || 0);
+                const tr = Number(a.taxRate || 0);
+
+                const lineGross = up * qty;
+                const lineDiscount = lineGross * (dr / 100);
+                const lineNet = lineGross - lineDiscount;
+                const lineTax = lineNet * (tr / 100);
+
+                grossSum += lineGross;
+                lineLevelDiscountAmount += lineDiscount;
+                runningNetBeforeOrderDiscount += lineNet;
+                runningVATBeforeOrderDiscount += lineTax;
+            });
         });
 
-        const discountAmount = totalFeeBeforeTax * (discountRate / 100);
-        const totalFeeBeforeTaxAndDiscount = totalFeeBeforeTax - discountAmount;
+        const orderLevelDiscountAmount = Math.round(runningNetBeforeOrderDiscount * (discountRate / 100));
+        const finalDiscountValue = lineLevelDiscountAmount + orderLevelDiscountAmount;
+        const subtotalAfterAllDiscounts = runningNetBeforeOrderDiscount - orderLevelDiscountAmount;
+        const finalTaxValue = Math.round(runningVATBeforeOrderDiscount * (1 - discountRate / 100));
 
-        // Final VAT (Reduced by Quote Discount)
-        const totalTax = sumVAT * (1 - discountRate / 100);
-
-        // Include Other Items (phụ phí)
         let otherFeeBeforeTax = 0;
         let otherVAT = 0;
         otherItems.forEach((i) => {
             otherFeeBeforeTax += Number(i.feeBeforeTax || 0);
-            otherVAT += (Number(i.feeBeforeTax || 0) * Number(i.taxRate || 0)) / 100;
+            otherVAT += Math.round((Number(i.feeBeforeTax || 0) * Number(i.taxRate || 0)) / 100);
         });
 
-        const total = totalFeeBeforeTaxAndDiscount + totalTax + otherFeeBeforeTax + otherVAT;
+        const grandTotal = Math.round(subtotalAfterAllDiscounts + finalTaxValue + otherFeeBeforeTax + otherVAT);
 
         return {
-            subtotal: totalFeeBeforeTax,
-            discountAmount: discountAmount,
-            feeBeforeTax: totalFeeBeforeTaxAndDiscount + otherFeeBeforeTax,
-            tax: totalTax + otherVAT,
-            total,
+            subtotal: grossSum, // Tổng đơn giá (Gross)
+            discountAmount: finalDiscountValue, // Chiết khấu (Total)
+            lineDiscount: Math.round(lineLevelDiscountAmount),
+            orderDiscount: Math.round(orderLevelDiscountAmount),
+            feeBeforeTax: subtotalAfterAllDiscounts + otherFeeBeforeTax, // Tiền trước thuế
+            tax: finalTaxValue + otherVAT, // Tiền thuế
+            total: grandTotal, // Tổng cộng
         };
     };
 
@@ -446,6 +464,8 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                         const discountRate = a.discountRate || 0;
                         const discountValue = lineList * (discountRate / 100);
                         const feeNet = lineList - discountValue;
+                        const taxRate = a.taxRate || 0;
+                        const feeAfterTax = feeNet * (1 + taxRate / 100);
 
                         return {
                             ...a,
@@ -453,7 +473,8 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                             feeBeforeTax: feeNet,
                             discountRate: a.discountRate,
                             parameterTaxRate: a.taxRate,
-                            tax: (feeNet * (a.taxRate || 0)) / 100, // Tax on net
+                            tax: (feeNet * taxRate) / 100, // Tax on net
+                            feeAfterTax: Math.round(feeAfterTax),
                         };
                     }),
                 })),
@@ -529,7 +550,8 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
 
             samples: samples.map((s) => ({
                 sampleName: s.sampleName || "",
-                sampleMatrix: s.sampleMatrix || "",
+                sampleTypeId: s.sampleTypeId,
+                sampleTypeName: s.sampleTypeName || "",
                 sampleNote: s.sampleNote || "",
                 quantity: s.quantity || 1,
                 analyses: s.analyses.map((a) => {
@@ -542,8 +564,13 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                     const feeAfterTax = lineNet * (1 + taxRate / 100);
 
                     return {
+                        ...a,
                         parameterName: a.parameterName,
                         parameterId: a.parameterId,
+                        sampleTypeName: a.sampleTypeName || s.sampleTypeName || "",
+                        protocolCode: (a as any).protocolCode || "",
+                        protocolSource: (a as any).protocolSource || "",
+                        protocolAccreditation: a.protocolAccreditation || (a as any).protocolAccreditation || "",
                         feeBeforeTax: lineNet,
                         feeBeforeTaxAndDiscount: lineList,
                         taxRate: taxRate,
@@ -628,6 +655,8 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                                         onRemoveAnalysis={(analysisId) => handleRemoveAnalysis(sample.id, analysisId)}
                                         isReadOnly={isReadOnly}
                                         showSampleQuantity={true}
+                                        globalDiscountRate={discountRate}
+                                        isQuote={true}
                                     />
                                 </div>
                             ))}
@@ -651,6 +680,8 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                                     subtotal={pricing.subtotal}
                                     discountRate={discountRate}
                                     discountAmount={pricing.discountAmount}
+                                    lineDiscountAmount={pricing.lineDiscount}
+                                    orderDiscountAmount={pricing.orderDiscount}
                                     feeBeforeTax={pricing.feeBeforeTax}
                                     tax={pricing.tax}
                                     total={pricing.total}
@@ -693,8 +724,8 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                                 setClientEmail(updated.clientEmail || "");
 
                                 setTaxName(updated.invoiceInfo?.taxName || updated.clientName);
-                                setTaxCode(updated.invoiceInfo?.taxCode || updated.legalId);
-                                setTaxAddress(updated.invoiceInfo?.taxAddress || updated.clientAddress);
+                                setTaxCode(updated.invoiceInfo?.taxCode || updated.legalId || "");
+                                setTaxAddress(updated.invoiceInfo?.taxAddress || updated.clientAddress || "");
                                 setTaxEmail(updated.invoiceInfo?.taxEmail || "");
 
                                 if (updated.clientContacts?.[0]) {

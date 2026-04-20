@@ -82,11 +82,12 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
     }, [searchQuery, currentPage, itemsPerPage]);
 
     useEffect(() => {
+        if (isEditorActive) return; // Don't fetch list when in editor mode
         const timer = setTimeout(() => {
             fetchQuotes();
         }, 300);
         return () => clearTimeout(timer);
-    }, [fetchQuotes]);
+    }, [fetchQuotes, isEditorActive]);
 
     // Set selected quote based on URL ID
     useEffect(() => {
@@ -97,14 +98,11 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                     if (response.success && response.data) {
                         setSelectedQuote(response.data as Quote);
                     } else {
-                        // Fallback
-                        const found = quotes.find((q) => q.quoteId === quoteId);
-                        if (found) setSelectedQuote(found);
+                        setSelectedQuote(null);
                     }
                 } catch (error) {
                     console.error("Failed to load quote detail", error);
-                    const found = quotes.find((q) => q.quoteId === quoteId);
-                    if (found) setSelectedQuote(found);
+                    setSelectedQuote(null);
                 }
             } else if (isCreate) {
                 if (duplicateId) {
@@ -113,13 +111,11 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                         if (response.success && response.data) {
                             setSelectedQuote(response.data as Quote);
                         } else {
-                            const found = quotes.find((q) => q.quoteId === duplicateId);
-                            if (found) setSelectedQuote(found);
+                            setSelectedQuote(null);
                         }
                     } catch (error) {
                         console.error("Failed to load duplicate quote", error);
-                        const found = quotes.find((q) => q.quoteId === duplicateId);
-                        if (found) setSelectedQuote(found);
+                        setSelectedQuote(null);
                     }
                 } else {
                     setSelectedQuote(null);
@@ -127,7 +123,8 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
             }
         };
         loadSelectedQuote();
-    }, [quoteId, isDetail, isEdit, isCreate, duplicateId, quotes]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [quoteId, isDetail, isEdit, isCreate, duplicateId]);
 
     const handleCreate = () => navigate("/quotes/create");
     const handleViewDetail = (quote: Quote) => navigate(`/quotes/detail?quoteId=${quote.quoteId}`);
@@ -160,12 +157,12 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
         const storedTax = storedNet > 0 ? storedTotal - storedNet : 0;
 
         // Contacts
-        const contact = fullQuote.client?.clientContacts?.[0] || {};
-        const contactPerson = fullQuote.contactPerson?.contactName || contact.contactName || (contact as any).name || "";
-        const contactPhone = fullQuote.contactPerson?.contactPhone || contact.contactPhone || (contact as any).phone || "";
+        const contact = (fullQuote.client?.clientContacts?.[0] || {}) as any;
+        const contactPerson = fullQuote.contactPerson?.contactName || contact.contactName || contact.name || "";
+        const contactPhone = fullQuote.contactPerson?.contactPhone || contact.contactPhone || contact.phone || "";
         const contactIdentity = fullQuote.contactPerson?.identityId || contact.identityId || "";
-        const contactEmail = fullQuote.contactPerson?.contactEmail || contact.contactEmail || (contact as any).email || "";
-        const contactPosition = contact.contactPosition || (contact as any).position || "";
+        const contactEmail = fullQuote.contactPerson?.contactEmail || contact.contactEmail || contact.email || "";
+        const contactPosition = contact.contactPosition || contact.position || "";
         const contactAddress = contact.contactAddress || "";
 
         const data: QuotePrintData = {
@@ -200,7 +197,7 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
 
             samples: (fullQuote.samples || []).map((s) => ({
                 sampleName: s.sampleName || "",
-                sampleMatrix: s.sampleMatrix || "",
+                sampleTypeName: s.sampleTypeName || (s as any).sampleMatrix || "",
                 sampleNote: s.sampleNote || "",
                 analyses: (s.analyses || []).map((a: any) => {
                     const quantity = a.quantity || 1;
@@ -226,7 +223,7 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                 tax: storedTax,
                 total: storedTotal,
             },
-            discountRate: fullQuote.discountRate || 0,
+            discountRate: Number(fullQuote.discountRate) || 0,
             commission: 0,
         };
 

@@ -41,6 +41,7 @@ export interface Matrix {
     parameterName: string;
     sampleTypeName: string;
     scientificField?: "chemistry" | "physics" | "microbiology";
+    analysisUnit?: string;
 
     // Pricing
     feeBeforeTax?: number;
@@ -65,18 +66,18 @@ export interface Matrix {
 }
 
 export interface ParameterGroup {
-    parameterGroupId: string; // PK
+    groupId: string; // PK
     groupName: string;
     matrixIds: string[]; // List of matrix IDs
     groupNote?: string;
     sampleTypeId: string; // FK
     sampleTypeName: string; // Snapshot
-    feeBeforeTaxAndDiscount: number;
-    discountRate: number;
-    feeBeforeTax: number;
-    taxRate: number;
-    feeAfterTax: number;
-    matrices?: Matrix[]; // Snapshot included in list response
+    discountRatePercentage?: number; // % Giảm giá áp dụng (alias cho discountRate nếu cần)
+    discountRate: number; // % Giảm giá
+    taxRate: number; // % Thuế suất
+    matrices?: Matrix[]; // Snapshots
+    feeBeforeTax?: number;
+    feeAfterTax?: number;
     // Audit
     createdAt?: string;
     createdById?: string;

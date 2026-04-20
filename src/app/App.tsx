@@ -20,19 +20,40 @@ import { CustomerQuotesPage } from "@/customerPage/CustomerQuotesPage";
 import { CustomerOrdersPage } from "@/customerPage/CustomerOrdersPage";
 import { CustomerParametersPage } from "@/customerPage/CustomerParametersPage";
 import { CustomerLayout } from "@/customerComponents/layout/CustomerLayout";
+import { CustomerSampleRequestPage } from "@/customerPage/CustomerSampleRequestPage";
 
 function AppRoutes() {
     const { user, hasAccess } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
 
+    // 0. CAPTURE sessionId from URL if present (Support deep links/copied links)
+    React.useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const sid = params.get("sessionId");
+        if (sid) {
+            console.log("Auto-capturing session from URL:", sid);
+            if (sid.startsWith("SC_")) {
+                Cookies.set(CUSTOMER_TOKEN_KEY, sid, { expires: 7 });
+            } else {
+                Cookies.set("authToken", sid, { expires: 7 });
+            }
+            // Clean up URL to keep it clean and avoid re-triggering
+            params.delete("sessionId");
+            const newSearch = params.toString();
+            const newPath = location.pathname + (newSearch ? `?${newSearch}` : "");
+            navigate(newPath, { replace: true });
+        }
+    }, [location.search, location.pathname, navigate]);
+
     // Redirect logic:
     const isCustomerPath = location.pathname.startsWith("/customer");
     const isCustomerLogin = location.pathname === "/customer/login";
     const isSampleForm = location.pathname === "/form/request-sample";
     // Check cookie directly: AuthContext loads async, cookie is instant
-    const hasCustomerToken = !!Cookies.get(CUSTOMER_TOKEN_KEY);
-    const hasStaffToken = !!Cookies.get("authToken");
+    const urlSid = new URLSearchParams(location.search).get("sessionId");
+    const hasCustomerToken = !!Cookies.get(CUSTOMER_TOKEN_KEY) || urlSid?.startsWith("SC_");
+    const hasStaffToken = !!Cookies.get("authToken") || (!!urlSid && !urlSid.startsWith("SC_"));
 
     // 1. Staff area: no staff token and not a customer/public path AND no customer token → show login
     if (!user && !hasStaffToken && !isCustomerPath && !isSampleForm && !hasCustomerToken) {
@@ -92,7 +113,7 @@ function AppRoutes() {
                 <Route path="/parameters" element={<ProtectedRoute menuId="parameters" element={<ParametersPage {...commonProps} />} />} />
                 <Route path="/accounting" element={<ProtectedRoute menuId="accounting" element={<AccountingPage {...commonProps} />} />} />
                 <Route path="/settings" element={<ProtectedRoute menuId="settings" element={<SettingsPage {...commonProps} />} />} />
-                <Route path="/admin/*" element={<ProtectedRoute menuId="admin" element={<AdminDashboard />} />}/>
+                <Route path="/admin/*" element={<ProtectedRoute menuId="admin" element={<AdminDashboard />} />} />
 
                 {/* ====== Customer Portal Routes ====== */}
                 <Route path="/customer/login" element={<CustomerLoginPage />} />
@@ -104,6 +125,7 @@ function AppRoutes() {
                 <Route path="/customer/orders/create" element={<CustomerOrdersPage />} />
                 <Route path="/customer/orders/detail" element={<CustomerOrdersPage />} />
                 <Route path="/customer/orders/edit" element={<CustomerOrdersPage />} />
+                <Route path="/customer/orders/sample-request" element={<CustomerSampleRequestPage />} />
 
                 <Route path="/customer" element={<CustomerLayout />}>
                     <Route index element={<Navigate to="/customer/dashboard" replace />} />
@@ -149,18 +171,13 @@ function AccessDeniedPage() {
             <div className="text-center p-8 bg-card rounded-2xl shadow-xl border border-border max-w-sm w-full mx-4 animate-in fade-in zoom-in duration-300">
                 <div className="text-6xl mb-6 drop-shadow-sm">🔒</div>
                 <h1 className="text-2xl font-bold text-foreground mb-3">Không có quyền truy cập</h1>
-                <p className="text-sm text-muted-foreground mb-8 text-balance">
-                    Tài khoản của bạn không có đủ quyền để truy cập trang này. Vui lòng kiểm tra lại hoặc đăng nhập bằng tài khoản khác.
-                </p>
-                
+                <p className="text-sm text-muted-foreground mb-8 text-balance">Tài khoản của bạn không có đủ quyền để truy cập trang này. Vui lòng kiểm tra lại hoặc đăng nhập bằng tài khoản khác.</p>
+
                 <div className="flex flex-col gap-3">
-                    <button 
-                        onClick={() => navigate(-1)}
-                        className="w-full py-2.5 px-4 bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-xl transition-all"
-                    >
+                    <button onClick={() => navigate(-1)} className="w-full py-2.5 px-4 bg-muted hover:bg-muted/80 text-foreground font-semibold rounded-xl transition-all">
                         Quay lại
                     </button>
-                    <button 
+                    <button
                         onClick={handleLoginAgain}
                         className="w-full py-2.5 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl shadow-lg shadow-primary/20 transition-all"
                     >

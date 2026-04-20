@@ -3,20 +3,20 @@ import { X, FileDown, Printer } from "lucide-react";
 import { Editor } from "@tinymce/tinymce-react";
 // @ts-ignore
 import { formatMoneyToWords } from "../../utils/textUtils";
-import type { QuotePrintData } from "./QuotePrintTemplate";
+import type { QuotePrintData } from "@/components/quote/QuotePrintTemplate";
 import type { OtherItem } from "@/types/order";
 import { useTranslation } from "react-i18next";
 import { convertHtmlToPdfForm2 } from "@/api/index";
 import { toast } from "sonner";
 const LOGO_URL = "https://documents-sea.bildr.com/rc19670b8d48b4c5ba0f89058aa6e7e4b/doc/IRDOP%20LOGO%20with%20Name.w8flZn8NnkuLrYinAamIkw.PAAKeAHDVEm9mFvCFtA46Q.svg";
 
-interface QuotePrintPreviewModalProps {
+interface CustomerQuotePrintPreviewModalProps {
     isOpen: boolean;
     onClose: () => void;
     data: QuotePrintData;
 }
 
-export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPreviewModalProps) {
+export function CustomerQuotePrintPreviewModal({ isOpen, onClose, data }: CustomerQuotePrintPreviewModalProps) {
     const { t, i18n } = useTranslation();
     const editorRef = useRef<any>(null);
     const [editorReady, setEditorReady] = useState(false);
@@ -37,12 +37,13 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                     const quantity = Number(a.quantity) || 1;
                     const unitPrice = Number(a.unitPrice) || 0;
                     const discountRate = Number(a.discountRate) || 0;
-                    const globalDiscountRate = Number(data.discountRate) || 0;
                     const taxRate = Number(a.taxRate) || 0;
 
-                    const actualUP = unitPrice * (1 - discountRate / 100);
-                    const discountedUP = actualUP * (1 - globalDiscountRate / 100);
-                    const lineAfterTax = discountedUP * quantity * (1 + taxRate / 100);
+                    const lineGross = unitPrice * quantity;
+                    const lineDiscount = lineGross * (discountRate / 100);
+                    const lineNet = lineGross - lineDiscount;
+                    const lineTax = lineNet * (taxRate / 100);
+                    const lineAfterTax = lineNet + lineTax;
 
                     sampleTotalAfterTax += lineAfterTax;
                 });
@@ -52,57 +53,67 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                 <div style="background-color: #f0f0f0; padding: 3px 8px; font-weight: bold; margin-bottom: 3px; font-size: 12px; display: flex; justify-content: space-between;">
                      <span>${t("order.print.sample")} ${index + 1}: ${sample.sampleName}
                      ${sample.sampleNote ? `<span style="font-weight: normal; font-style: italic;"> - ${sample.sampleNote}</span>` : ""}</span>
+                     <div style="font-size: 11px; font-weight: normal;">Loại mẫu: ${sample.sampleTypeName || "--"}</div>
                      ${sample.quantity && sample.quantity > 1 ? `<span>x ${sample.quantity} ${t("order.print.sample").toLowerCase()}</span>` : ""}
                 </div>
-                <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <table class="data-table" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
                     <thead>
                         <tr style="background-color: #e6e6e6;">
-                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; width: 50px; vertical-align: top;">${t("order.print.stt")}</th>
-                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: left; vertical-align: top;">${t("order.print.parameter")}</th>
-                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">${t("order.print.amount")}</th>
-                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; width: 80px; vertical-align: top;">${t("order.print.tax", "Thuế")} (%)</th>
-                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">${t("order.print.total")}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px; text-align: center; width: 4%; vertical-align: top; font-size: 11px;">${t("order.print.stt")}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px; text-align: left; vertical-align: top; width: 32%; font-size: 11px;">${t("order.print.parameter")}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px; text-align: left; vertical-align: top; width: 14%; font-size: 11px;">Phương pháp</th>
+                            <th style="border: 1px solid black; padding: 2px 5px; text-align: center; vertical-align: top; width: 10%; font-size: 11px;">Công nhận</th>
+                            <th style="border: 1px solid black; padding: 2px 5px; text-align: right; vertical-align: top; width: 15%; font-size: 11px;">${fmtMoney(0).includes(",") ? t("order.print.amount") : "Số tiền"}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px; text-align: center; width: 10%; vertical-align: top; font-size: 11px;">${t("order.print.tax", "Thuế")} (%)</th>
+                            <th style="border: 1px solid black; padding: 2px 5px; text-align: right; vertical-align: top; width: 15%; font-size: 11px;">${t("order.print.total")}</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${sample.analyses
                             .map((analysis, i) => {
+                                const price = analysis.feeBeforeTaxAndDiscount ?? analysis.feeBeforeTax ?? 0;
                                 return `
                             <tr style="page-break-inside: avoid;">
-                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top;">${i + 1}</td>
-                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; vertical-align: top;">${analysis.parameterName}</td>
-                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">
-                                    ${(() => {
-                                        const globalDiscountRate = Number(data.discountRate) || 0;
-                                        const lineDiscountRate = Number(analysis.discountRate) || 0;
-                                        const originalUP = Number(analysis.unitPrice) || 0;
-                                        const actualUP = originalUP * (1 - lineDiscountRate / 100);
-                                        const discountedUP = actualUP * (1 - globalDiscountRate / 100);
-                                        const hasDiscount = discountedUP < originalUP - 0.1;
-                                        return hasDiscount
-                                            ? `<div style="font-weight: bold;">${fmtMoney(discountedUP)}</div>
-                                               <div style="text-decoration: line-through; font-size: 9px; color: #666; margin-top: 2px;">${fmtMoney(originalUP)}</div>`
-                                            : fmtMoney(discountedUP);
-                                    })()}
+                                <td style="border: 1px solid black; padding: 2px 5px; text-align: center; vertical-align: top; font-size: 10px;">${i + 1}</td>
+                                <td style="border: 1px solid black; padding: 2px 5px; vertical-align: top; font-size: 10px;">${analysis.parameterName}</td>
+                                <td style="border: 1px solid black; padding: 2px 5px; vertical-align: top; font-size: 10px;">${(analysis as any).protocolCode || ""}</td>
+                                <td style="border: 1px solid black; padding: 2px 5px; text-align: center; vertical-align: top; font-size: 10px;">
+                                     ${(() => {
+                                         const s = sample as any;
+                                         const a = analysis as any;
+                                         const sId = s.sampleTypeId;
+                                         const aId = a.sampleTypeId;
+                                         const sTypeRaw = (s.sampleTypeName || s.librarySampleType?.sampleTypeName || s.matrix?.matrixName || "").toString().normalize("NFC").toLowerCase().trim();
+                                         const aTypeRaw = (a.sampleTypeName || "").toString().normalize("NFC").toLowerCase().trim();
+                                         let acc = a.protocolAccreditation;
+                                         if (typeof acc === "string" && acc.startsWith("{")) {
+                                             try {
+                                                 acc = JSON.parse(acc);
+                                             } catch {
+                                                 acc = null;
+                                             }
+                                         }
+                                         const isMatch = sId && aId ? sId === aId : sTypeRaw === aTypeRaw || !sTypeRaw || !aTypeRaw;
+                                         const source = (a.protocolSource || "").trim();
+                                         let accKeys = "";
+                                         if (isMatch && acc) {
+                                             accKeys =
+                                                 typeof acc === "object"
+                                                     ? Object.entries(acc)
+                                                           .filter(([, v]) => v)
+                                                           .map(([k]) => k)
+                                                           .join(" ")
+                                                     : acc.toString();
+                                         }
+                                         return [source, accKeys].filter(Boolean).join(" ");
+                                     })()}
+                                 </td>
+                                <td style="border: 1px solid black; padding: 2px 5px; text-align: right; vertical-align: top; font-size: 10px;">
+                                    ${fmtMoney(price)}
                                 </td>
-                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top;">${analysis.taxRate || 0}%</td>
-                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">
-                                    ${(() => {
-                                        const globalDiscountRate = Number(data.discountRate) || 0;
-                                        const lineDiscountRate = Number(analysis.discountRate) || 0;
-                                        const quantity = Number(analysis.quantity) || 1;
-                                        const originalUP = Number(analysis.unitPrice) || 0;
-                                        const taxRate = Number(analysis.taxRate) || 0;
-                                        const actualUP = originalUP * (1 - lineDiscountRate / 100);
-                                        const discountedUP = actualUP * (1 - globalDiscountRate / 100);
-                                        const originalTotal = originalUP * quantity * (1 + taxRate / 100);
-                                        const finalTotal = discountedUP * quantity * (1 + taxRate / 100);
-                                        const hasDiscount = finalTotal < originalTotal - 0.1;
-                                        return hasDiscount
-                                            ? `<div style="font-weight: bold;">${fmtMoney(finalTotal)}</div>
-                                               <div style="text-decoration: line-through; font-size: 9px; color: #666; margin-top: 2px;">${fmtMoney(originalTotal)}</div>`
-                                            : fmtMoney(finalTotal);
-                                    })()}
+                                <td style="border: 1px solid black; padding: 2px 5px; text-align: center; vertical-align: top; font-size: 10px;">${analysis.taxRate || 0}%</td>
+                                <td style="border: 1px solid black; padding: 2px 5px; text-align: right; vertical-align: top; font-size: 10px;">
+                                    ${fmtMoney(analysis.feeAfterTax)} 
                                 </td>
                             </tr>
                         `;
@@ -110,17 +121,17 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                             .join("")}
                         
                         <tr>
-                            <td colspan="4" style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">${t("parameter.sumAfterTax", "Tổng tiền")}</td>
-                            <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">${fmtMoney(sampleTotalAfterTax)} </td>
+                            <td colspan="6" style="border: 1px solid black; padding: 2px 5px; text-align: right; font-weight: bold; vertical-align: top; font-size: 11px;">${t("parameter.sumAfterTax", "Tổng tiền")}</td>
+                            <td style="border: 1px solid black; padding: 2px 5px; text-align: right; font-weight: bold; vertical-align: top; font-size: 11px;">${fmtMoney(sampleTotalAfterTax)} </td>
                         </tr>
                         ${
                             data.samples.length > 0 && Number(sample.quantity) > 1
                                 ? `
                         <tr>
-                            <td colspan="4" style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">
+                            <td colspan="6" style="border: 1px solid black; padding: 2px 5px; text-align: right; font-weight: bold; vertical-align: top; font-size: 11px;">
                                 ${t("sample.grandTotal", "Tổng cộng (x{{qty}} mẫu)", { qty: sample.quantity })}
                             </td>
-                            <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top; color: #2563eb;">
+                            <td style="border: 1px solid black; padding: 2px 5px; text-align: right; font-weight: bold; vertical-align: top; color: #2563eb; font-size: 11px;">
                                 ${fmtMoney(sampleTotalAfterTax * Number(sample.quantity))} VNĐ
                             </td>
                         </tr>
@@ -248,6 +259,13 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
             <div>
                 <h3 style="font-size: 14px; font-weight: bold; padding-bottom: 2px; margin-bottom: 6px;">2. ${t("order.print.samplesAndAnalysis")}</h3>
                 ${samplesHtml}
+                <div style="margin-top: 8px; margin-bottom: 12px; font-size: 11px; color: #333; border-top: 1px solid #ccc; padding-top: 6px;">
+                    <span style="font-weight: bold;">Chú thích:</span>
+                    <br/><span style="margin-left: 8px;"><b>IRDOP</b>: Chỉ tiêu được thực hiện tại IRDOP.</span>
+                    <br/><span style="margin-left: 8px;"><b>EX</b>: Chỉ tiêu được thực hiện bởi nhà thầu phụ.</span>
+                    <br/><span style="margin-left: 8px;"><b>VILAS997</b>: Chỉ tiêu được công nhận ISO/IEC 17025:2017.</span>
+                    <br/><span style="margin-left: 8px;"><b>TDC</b>: Chỉ tiêu được công nhận đánh giá sự phù hợp theo NĐ 107/2016/NĐ-CP.</span>
+                </div>
             </div>
 
             ${otherItemsHtml}
@@ -273,25 +291,15 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                                 : ""
                         }
                         ${
-                            (data.pricing.discountAmount || 0) > 0
-                                ? `
-                        <tr style="page-break-inside: avoid;">
+                            data.discountRate > 0
+                                ? `<tr style="page-break-inside: avoid;">
                             <td style="text-align: right; padding-right: 20px; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">
-                                ${t("order.print.discount", "Chiết khấu")} ${data.discountRate > 0 ? `(${data.discountRate}%):` : ":"}
+                            ${t("parameter.totalDiscount", "Chiết khấu")} (${data.discountRate}%):
                             </td>
-                            <td style="text-align: right; border: none !important; color: #16a34a; padding: 2px 5px 8px 5px; vertical-align: top;">
-                                - ${fmtMoney(data.pricing.orderDiscount || 0)} đ
-                            </td>
-                        </tr>
-                        <tr style="page-break-inside: avoid;">
-                            <td style="text-align: right; padding-right: 20px; font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">
-                                Tổng chiết khấu:
-                            </td>
-                            <td style="text-align: right; font-weight: bold; border: none !important; color: #16a34a; padding: 2px 5px 8px 5px; vertical-align: top;">
-                                - ${fmtMoney(data.pricing.discountAmount || 0)} đ
-                            </td>
-                        </tr>
-                        `
+                            <td style="text-align: right; border: none !important; color: red; padding: 2px 5px 8px 5px; vertical-align: top;">- ${fmtMoney(
+                                data.pricing.discountAmount || (data.pricing.subtotal * data.discountRate) / 100,
+                            )} đ</td>
+                        </tr>`
                                 : ""
                         }
                          <tr style="page-break-inside: avoid;">

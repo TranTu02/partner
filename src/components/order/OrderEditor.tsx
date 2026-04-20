@@ -1,5 +1,5 @@
-import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
-import { Plus, Search as SearchIcon } from "lucide-react";
+﻿import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import { Plus, Search as SearchIcon, Paperclip, Eye, X, Loader2, File } from "lucide-react";
 import { ClientSectionNew } from "@/components/client/ClientSectionNew";
 import { SampleCard } from "@/components/order/SampleCard";
 import { PricingSummary } from "@/components/quote/PricingSummary";
@@ -19,6 +19,8 @@ import { getClients, getQuoteDetail, createClient, updateClient, createOrder, up
 import { toast } from "sonner";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
+import { CustomerFileUploadModal } from "../../customerComponents/order/CustomerFileUploadModal";
+import { fileGetDetail, fileDelete, fileGetUrl } from "@/api/index";
 
 export type EditorMode = "view" | "edit" | "create";
 
@@ -98,6 +100,37 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     const [orderNote, setOrderNote] = useState(initialData?.orderNote || "");
     const [otherItems, setOtherItems] = useState<OtherItem[]>([]);
 
+    // File Attachments State
+    const [orderCustomerFileIds, setOrderCustomerFileIds] = useState<string[]>(initialData?.orderCustomerFileIds || []);
+    const [fileRecords, setFileRecords] = useState<Record<string, any>>({});
+    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+    const [isDownloading, setIsDownloading] = useState<string | null>(null);
+
+    const fetchFileDetails = async (fileIds: string[]) => {
+        const newRecords: Record<string, any> = { ...fileRecords };
+        let hasNew = false;
+        for (const id of fileIds) {
+            if (!newRecords[id]) {
+                try {
+                    const res = await fileGetDetail({ query: { id } });
+                    if (res.success) {
+                        newRecords[id] = res.data;
+                        hasNew = true;
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch file detail", id, e);
+                }
+            }
+        }
+        if (hasNew) setFileRecords(newRecords);
+    };
+
+    useEffect(() => {
+        if (orderCustomerFileIds.length > 0) {
+            fetchFileDetails(orderCustomerFileIds);
+        }
+    }, [orderCustomerFileIds]);
+
     useEffect(() => {
         setOrderUri(initialData?.orderUri || "");
         setRequestForm(initialData?.requestForm || "");
@@ -169,7 +202,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         if (!unitPrice && a.feeAfterTax) {
                             unitPrice = Number(a.feeAfterTax) / quantity / (1 + taxRate / 100);
                         }
-                        // Fallback: If still 0, try feeBeforeTax. Note: feeBeforeTax might be string "100.000 đ" or number
+                        // Fallback: If still 0, try feeBeforeTax. Note: feeBeforeTax might be string "100.000 Ä‘" or number
                         if (!unitPrice && a.feeBeforeTax) {
                             // If it's a simple number
                             if (typeof a.feeBeforeTax === "number") {
@@ -209,6 +242,9 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             if (initialData.otherItems && Array.isArray(initialData.otherItems)) {
                 setOtherItems(initialData.otherItems);
             }
+            if (initialData.orderCustomerFileIds) {
+                setOrderCustomerFileIds(initialData.orderCustomerFileIds);
+            }
         }
     }, [initialData]);
 
@@ -235,23 +271,23 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     }, [hasUnsavedChanges, isReadOnly]);
 
     useEffect(() => {
-        if (!isReadOnly && (selectedClient || contactPerson || samples.length > 0)) {
+        if (!isReadOnly && (selectedClient || contactPerson || samples.length > 0 || orderCustomerFileIds.length > (initialData?.orderCustomerFileIds?.length || 0))) {
             setHasUnsavedChanges(true);
         }
-    }, [selectedClient, contactPerson, samples, isReadOnly]);
+    }, [selectedClient, contactPerson, samples, orderCustomerFileIds, isReadOnly]);
 
     const handleClientChange = (client: Client | null) => {
         setSelectedClient(client);
 
         if (client) {
-            setClientAddress(client.clientAddress);
+            setClientAddress(client.clientAddress || "");
             setClientPhone(client.clientPhone || "");
             setClientEmail(client.clientEmail || "");
 
             // Invoice
-            setTaxName(client.invoiceInfo?.taxName || client.clientName);
-            setTaxCode(client.invoiceInfo?.taxCode || client.legalId);
-            setTaxAddress(client.invoiceInfo?.taxAddress || client.clientAddress);
+            setTaxName(client.invoiceInfo?.taxName || client.clientName || "");
+            setTaxCode(client.invoiceInfo?.taxCode || client.legalId || "");
+            setTaxAddress(client.invoiceInfo?.taxAddress || client.clientAddress || "");
             setTaxEmail(client.invoiceInfo?.taxEmail || "");
 
             // Contact
@@ -294,13 +330,13 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     setSelectedClient(foundQuote.client);
                     const qClient = foundQuote.client;
 
-                    setClientAddress(qClient.clientAddress);
+                    setClientAddress(qClient.clientAddress || "");
                     setClientPhone(qClient.clientPhone || "");
                     setClientEmail(qClient.clientEmail || "");
 
-                    setTaxName(qClient.invoiceInfo?.taxName || qClient.clientName);
-                    setTaxCode(qClient.invoiceInfo?.taxCode || qClient.legalId);
-                    setTaxAddress(qClient.invoiceInfo?.taxAddress || qClient.clientAddress);
+                    setTaxName(qClient.invoiceInfo?.taxName || qClient.clientName || "");
+                    setTaxCode(qClient.invoiceInfo?.taxCode || qClient.legalId || "");
+                    setTaxAddress(qClient.invoiceInfo?.taxAddress || qClient.clientAddress || "");
                     setTaxEmail(qClient.invoiceInfo?.taxEmail || "");
 
                     // Populate Contact from top-level or snapshot
@@ -324,7 +360,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                 id: `temp-sample-${Date.now()}-${Math.random().toString(36).slice(2)}-${i}`,
                                 sampleId: undefined, // Create new sample for order
                                 sampleName: s.sampleName || s.name || "Sample",
-                                sampleMatrix: s.sampleMatrix || s.matrix || "",
+                                sampleTypeId: s.sampleTypeId,
+                                sampleTypeName: s.sampleTypeName || s.matrix || "",
                                 sampleNote: s.sampleNote || "",
                                 analyses: (s.analyses || []).map((a: any) => ({
                                     ...a,
@@ -354,41 +391,35 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     };
 
     const calculatePricing = () => {
-        // Removed caching of stored read-only totals because we need to dynamically incorporate otherItems correctly on frontend view mode too.
-
-        let totalFeeBeforeTax = 0; // Sum of Analysis Net Prices (after item discount)
-        let sumVAT = 0; // Sum of Analysis VATs (calculated on item net price)
+        let grossSum = 0;
+        let lineLevelDiscountAmount = 0;
+        let runningNetBeforeOrderDiscount = 0;
+        let runningVATBeforeOrderDiscount = 0;
 
         samples.forEach((sample) => {
-            sample.analyses.forEach((analysis) => {
-                const quantity = Number(analysis.quantity || 1);
-                const unitPrice = Number(analysis.unitPrice || 0); // List Price per unit
-                const lineDiscountRate = Number(analysis.discountRate || 0);
-                const taxRate = Number(analysis.taxRate || 0);
+            sample.analyses.forEach((a) => {
+                const qty = Number(a.quantity || 1);
+                const up = Number(a.unitPrice || 0);
+                const dr = Number(a.discountRate || 0);
+                const tr = Number(a.taxRate || 0);
 
-                const lineTotalGross = unitPrice * quantity;
-                // Net Price for this analysis line
-                const lineTotalNet = lineTotalGross * (1 - lineDiscountRate / 100);
+                const lineGross = up * qty;
+                const lineDiscount = lineGross * (dr / 100);
+                const lineNet = lineGross - lineDiscount;
+                const lineTax = lineNet * (tr / 100);
 
-                totalFeeBeforeTax += lineTotalNet;
-
-                // VAT for this analysis line
-                const lineVAT = lineTotalNet * (taxRate / 100);
-                sumVAT += lineVAT;
+                grossSum += lineGross;
+                lineLevelDiscountAmount += lineDiscount;
+                runningNetBeforeOrderDiscount += lineNet;
+                runningVATBeforeOrderDiscount += lineTax;
             });
         });
 
-        // Order Level Discount (applied to the Sum of Net Prices)
-        const discountAmount = totalFeeBeforeTax * (discountRate / 100);
+        const orderLevelDiscountAmount = runningNetBeforeOrderDiscount * (discountRate / 100);
+        const finalDiscountValue = lineLevelDiscountAmount + orderLevelDiscountAmount;
+        const subtotalAfterAllDiscounts = runningNetBeforeOrderDiscount - orderLevelDiscountAmount;
+        const finalTaxValue = Math.round(runningVATBeforeOrderDiscount * (1 - discountRate / 100));
 
-        // Fee After Order Discount (The new "Net" for the Order)
-        const totalFeeBeforeTaxAndDiscount = totalFeeBeforeTax - discountAmount;
-
-        // Final VAT (Sum of Analysis VATs, reduced by Order Discount Rate)
-        // Formula: SumVAT * (1 - OrderDiscount%)
-        const totalTax = sumVAT * (1 - discountRate / 100);
-
-        // Include Other Items (phụ phí)
         let otherFeeBeforeTax = 0;
         let otherVAT = 0;
         otherItems.forEach((i) => {
@@ -396,15 +427,14 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             otherVAT += (Number(i.feeBeforeTax || 0) * Number(i.taxRate || 0)) / 100;
         });
 
-        // Grand Total
-        const total = totalFeeBeforeTaxAndDiscount + totalTax + otherFeeBeforeTax + otherVAT;
+        const grandTotal = Math.round(subtotalAfterAllDiscounts + finalTaxValue + otherFeeBeforeTax + otherVAT);
 
         return {
-            subtotal: totalFeeBeforeTax,
-            discountAmount,
-            feeBeforeTax: totalFeeBeforeTaxAndDiscount + otherFeeBeforeTax,
-            tax: totalTax + otherVAT,
-            total,
+            subtotal: grossSum, // Tổng đơn giá
+            discountAmount: finalDiscountValue, // Chiết khấu
+            feeBeforeTax: subtotalAfterAllDiscounts + otherFeeBeforeTax, // Tiền trước thuế
+            tax: finalTaxValue + otherVAT, // Tiền thuế
+            total: grandTotal, // Tổng cộng
         };
     };
 
@@ -449,7 +479,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
 
             samples: samples.map((s) => ({
                 sampleName: s.sampleName || "",
-                sampleMatrix: s.sampleMatrix || "",
+                sampleTypeId: s.sampleTypeId,
+                sampleTypeName: s.sampleTypeName || "",
                 sampleNote: s.sampleNote || "",
                 analyses: s.analyses.map((a) => {
                     const unitPrice = Number(a.unitPrice) || 0;
@@ -462,7 +493,13 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     const feeAfterTax = feeBeforeTax * (1 + taxRate / 100);
 
                     return {
+                        ...a,
                         parameterName: a.parameterName,
+                        sampleTypeId: a.sampleTypeId,
+                        sampleTypeName: a.sampleTypeName,
+                        protocolAccreditation: a.protocolAccreditation,
+                        protocolCode: (a as any).protocolCode,
+                        protocolSource: (a as any).protocolSource,
                         parameterId: a.parameterId,
                         feeBeforeTax: feeBeforeTax,
                         feeBeforeTaxAndDiscount: feeBeforeTaxAndDiscount,
@@ -521,9 +558,11 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             id: newId,
             sampleId: undefined,
             sampleName: "",
-            sampleMatrix: "",
+            sampleTypeId: "",
+            sampleTypeName: "",
             sampleNote: "",
             analyses: [],
+            quantity: 1,
         };
         setSamples([...samples, newSample]);
     };
@@ -570,7 +609,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         if (currentSampleIndex === null) return;
         const sample = samples[currentSampleIndex];
         const newAnalyses: AnalysisWithQuantity[] = selectedMatrixItems.map((matrixItem) => {
-            const taxRate = Number(matrixItem.taxRate || 0);
+            const taxRate = Number(matrixItem.taxRate ?? (matrixItem as any).tax_rate ?? 0);
             const feeAfterTax = Number((matrixItem as any).feeAfterTax || 0);
             let unitPrice = Number(matrixItem.feeBeforeTax || (matrixItem as any).unitPrice || (matrixItem as any).price || 0);
 
@@ -612,6 +651,75 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 return s;
             }),
         );
+    };
+
+    const handleBatchUploadSuccess = async (newFileIds: string[]) => {
+        const updatedFileIds = [...orderCustomerFileIds, ...newFileIds];
+        setOrderCustomerFileIds(updatedFileIds);
+
+        // If in edit mode, auto-save the file linkage if order already exists
+        if (mode === "view" || (mode === "edit" && orderId)) {
+            try {
+                await updateOrder({
+                    body: {
+                        orderId: orderId,
+                        orderCustomerFileIds: updatedFileIds,
+                    },
+                });
+                toast.success("ÄÃ£ cáº­p nháº­t danh sÃ¡ch tÃ i liá»‡u");
+            } catch (e) {
+                console.error("Auto-update file IDs failed", e);
+            }
+        }
+    };
+
+    const handleFileDownload = async (fileId: string) => {
+        setIsDownloading(fileId);
+        // Using fileGetUrl to get the latest signed URL
+        try {
+            const res = await fileGetUrl({ query: { id: fileId } });
+            if (res.success && (res.data?.url || res.data?.fileUrl)) {
+                let downloadUrl = res.data.url || res.data.fileUrl;
+                if (downloadUrl.startsWith("/")) {
+                    const baseUrl = import.meta.env.VITE_BACKEND_URL || "";
+                    const cleanBase = baseUrl.replace(/\/$/, "");
+                    downloadUrl = `${cleanBase}${downloadUrl}`;
+                }
+                window.open(downloadUrl, "_blank", "noopener,noreferrer");
+            } else {
+                toast.error("KhÃ´ng tÃ¬m tháº¥y Ä‘Æ°á»ng dáº«n táº£i file");
+            }
+        } catch (e) {
+            toast.error("Lỗi khi tải file");
+        } finally {
+            setIsDownloading(null);
+        }
+    };
+
+    const handleFileDelete = async (fileId: string) => {
+        if (isReadOnly && mode !== "edit") return;
+        if (!confirm("Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a tÃ i liá»‡u nÃ y?")) return;
+
+        try {
+            const updatedFileIds = orderCustomerFileIds.filter((id) => id !== fileId);
+            setOrderCustomerFileIds(updatedFileIds);
+
+            // If in view/edit mode, persist immediately
+            if (orderId) {
+                await updateOrder({
+                    body: {
+                        orderId: orderId,
+                        orderCustomerFileIds: updatedFileIds,
+                    },
+                });
+            }
+
+            // Optionally delete from storage
+            await fileDelete({ body: { fileId } });
+            toast.success("ÄÃ£ xÃ³a tÃ i liá»‡u");
+        } catch (e) {
+            toast.error("Lỗi khi xóa tài liệu");
+        }
     };
 
     const handleSave = async () => {
@@ -680,6 +788,9 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         analyses: s.analyses.map((a) => ({
                             ...a, // Preserve all original properties from quote/loaded data
                             parameterName: a.parameterName,
+                            sampleTypeId: a.sampleTypeId,
+                            sampleTypeName: a.sampleTypeName,
+                            protocolAccreditation: a.protocolAccreditation,
                             parameterId: a.parameterId,
                             unitPrice: Number(a.unitPrice) || 0,
                             discountRate: Number(a.discountRate) || 0,
@@ -695,6 +806,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 commission,
 
                 otherItems,
+                orderCustomerFileIds,
 
                 totalFeeBeforeTax: pricing.subtotal,
                 totalDiscountValue: pricing.discountAmount,
@@ -727,13 +839,80 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         export: handleExport,
         exportSampleRequest: handleExportSampleRequest,
         hasUnsavedChanges: () => hasUnsavedChanges,
+        triggerUpload: () => setIsUploadModalOpen(true),
     }));
 
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-background text-foreground">
             <div className="flex-1 overflow-auto p-4 md:p-8 bg-background">
                 <div className="space-y-6">
-                    {/* Quote search block – create mode only */}
+                    {/* Section 3: Attachments - Moved to Top */}
+                    <div className="bg-card rounded-2xl border border-border p-8 space-y-4">
+                        <div className="flex items-center justify-between border-b border-border pb-2">
+                            <h3 className="text-sm font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                                <Paperclip className="w-4 h-4" /> {t("order.customerAttachments")}
+                            </h3>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setIsUploadModalOpen(true)}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-all text-xs font-semibold"
+                                >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    {t("order.addAttachment")}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {orderCustomerFileIds.length === 0 ? (
+                                <div className="col-span-full py-8 text-center border-2 border-dashed border-border rounded-xl bg-muted/30">
+                                    <Paperclip className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-20" />
+                                    <p className="text-xs text-muted-foreground">{t("order.noAttachments")}</p>
+                                </div>
+                            ) : (
+                                orderCustomerFileIds.map((fileId) => {
+                                    const file = fileRecords[fileId];
+                                    const isThisDownloading = isDownloading === fileId;
+
+                                    return (
+                                        <div key={fileId} className="flex items-center justify-between p-3 bg-muted/50 border border-border rounded-lg group hover:border-primary/50 transition-colors">
+                                            <div className="flex items-center gap-3 overflow-hidden flex-1">
+                                                <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center shrink-0">
+                                                    <File className="w-4 h-4 text-primary" />
+                                                </div>
+                                                <div className="overflow-hidden flex-1">
+                                                    <p className="text-xs font-semibold text-foreground truncate" title={file?.fileName || fileId}>
+                                                        {file?.fileName || t("order.loadingFileName")}
+                                                    </p>
+                                                    <p className="text-[10px] text-muted-foreground">ID: {fileId.slice(-8)}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1 ml-2">
+                                                <button
+                                                    onClick={() => handleFileDownload(fileId)}
+                                                    disabled={isThisDownloading}
+                                                    title="Xem/Táº£i xuá»‘ng"
+                                                    className="p-1.5 text-primary hover:bg-primary/10 rounded transition-colors disabled:opacity-50"
+                                                >
+                                                    {isThisDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleFileDelete(fileId)}
+                                                    className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                                                    title="XÃ³a"
+                                                >
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground italic">{t("order.attachmentNote")}</p>
+                    </div>
+
+                    {/* Quote search block â€“ create mode only */}
                     {!isReadOnly && mode === "create" && (
                         <div className="bg-card rounded-lg border border-border p-4 md:p-6">
                             <h3 className="mb-4 text-base font-semibold">{t("order.information")}</h3>
@@ -768,7 +947,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     {/* Quote ID read-only display in view/edit mode */}
                     {quoteId && mode !== "create" && (
                         <div className="bg-card rounded-lg border border-border p-4 md:p-6 flex items-center gap-3">
-                            <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">{t("order.quoteCode", "Mã báo giá")}:</label>
+                            <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">{t("order.quoteCode", "MÃ£ bÃ¡o giÃ¡")}:</label>
                             <span className="px-3 py-1.5 bg-muted/50 border border-border rounded-lg text-sm font-semibold text-primary">{quoteId}</span>
                         </div>
                     )}
@@ -846,7 +1025,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     {samples.length > 0 && (
                         <div className="flex flex-col md:flex-row gap-8 items-start justify-between">
                             <div className="flex-1 w-full">
-                                <label className="block text-sm font-medium mb-2 text-foreground">{t("order.note", "Ghi chú")}</label>
+                                <label className="block text-sm font-medium mb-2 text-foreground">{t("order.note", "Ghi chÃº")}</label>
                                 <textarea
                                     value={orderNote}
                                     onChange={(e) => {
@@ -854,7 +1033,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                         if (!isReadOnly) setHasUnsavedChanges(true);
                                     }}
                                     disabled={isReadOnly}
-                                    placeholder={t("order.notePlaceholder", "Nhập ghi chú cho đơn hàng...")}
+                                    placeholder={t("order.notePlaceholder", "Nháº­p ghi chÃº cho Ä‘Æ¡n hÃ ng...")}
                                     className="w-full min-h-[150px] p-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-y"
                                 />
                             </div>
@@ -909,9 +1088,9 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                 setClientEmail(updated.clientEmail || "");
 
                                 // Update Invoice Info
-                                setTaxName(updated.invoiceInfo?.taxName || updated.clientName);
-                                setTaxCode(updated.invoiceInfo?.taxCode || updated.legalId);
-                                setTaxAddress(updated.invoiceInfo?.taxAddress || updated.clientAddress);
+                                setTaxName(updated.invoiceInfo?.taxName || updated.clientName || "");
+                                setTaxCode(updated.invoiceInfo?.taxCode || updated.legalId || "");
+                                setTaxAddress(updated.invoiceInfo?.taxAddress || updated.clientAddress || "");
                                 setTaxEmail(updated.invoiceInfo?.taxEmail || "");
 
                                 // Update Contact Info
@@ -924,7 +1103,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                     setContactEmail(contact.contactEmail || "");
                                     setContactAddress(contact.contactAddress || "");
                                 }
-
                                 setIsEditClientModalOpen(false);
                             } else {
                                 toast.error("Failed to update client");
@@ -947,6 +1125,9 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     }}
                 />
             )}
+            <CustomerFileUploadModal open={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)} onUploadSuccess={handleBatchUploadSuccess} orderId={orderId || undefined} />
         </div>
     );
 });
+
+OrderEditor.displayName = "OrderEditor";

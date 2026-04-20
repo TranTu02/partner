@@ -47,6 +47,8 @@ export interface QuotePrintData {
     pricing: {
         subtotal: number;
         discountAmount?: number;
+        lineDiscount?: number;
+        orderDiscount?: number;
         feeBeforeTax?: number;
         tax: number;
         total: number;

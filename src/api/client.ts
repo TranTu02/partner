@@ -30,7 +30,6 @@ const ACCESS_KEY = import.meta.env.VITE_ACCESS_KEY;
 const axiosInstance: AxiosInstance = axios.create({
     baseURL: BASE_URL,
     headers: {
-        "Content-Type": "application/json",
         "x-app-uid": APP_UID,
         "x-access-key": ACCESS_KEY,
     },
@@ -40,10 +39,22 @@ const axiosInstance: AxiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
     (config) => {
         const token = Cookies.get("authToken");
-        if (token) {
+
+        // Handle Content-Type for FormData
+        if (config.data instanceof FormData) {
             if (config.headers) {
-                config.headers.Authorization = `Bearer ${token}`;
+                delete (config.headers as any)["Content-Type"];
             }
+        } else {
+            if (config.headers && !config.headers["Content-Type"]) {
+                (config.headers as any)["Content-Type"] = "application/json";
+            }
+        }
+
+        // Only inject the staff token if the caller hasn't already set Authorization
+        // (customer API sets its own customerAuthToken via getCustomer())
+        if (token && config.headers && !config.headers["Authorization"]) {
+            config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
     },

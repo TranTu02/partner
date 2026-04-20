@@ -15,12 +15,14 @@ export interface ApiInput {
 
 function adaptV2Response(raw: any): ApiResponse {
     if (!raw) return { success: false, statusCode: 500 };
-    
+
     // Only skip if it's already fully adapted (has meta)
     if (raw.meta && typeof raw.success === "boolean") return raw;
 
     const pagination = raw.pagination || raw.meta || {};
-    const data = raw.data !== undefined ? raw.data : (raw.items !== undefined ? raw.items : (Array.isArray(raw) ? raw : raw));
+    // Extract the actual payload — backend wraps in { success, data, pagination }
+    const hasDataField = raw.data !== undefined;
+    const data = hasDataField ? raw.data : raw.items !== undefined ? raw.items : raw;
 
     // Safeguard
     let total = Number(pagination.totalItems ?? pagination.total ?? raw.totalItems ?? raw.total ?? 0);
@@ -30,10 +32,12 @@ function adaptV2Response(raw: any): ApiResponse {
     const totalPages = Number(pagination.totalPages ?? raw.totalPages ?? (total > 0 ? Math.ceil(total / itemsPerPage) : 0));
     const page = Number(pagination.page ?? raw.page ?? 1);
 
+    // List responses: array data or pagination present
     if (Array.isArray(data) || total > 0) {
         return { success: true, statusCode: 200, data, meta: { page, total, totalPages, itemsPerPage } };
     }
-    return { success: true, statusCode: 200, data: raw };
+    // Detail responses: single object — return extracted `data`, NOT the full `raw` wrapper
+    return { success: raw.success !== false, statusCode: raw.statusCode || 200, data };
 }
 
 // Wrapper to call API and normalize v2 response
@@ -290,56 +294,60 @@ export const searchMatrices = async ({ headers, body, query }: ApiInput): Promis
 };
 
 // =============================================================================
-// SAMPLE TYPES (v2: /v2/sample-types/...)
+// SAMPLE TYPES (v2: /v2/sampletypes/...)
 // =============================================================================
 
-/** GET /v2/sample-types/get/list */
+/** GET /v2/sampletypes/get/list */
 export const getSampleTypes = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
-    return getV2("/v2/sample-types/get/list", { headers, query: query || body });
+    return getV2("/v2/sampletypes/get/list", { headers, query: query || body });
 };
 
-/** POST /v2/sample-types/create */
+/** POST /v2/sampletypes/create */
 export const createSampleType = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
-    return postV2("/v2/sample-types/create", { headers, body, query });
+    return postV2("/v2/sampletypes/create", { headers, body, query });
 };
 
-/** GET /v2/sample-types/get/detail?sampleTypeId={id} */
+/** GET /v2/sampletypes/get/detail?sampleTypeId={id} */
 export const getSampleTypeDetail = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
-    return getV2("/v2/sample-types/get/detail", { headers, query: query || body });
+    return getV2("/v2/sampletypes/get/detail", { headers, query: query || body });
 };
 
-/** POST /v2/sample-types/update */
+/** POST /v2/sampletypes/update */
 export const updateSampleType = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
-    return postV2("/v2/sample-types/update", { headers, body, query });
+    return postV2("/v2/sampletypes/update", { headers, body, query });
 };
 
-/** POST /v2/sample-types/delete */
+/** POST /v2/sampletypes/delete */
 export const deleteSampleType = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
-    return postV2("/v2/sample-types/delete", { headers, body, query });
+    return postV2("/v2/sampletypes/delete", { headers, body, query });
 };
 
 // =============================================================================
-// PARAMETER GROUPS (v1 - chưa có tài liệu v2)
+// PARAMETER GROUPS (v2)
 // =============================================================================
 
 export const getParameterGroups = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
-    return api.get("/v1/parameter-group/get/list", { headers, query: query || body });
+    return getV2("/v2/parameterGroups/get/list", { headers, query: query || body });
 };
 
 export const createParameterGroup = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
-    return api.post("/v1/parameter-group/create", { headers, body, query });
+    return postV2("/v2/parameterGroups/create", { headers, body, query });
 };
 
 export const getParameterGroupDetail = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
-    return api.get("/v1/parameter-group/get/detail", { headers, query: query || body });
+    return getV2("/v2/parameterGroups/get/detail", { headers, query: query || body });
+};
+
+export const getParameterGroupFull = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return getV2("/v2/parameterGroups/get/full", { headers, query: query || body });
 };
 
 export const updateParameterGroup = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
-    return api.post("/v1/parameter-group/edit", { headers, body, query });
+    return postV2("/v2/parameterGroups/update", { headers, body, query });
 };
 
 export const deleteParameterGroup = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
-    return api.post("/v1/parameter-group/delete", { headers, body, query });
+    return postV2("/v2/parameterGroups/delete", { headers, body, query });
 };
 
 /** POST /v2/convert-html-to-pdf/form-1 (Phiếu gửi mẫu) */
@@ -365,6 +373,25 @@ export const getEnumList = async ({ headers, body, query }: ApiInput): Promise<A
 };
 
 // =============================================================================
+// FILES (v2: /v2/files/...)
+// =============================================================================
+
+/** GET /v2/files/get/detail */
+export const fileGetDetail = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return getV2("/v2/files/get/detail", { headers, query: query || body });
+};
+
+/** GET /v2/files/get/url */
+export const fileGetUrl = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return getV2("/v2/files/get/url", { headers, query: query || body });
+};
+
+/** POST /v2/files/delete */
+export const fileDelete = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return postV2("/v2/files/delete", { headers, body, query });
+};
+
+// =============================================================================
 // EXPORT
 // =============================================================================
 
@@ -380,6 +407,7 @@ const apis = {
     parameterGroups: { getParameterGroups, createParameterGroup, getParameterGroupDetail, updateParameterGroup, deleteParameterGroup },
     utils: { convertHtmlToPdf, convertHtmlToPdfForm1, convertHtmlToPdfForm2 },
     enums: { getEnumList },
+    files: { fileGetDetail, fileGetUrl, fileDelete },
 };
 
 export default apis;

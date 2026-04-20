@@ -13,13 +13,15 @@ export const CUSTOMER_DATA_KEY = "customer";
 
 function adaptCustomerResponse(raw: any): ApiResponse {
     if (!raw) return { success: false, statusCode: 500 };
-    
+
     // Only skip if it's already fully adapted (has meta)
     if (raw.meta && typeof raw.success === "boolean") return raw;
 
-    const data = raw.data !== undefined ? raw.data : (raw.items !== undefined ? raw.items : (Array.isArray(raw) ? raw : raw));
+    // Extract the actual payload — backend wraps in { success, data, pagination }
+    const hasDataField = raw.data !== undefined;
+    const data = hasDataField ? raw.data : raw.items !== undefined ? raw.items : raw;
     const pagination = raw.pagination || raw.meta || {};
-    
+
     // Safeguard: If backend returns 0 but we have items, use items.length as floor
     let total = Number(pagination.totalItems ?? pagination.total ?? raw.totalItems ?? raw.total ?? 0);
     if (Array.isArray(data) && data.length > total) total = data.length;
@@ -28,10 +30,13 @@ function adaptCustomerResponse(raw: any): ApiResponse {
     const totalPages = Number(pagination.totalPages ?? raw.totalPages ?? (total > 0 ? Math.ceil(total / itemsPerPage) : 0));
     const page = Number(pagination.page ?? raw.page ?? 1);
 
+    // List responses: array data or pagination present
     if (Array.isArray(data) || total > 0) {
         return { success: true, statusCode: 200, data, meta: { page, total, totalPages, itemsPerPage } };
     }
-    return { success: true, statusCode: 200, data: raw };
+    // Detail responses: single object extracted from raw.data
+    // IMPORTANT: return `data` (the extracted payload), NOT `raw` (which still has success/statusCode wrappers)
+    return { success: raw.success !== false, statusCode: raw.statusCode || 200, data };
 }
 
 /** Build Authorization header from customerAuthToken cookie */
@@ -159,4 +164,98 @@ export const customerGetParameters = async (input: ApiInput): Promise<ApiRespons
 /** GET /customer/v1/matrices/get/list */
 export const customerGetMatrices = async (input: ApiInput): Promise<ApiResponse> => {
     return getCustomer("/customer/v1/matrices/get/list", input);
+};
+
+/** GET /customer/v1/matrices/get/detail?matrixId=... */
+export const customerGetMatrixDetail = async (input: ApiInput): Promise<ApiResponse> => {
+    return getCustomer("/customer/v1/matrices/get/detail", input);
+};
+
+// --- Parameter Groups (Read-only) ---
+/** GET /customer/v1/parameterGroups/get/list */
+export const customerGetParameterGroups = async (input: ApiInput): Promise<ApiResponse> => {
+    return getCustomer("/customer/v1/parameterGroups/get/list", input);
+};
+
+/** GET /customer/v1/parameterGroups/get/full */
+export const customerGetParameterGroupFull = async (input: ApiInput): Promise<ApiResponse> => {
+    return getCustomer("/customer/v1/parameterGroups/get/full", input);
+};
+
+// --- Sample Types (Read-only) ---
+/** GET /customer/v1/sampleTypes/get/list — default itemsPerPage: 100 */
+export const customerGetSampleTypes = async (input: ApiInput): Promise<ApiResponse> => {
+    const query = { itemsPerPage: 100, ...(input.query || {}) };
+    return getCustomer("/customer/v1/sampleTypes/get/list", { ...input, query });
+};
+
+/** GET /customer/v1/sampleTypes/get/detail?sampleTypeId=... */
+export const customerGetSampleTypeDetail = async (input: ApiInput): Promise<ApiResponse> => {
+    return getCustomer("/customer/v1/sampleTypes/get/detail", input);
+};
+
+// =============================================================================
+// FILE & DOCUMENT APIs (/v2/files/:action)
+// =============================================================================
+
+/**
+ * POST /v2/files/upload
+ * Content-Type: multipart/form-data
+ */
+export const fileUpload = async (input: ApiInput): Promise<ApiResponse> => {
+    const headers = { ...customerAuthHeader(), ...(input.headers || {}) };
+    const raw = await api.post<any>("/v2/files/upload", { headers, body: input.body, query: input.query });
+    return adaptCustomerResponse(raw);
+};
+
+/** Helper: build a FormData for file upload with optional commonKeys & fileTags */
+export function buildFileUploadFormData(file: File, opts?: { commonKeys?: string[]; fileTags?: string[] }): FormData {
+    const fd = new FormData();
+
+    // Sanitize filename for the multipart header to avoid encoding issues
+    const sanitizedName = file.name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "D")
+        .replace(/[^\x00-\x7F]/g, ""); // Remove any remaining non-ASCII characters
+
+    fd.append("file", file, sanitizedName);
+    fd.append("fileName", file.name); // Send the original Vietnamese name as a separate field
+
+    if (opts?.commonKeys?.length) fd.append("commonKeys", JSON.stringify(opts.commonKeys));
+    if (opts?.fileTags?.length) fd.append("fileTags", JSON.stringify(opts.fileTags));
+    return fd;
+}
+
+/**
+ * GET /v2/files/get/url
+ * Query: { id: string, expiresIn?: number }
+ */
+export const fileGetUrl = async (input: ApiInput): Promise<ApiResponse> => {
+    return getCustomer("/v2/files/get/url", input);
+};
+
+/**
+ * GET /v2/files/get/detail
+ * Query: { id: string }
+ */
+export const fileGetDetail = async (input: ApiInput): Promise<ApiResponse> => {
+    return getCustomer("/v2/files/get/detail", input);
+};
+
+/**
+ * GET /v2/files/get/list
+ * Query: { page, itemsPerPage, search, ... }
+ */
+export const fileGetList = async (input: ApiInput): Promise<ApiResponse> => {
+    return getCustomer("/v2/files/get/list", input);
+};
+
+/**
+ * POST /v2/files/delete
+ * Body: { fileId: string }
+ */
+export const fileDelete = async (input: ApiInput): Promise<ApiResponse> => {
+    return postCustomer("/v2/files/delete", input);
 };

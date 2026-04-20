@@ -18,18 +18,40 @@ export interface OrderPrintData {
     salePerson?: string;
 
     // Address & Invoice Info Snapshot
+    clientName?: string;
+    clientPhone?: string;
+    clientEmail?: string;
     clientAddress: string;
     taxName?: string;
     taxCode?: string;
     taxAddress?: string;
+    invoiceAddress?: string;
+    invoiceEmail?: string;
+
+    // Report Recipient Snapshot
+    reportReceiverName?: string;
+    reportReceiverPhone?: string;
+    reportReceiverEmail?: string;
+    reportReceiverAddress?: string;
+
+    attachedDocuments?: string;
 
     samples: {
         sampleName: string;
         sampleMatrix: string;
+        sampleTypeId?: string;
+        sampleTypeName?: string;
         sampleNote: string;
+        sampleDesc?: string;
+        sampleInfo?: { label: string; value: string }[];
         analyses: {
             parameterName: string;
             parameterId?: string;
+            protocolCode?: string;
+            sampleTypeId?: string;
+            sampleTypeName?: string;
+            protocolAccreditation?: any;
+            analysisUnit?: string;
             feeBeforeTax: number;
             taxRate: number;
             feeAfterTax: number;
@@ -49,6 +71,7 @@ export interface OrderPrintData {
     discountRate: number;
     orderUri?: string;
     requestForm?: string;
+    orderCustomerFileIds?: string[];
     otherItems?: {
         itemName: string;
         feeBeforeTax: number;
@@ -121,13 +144,17 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                 {data.samples.map((sample, index) => (
                     <div key={index} style={{ marginBottom: "10px", pageBreakInside: "auto" }}>
                         <div style={{ backgroundColor: "#f0f0f0", padding: "3px 8px", fontWeight: "bold", marginBottom: "3px", fontSize: "12px" }}>
-                            {t("order.print.sample")} {index + 1}: {sample.sampleName} ({sample.sampleMatrix})
+                            <div>
+                                {t("order.print.sample")} {index + 1}: {sample.sampleName}
+                            </div>
+                            <div style={{ fontSize: "11px", fontWeight: "normal", color: "#333", marginTop: "2px" }}>Nền mẫu: {sample.sampleTypeName || sample.sampleMatrix || "--"}</div>
                         </div>
                         <table style={{ width: "100%", borderCollapse: "collapse" }}>
                             <thead>
                                 <tr style={{ backgroundColor: "#e6e6e6" }}>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "left", verticalAlign: "top" }}>{t("order.print.stt")}</th>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "left", verticalAlign: "top" }}>{t("order.print.parameter")}</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "center", verticalAlign: "top" }}>{t("parameter.accreditation", "Công nhận")}</th>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "right", verticalAlign: "top" }}>{t("order.print.amount")}</th>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "center", verticalAlign: "top" }}>{t("order.print.tax")} (%)</th>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "right", verticalAlign: "top" }}>{t("order.print.total")}</th>
@@ -136,14 +163,41 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                             <tbody>
                                 {sample.analyses.map((analysis, i) => (
                                     <tr key={i} style={{ pageBreakInside: "avoid" }}>
-                                        <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "center", width: "40px", verticalAlign: "top" }}>{i + 1}</td>
+                                        <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "center", width: "30px", verticalAlign: "top" }}>{i + 1}</td>
                                         <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{analysis.parameterName}</td>
+                                        <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", verticalAlign: "top", textAlign: "center" }}>
+                                            {(() => {
+                                                const sId = (sample as any).sampleTypeId;
+                                                const aId = (analysis as any).sampleTypeId;
+                                                const sType = (sample.sampleTypeName || sample.sampleMatrix || "").toString().normalize("NFC").toLowerCase().trim();
+                                                const aType = (analysis.sampleTypeName || "").toString().normalize("NFC").toLowerCase().trim();
+
+                                                let acc = analysis.protocolAccreditation;
+                                                if (typeof acc === "string" && acc.startsWith("{")) {
+                                                    try {
+                                                        acc = JSON.parse(acc);
+                                                    } catch {
+                                                        acc = null;
+                                                    }
+                                                }
+                                                const isMatch = sId && aId ? sId === aId : sType === aType || !sType;
+
+                                                if (isMatch && acc) {
+                                                    return (
+                                                        Object.keys(acc)
+                                                            .filter((k) => acc[k])
+                                                            .join(", ") || "--"
+                                                    );
+                                                }
+                                                return "--";
+                                            })()}
+                                        </td>
                                         <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "right", width: "100px", verticalAlign: "top" }}>
-                                            {analysis.feeBeforeTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                            {analysis.feeBeforeTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                         </td>
                                         <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "center", width: "70px", verticalAlign: "top" }}>{analysis.taxRate || 0}%</td>
                                         <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "right", width: "120px", verticalAlign: "top" }}>
-                                            {analysis.feeAfterTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                            {analysis.feeAfterTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                         </td>
                                     </tr>
                                 ))}
@@ -160,7 +214,7 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                         <tr style={{ pageBreakInside: "avoid" }}>
                             <td style={{ textAlign: "right", paddingRight: "20px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.print.subtotal")}:</td>
                             <td style={{ width: "150px", textAlign: "right", fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
-                                {data.pricing.subtotal.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                                {data.pricing.subtotal.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} đ
                             </td>
                         </tr>
                         {data.otherItems && data.otherItems.length > 0 && (
@@ -169,7 +223,7 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                                     {t("order.otherItems.title", "Phụ phí")} ({t("order.pricing.feeBeforeTax")}):
                                 </td>
                                 <td style={{ textAlign: "right", fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
-                                    {data.otherItems.reduce((acc, current) => acc + current.feeBeforeTax, 0).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                                    {data.otherItems.reduce((acc, current) => acc + current.feeBeforeTax, 0).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} đ
                                 </td>
                             </tr>
                         )}
@@ -180,7 +234,7 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                                 </td>
                                 <td style={{ textAlign: "right", color: "red", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
                                     -{" "}
-                                    {(data.pricing.discountAmount || (data.pricing.subtotal * data.discountRate) / 100).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}{" "}
+                                    {(data.pricing.discountAmount || (data.pricing.subtotal * data.discountRate) / 100).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}{" "}
                                     đ
                                 </td>
                             </tr>
@@ -189,20 +243,20 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                             <tr style={{ pageBreakInside: "avoid" }}>
                                 <td style={{ textAlign: "right", paddingRight: "20px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.pricing.feeBeforeTax")}:</td>
                                 <td style={{ textAlign: "right", fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
-                                    {data.pricing.feeBeforeTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                                    {data.pricing.feeBeforeTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} đ
                                 </td>
                             </tr>
                         )}
                         <tr style={{ pageBreakInside: "avoid" }}>
                             <td style={{ textAlign: "right", paddingRight: "20px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.print.vat")}:</td>
                             <td style={{ textAlign: "right", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
-                                {data.pricing.tax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                                {data.pricing.tax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} đ
                             </td>
                         </tr>
                         <tr style={{ fontSize: "14px", pageBreakInside: "avoid" }}>
                             <td style={{ textAlign: "right", paddingRight: "20px", fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.print.grandTotal")}:</td>
                             <td style={{ textAlign: "right", fontWeight: "bold", color: "#1890FF", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
-                                {data.pricing.total.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                                {data.pricing.total.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} đ
                             </td>
                         </tr>
                     </tbody>

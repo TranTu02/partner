@@ -100,11 +100,12 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
     }, [searchQuery, currentPage, itemsPerPage, localFilters]);
 
     useEffect(() => {
+        if (isEditorActive) return; // Don't fetch list when in editor mode
         const timer = setTimeout(() => {
             fetchOrders();
         }, 300);
         return () => clearTimeout(timer);
-    }, [fetchOrders]);
+    }, [fetchOrders, isEditorActive]);
 
     useEffect(() => {
         const loadSelectedOrder = async () => {
@@ -114,15 +115,11 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                     if (response.success && response.data) {
                         setSelectedOrder(response.data as Order);
                     } else {
-                        // Fallback to list if detail fetch fails (or show error)
-                        const found = orders.find((o) => o.orderId === orderId);
-                        if (found) setSelectedOrder(found);
+                        setSelectedOrder(null);
                     }
                 } catch (error) {
                     console.error("Failed to load order detail", error);
-                    // Fallback
-                    const found = orders.find((o) => o.orderId === orderId);
-                    if (found) setSelectedOrder(found);
+                    setSelectedOrder(null);
                 }
             } else if (isCreate) {
                 if (duplicateId) {
@@ -131,13 +128,11 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                         if (response.success && response.data) {
                             setSelectedOrder(response.data as Order);
                         } else {
-                            const found = orders.find((o) => o.orderId === duplicateId);
-                            if (found) setSelectedOrder(found);
+                            setSelectedOrder(null);
                         }
                     } catch (error) {
                         console.error("Failed to load duplicate source", error);
-                        const found = orders.find((o) => o.orderId === duplicateId);
-                        if (found) setSelectedOrder(found);
+                        setSelectedOrder(null);
                     }
                 } else {
                     setSelectedOrder(null);
@@ -145,7 +140,8 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
             }
         };
         loadSelectedOrder();
-    }, [orderId, isDetail, isEdit, isCreate, duplicateId, orders]); // add orders to deps for fallback
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [orderId, isDetail, isEdit, isCreate, duplicateId]);
 
     // Status Configurations
 
@@ -185,19 +181,19 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
         const storedTax = storedNet > 0 ? storedTotal - storedNet : 0;
 
         // Client & Contact Logic (Fallbacks)
-        const contact = fullOrder.client?.clientContacts?.[0] || {};
-        const contactPerson = fullOrder.contactPerson?.contactName || contact.contactName || (contact as any).name || "";
-        const contactPhone = fullOrder.contactPerson?.contactPhone || contact.contactPhone || (contact as any).phone || "";
+        const contact = (fullOrder.client?.clientContacts?.[0] || {}) as any;
+        const contactPerson = fullOrder.contactPerson?.contactName || contact.contactName || contact.name || "";
+        const contactPhone = fullOrder.contactPerson?.contactPhone || contact.contactPhone || contact.phone || "";
         const contactIdentity = fullOrder.contactPerson?.identityId || contact.identityId || "";
-        const contactEmail = fullOrder.contactPerson?.contactEmail || contact.contactEmail || (contact as any).email || "";
-        const contactPosition = contact.contactPosition || (contact as any).position || "";
+        const contactEmail = fullOrder.contactPerson?.contactEmail || contact.contactEmail || contact.email || "";
+        const contactPosition = contact.contactPosition || contact.position || "";
         const contactAddress = contact.contactAddress || "";
 
         const data: OrderPrintData = {
             orderId: fullOrder.orderId,
             createdAt: fullOrder.createdAt,
             salePerson: fullOrder.salePerson,
-            client: fullOrder.client,
+            client: fullOrder.client || null,
 
             contactPerson,
             contactPhone,
@@ -212,27 +208,20 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
             taxCode: fullOrder.client?.invoiceInfo?.taxCode || fullOrder.client?.legalId || "",
             taxAddress: fullOrder.client?.invoiceInfo?.taxAddress || fullOrder.client?.clientAddress || "",
 
-            samples: (fullOrder.samples || []).map((s) => ({
+            samples: ((fullOrder as any).samples || (fullOrder as any).orderSamples || []).map((s: any) => ({
+                ...s,
                 sampleName: s.sampleName || "",
-                sampleMatrix: s.sampleMatrix || "",
+                sampleTypeName: s.sampleTypeName || (s as any).sampleMatrix || "",
                 sampleNote: s.sampleNote || "",
-                analyses: (s.analyses || []).map((a: any) => {
-                    // Calculate fees if missing
-                    const quantity = a.quantity || 1;
-                    const taxRate = a.taxRate || 0;
-                    const unitPrice = a.unitPrice || (a.feeBeforeTax ? a.feeBeforeTax / quantity : 0);
-                    const feeBefore = a.feeBeforeTax || unitPrice * quantity;
-                    const feeAfter = a.feeAfterTax || feeBefore * (1 + taxRate / 100);
-
-                    return {
-                        parameterName: a.parameterName,
-                        parameterId: a.parameterId,
-                        feeBeforeTax: feeBefore,
-                        taxRate: taxRate,
-                        feeAfterTax: feeAfter,
-                        protocolCode: a.protocolCode,
-                    };
-                }),
+                analyses: (s.analyses || []).map((a: any) => ({
+                    ...a,
+                    parameterName: a.parameterName,
+                    parameterId: a.parameterId,
+                    feeBeforeTax: a.feeBeforeTax || (a.unitPrice || 0) * (a.quantity || 1),
+                    taxRate: a.taxRate || 0,
+                    feeAfterTax: a.feeAfterTax || (a.feeBeforeTax || 0) * (1 + (a.taxRate || 0) / 100),
+                    protocolCode: a.protocolCode || (a.protocol as any)?.protocolCode || "",
+                })),
             })),
 
             pricing: {

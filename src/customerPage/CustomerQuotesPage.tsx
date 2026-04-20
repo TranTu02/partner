@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft, Copy, MoreHorizontal } from "lucide-react";
+import { Eye, FileDown, Search, ArrowLeft, Pencil } from "lucide-react";
 import { CustomerQuoteEditor } from "@/customerComponents/order/CustomerQuoteEditor";
 import type { CustomerQuoteEditorRef } from "@/customerComponents/order/CustomerQuoteEditor";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
@@ -7,9 +7,8 @@ import { customerGetQuotes, customerGetQuoteDetail } from "@/api/customer";
 import type { Quote } from "@/types/quote";
 import { toast } from "sonner";
 import { Pagination } from "@/components/common/Pagination";
-import { CustomerQuotePrintPreviewModal } from "@/customerComponents/order/CustomerQuotePrintPreviewModal";
+import { CustomerQuotePrintPreviewModal as QuotePrintPreviewModal } from "@/customerComponents/order/CustomerQuotePrintPreviewModal";
 import type { QuotePrintData } from "@/components/quote/QuotePrintTemplate";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export function CustomerQuotesPage() {
     const navigate = useNavigate();
@@ -39,12 +38,20 @@ export function CustomerQuotesPage() {
     const quoteId = searchParams.get("quoteId");
     const duplicateId = searchParams.get("duplicateId");
     const isEditorActive = isCreate || isDetail || isEdit;
-    const viewMode = isCreate ? "create" : isEdit ? "edit" : "view";
+    const initialViewMode = isCreate ? "create" : isEdit ? "edit" : "view";
+    const [localViewMode, setLocalViewMode] = useState(initialViewMode);
+
+    useEffect(() => {
+        setLocalViewMode(initialViewMode);
+    }, [initialViewMode]);
 
     // Customer info from localStorage
     const customerInfo = (() => {
-        try { return JSON.parse(localStorage.getItem("customer") || "{}"); }
-        catch { return {}; }
+        try {
+            return JSON.parse(localStorage.getItem("customer") || "{}");
+        } catch {
+            return {};
+        }
     })();
     const clientId = customerInfo?.clientId;
 
@@ -54,8 +61,8 @@ export function CustomerQuotesPage() {
             const res = await customerGetQuotes({ query: { search: searchQuery || undefined, page: currentPage, itemsPerPage } });
             if (res.success && res.data) {
                 const data = res.data as any;
-                const quoteList = Array.isArray(data) ? data : (data.quotes || data.items || []);
-                
+                const quoteList = Array.isArray(data) ? data : data.quotes || data.items || [];
+
                 setQuotes(quoteList as Quote[]);
                 if (res.meta) {
                     setTotalPages(res.meta.totalPages);
@@ -75,9 +82,10 @@ export function CustomerQuotesPage() {
     }, [searchQuery, currentPage, itemsPerPage]);
 
     useEffect(() => {
+        if (isEditorActive) return; // Don't fetch list when in editor mode
         const timer = setTimeout(() => fetchQuotes(), 300);
         return () => clearTimeout(timer);
-    }, [fetchQuotes]);
+    }, [fetchQuotes, isEditorActive]);
 
     useEffect(() => {
         const loadSelected = async () => {
@@ -85,18 +93,18 @@ export function CustomerQuotesPage() {
                 try {
                     const res = await customerGetQuoteDetail({ query: { quoteId, clientId } });
                     if (res.success && res.data) setSelectedQuote(res.data as Quote);
-                    else setSelectedQuote(quotes.find(q => q.quoteId === quoteId) || null);
+                    else setSelectedQuote(null);
                 } catch {
-                    setSelectedQuote(quotes.find(q => q.quoteId === quoteId) || null);
+                    setSelectedQuote(null);
                 }
             } else if (isCreate) {
                 if (duplicateId) {
                     try {
                         const res = await customerGetQuoteDetail({ query: { quoteId: duplicateId, clientId } });
                         if (res.success && res.data) setSelectedQuote(res.data as Quote);
-                        else setSelectedQuote(quotes.find(q => q.quoteId === duplicateId) || null);
+                        else setSelectedQuote(null);
                     } catch {
-                        setSelectedQuote(quotes.find(q => q.quoteId === duplicateId) || null);
+                        setSelectedQuote(null);
                     }
                 } else {
                     setSelectedQuote(null);
@@ -104,12 +112,10 @@ export function CustomerQuotesPage() {
             }
         };
         loadSelected();
-    }, [quoteId, isDetail, isEdit, isCreate, duplicateId, quotes, clientId]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [quoteId, isDetail, isEdit, isCreate, duplicateId, clientId]);
 
-    const handleCreate = () => navigate("/customer/quotes/create");
     const handleViewDetail = (quote: Quote) => navigate(`/customer/quotes/detail?quoteId=${quote.quoteId}`);
-    const handleEdit = (quote: Quote) => navigate(`/customer/quotes/edit?quoteId=${quote.quoteId}`);
-    const handleDuplicate = (quote: Quote) => navigate(`/customer/quotes/create?duplicateId=${quote.quoteId}`);
 
     const handlePrint = async (quote: Quote) => {
         let fullQuote = quote;
@@ -117,28 +123,33 @@ export function CustomerQuotesPage() {
             try {
                 const res = await customerGetQuoteDetail({ query: { quoteId: quote.quoteId, clientId } });
                 if (res.success && res.data) fullQuote = res.data as Quote;
-            } catch { toast.error("Lỗi tải chi tiết báo giá để in"); return; }
+            } catch {
+                toast.error("Lỗi tải chi tiết báo giá để in");
+                return;
+            }
         }
         const storedSubtotal = Number(fullQuote.totalFeeBeforeTax) || 0;
         const storedDiscount = Number((fullQuote as any).totalDiscountValue) || 0;
         const storedNet = Number((fullQuote as any).totalFeeBeforeTaxAndDiscount) || storedSubtotal - storedDiscount;
         const storedTotal = Number(fullQuote.totalAmount) || 0;
         const storedTax = storedNet > 0 ? storedTotal - storedNet : 0;
-        const contact = fullQuote.client?.clientContacts?.[0] || {} as any;
+        const contact = fullQuote.client?.clientContacts?.[0] || ({} as any);
         const data: QuotePrintData = {
             quoteId: fullQuote.quoteId,
-            client: fullQuote.client ? {
-                ...fullQuote.client,
-                clientAddress: fullQuote.client.clientAddress || "",
-                clientPhone: fullQuote.client.clientPhone || "",
-                clientEmail: fullQuote.client.clientEmail || "",
-                invoiceInfo: {
-                    taxName: fullQuote.client.invoiceInfo?.taxName || fullQuote.client.clientName || "",
-                    taxCode: fullQuote.client.invoiceInfo?.taxCode || fullQuote.client.legalId || "",
-                    taxAddress: fullQuote.client.invoiceInfo?.taxAddress || fullQuote.client.clientAddress || "",
-                    taxEmail: fullQuote.client.invoiceInfo?.taxEmail || "",
-                },
-            } : null,
+            client: fullQuote.client
+                ? {
+                      ...fullQuote.client,
+                      clientAddress: fullQuote.client.clientAddress || "",
+                      clientPhone: fullQuote.client.clientPhone || "",
+                      clientEmail: fullQuote.client.clientEmail || "",
+                      invoiceInfo: {
+                          taxName: fullQuote.client.invoiceInfo?.taxName || fullQuote.client.clientName || "",
+                          taxCode: fullQuote.client.invoiceInfo?.taxCode || fullQuote.client.legalId || "",
+                          taxAddress: fullQuote.client.invoiceInfo?.taxAddress || fullQuote.client.clientAddress || "",
+                          taxEmail: fullQuote.client.invoiceInfo?.taxEmail || "",
+                      },
+                  }
+                : null,
             contactPerson: fullQuote.contactPerson?.contactName || (contact as any).contactName || "",
             contactPhone: fullQuote.contactPerson?.contactPhone || (contact as any).contactPhone || "",
             contactIdentity: fullQuote.contactPerson?.identityId || "",
@@ -150,9 +161,9 @@ export function CustomerQuotesPage() {
             taxName: fullQuote.client?.invoiceInfo?.taxName || fullQuote.client?.clientName || "",
             taxCode: fullQuote.client?.invoiceInfo?.taxCode || fullQuote.client?.legalId || "",
             taxAddress: fullQuote.client?.invoiceInfo?.taxAddress || fullQuote.client?.clientAddress || "",
-            samples: (fullQuote.samples || []).map(s => ({
+            samples: (fullQuote.samples || []).map((s: any) => ({
                 sampleName: s.sampleName || "",
-                sampleMatrix: s.sampleMatrix || "",
+                sampleTypeName: s.sampleTypeName || "",
                 sampleNote: s.sampleNote || "",
                 analyses: (s.analyses || []).map((a: any) => ({
                     parameterName: a.parameterName,
@@ -184,8 +195,6 @@ export function CustomerQuotesPage() {
         else navigate("/customer/quotes");
     };
 
-    const handleSaveTrigger = () => editorRef.current?.save();
-
     // ====== EDITOR MODE (full-screen, no CustomerLayout) ======
     if (isEditorActive) {
         return (
@@ -196,37 +205,36 @@ export function CustomerQuotesPage() {
                             <ArrowLeft className="w-5 h-5" />
                         </button>
                         <h1 className="text-lg font-semibold text-foreground">
-                            {isCreate ? "Tạo báo giá mới" : viewMode === "edit" ? `Chỉnh sửa - ${selectedQuote?.quoteId || ""}` : `Chi tiết - ${selectedQuote?.quoteId || ""}`}
+                            {isCreate ? "Tạo báo giá mới" : localViewMode === "edit" ? `Chỉnh sửa - ${selectedQuote?.quoteId || ""}` : `Chi tiết - ${selectedQuote?.quoteId || ""}`}
                         </h1>
                     </div>
                     <div className="flex gap-2">
-                        {viewMode === "view" && (
+                        {localViewMode === "view" && (
                             <>
-                                <button onClick={() => navigate(`/customer/quotes/edit?quoteId=${selectedQuote?.quoteId}`)} className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
-                                    <Pencil className="w-4 h-4" /><span className="hidden sm:inline">Chỉnh sửa</span>
-                                </button>
-                                <button onClick={() => editorRef.current?.export()} className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
-                                    <FileDown className="w-4 h-4" /><span className="hidden sm:inline">In Báo giá</span>
+                                {(selectedQuote?.quoteStatus?.toLowerCase() === "draft" || selectedQuote?.quoteStatus?.toLowerCase() === "sent") && (
+                                    <button
+                                        onClick={() => setLocalViewMode("edit")}
+                                        className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                                    >
+                                        <Pencil className="w-4 h-4" />
+                                        <span>Chỉnh sửa</span>
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => editorRef.current?.export()}
+                                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+                                >
+                                    <FileDown className="w-4 h-4" />
+                                    <span className="hidden sm:inline">In Báo giá</span>
                                 </button>
                             </>
-                        )}
-                        {viewMode !== "view" && (
-                            <button onClick={handleSaveTrigger} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium">
-                                <Save className="w-4 h-4" /><span className="hidden sm:inline">Lưu</span>
-                            </button>
                         )}
                     </div>
                 </div>
                 <div className="flex-1 overflow-hidden">
-                    <CustomerQuoteEditor ref={editorRef} mode={viewMode} initialData={selectedQuote || undefined} onBack={handleBack} onSaveSuccess={handleSaveSuccess} />
+                    <CustomerQuoteEditor ref={editorRef} mode={localViewMode as any} initialData={selectedQuote || undefined} onBack={handleBack} onSaveSuccess={handleSaveSuccess} />
                 </div>
-                {isPrintModalOpen && printData && (
-                <CustomerQuotePrintPreviewModal
-                    isOpen={isPrintModalOpen}
-                    onClose={() => setIsPrintModalOpen(false)}
-                    data={printData as any}
-                />
-            )}
+                {printData && <QuotePrintPreviewModal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} data={printData} />}
             </div>
         );
     }
@@ -240,9 +248,6 @@ export function CustomerQuotesPage() {
                     <h1 className="text-xl font-bold text-foreground">Báo giá</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">Danh sách các báo giá</p>
                 </div>
-                <button onClick={handleCreate} className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm">
-                    <Plus className="w-4 h-4" />Yêu cầu báo giá mới
-                </button>
             </div>
 
             {/* Search */}
@@ -254,7 +259,10 @@ export function CustomerQuotesPage() {
                         placeholder="Tìm kiếm báo giá..."
                         className="w-full pl-9 pr-4 py-1.5 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm"
                         value={searchQuery}
-                        onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                        onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            setCurrentPage(1);
+                        }}
                     />
                 </div>
             </div>
@@ -275,11 +283,18 @@ export function CustomerQuotesPage() {
                         </thead>
                         <tbody className="divide-y divide-border">
                             {isLoading ? (
-                                <tr><td colSpan={6} className="px-3 py-8 text-center text-sm text-muted-foreground">
-                                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />Đang tải...
-                                </td></tr>
+                                <tr>
+                                    <td colSpan={6} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                                        Đang tải...
+                                    </td>
+                                </tr>
                             ) : quotes.length === 0 ? (
-                                <tr><td colSpan={6} className="px-3 py-8 text-center text-sm text-muted-foreground">Chưa có báo giá nào</td></tr>
+                                <tr>
+                                    <td colSpan={6} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                                        Chưa có báo giá nào
+                                    </td>
+                                </tr>
                             ) : (
                                 quotes.map((quote) => (
                                     <tr key={quote.quoteId} className="hover:bg-muted/50 transition-colors">
@@ -290,45 +305,26 @@ export function CustomerQuotesPage() {
                                             <div className="font-medium line-clamp-1">{quote.contactPerson?.contactName || "—"}</div>
                                             <div className="text-xs text-muted-foreground">{quote.contactPerson?.contactPhone || ""}</div>
                                         </td>
-                                        <td className="px-3 py-2 text-sm font-medium text-foreground">{(quote.totalAmount || 0).toLocaleString("vi-VN")} đ</td>
+                                        <td className="px-3 py-2 text-sm font-medium text-foreground">{Math.ceil(Number(quote.totalAmount || 0)).toLocaleString("vi-VN")} đ</td>
                                         <td className="px-3 py-2 text-sm text-muted-foreground hidden sm:table-cell">
                                             {quote.createdAt ? new Date(quote.createdAt).toLocaleDateString("vi-VN") : "—"}
                                         </td>
                                         <td className="px-3 py-2">
-                                            <span className="px-2 py-0.5 rounded-full text-[10px] uppercase font-bold bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">{quote.quoteStatus}</span>
+                                            <span className="px-2 py-0.5 rounded-full text-[10px] uppercase font-bold bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                                                {quote.quoteStatus}
+                                            </span>
                                         </td>
                                         <td className="px-3 py-2">
-                                            <div className="hidden md:flex items-center gap-2">
-                                                <button onClick={() => handleViewDetail(quote)} className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors" title="Xem">
-                                                    <Eye className="w-4 h-4" />
-                                                </button>
-                                                <button onClick={() => handleEdit(quote)} className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors" title="Sửa">
-                                                    <Pencil className="w-4 h-4" />
-                                                </button>
-                                                <button onClick={() => handleDuplicate(quote)} className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors" title="Nhân bản">
-                                                    <Copy className="w-4 h-4" />
-                                                </button>
-                                                <button onClick={() => handlePrint(quote)} className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors" title="In">
-                                                    <FileDown className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                            <div className="md:hidden">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <button className="h-8 w-8 p-0 hover:bg-muted rounded-full flex items-center justify-center transition-colors">
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                        </button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuLabel>Thao tác</DropdownMenuLabel>
-                                                        <DropdownMenuItem onClick={() => handleViewDetail(quote)}><Eye className="mr-2 h-4 w-4" />Xem</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleEdit(quote)}><Pencil className="mr-2 h-4 w-4" />Sửa</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleDuplicate(quote)}><Copy className="mr-2 h-4 w-4" />Nhân bản</DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => handlePrint(quote)}><FileDown className="mr-2 h-4 w-4" />In báo giá</DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </div>
+                                            <button
+                                                onClick={() => handleViewDetail(quote)}
+                                                className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors"
+                                                title="Xem"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </button>
+                                            <button onClick={() => handlePrint(quote)} className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors" title="In">
+                                                <FileDown className="w-4 h-4" />
+                                            </button>
                                         </td>
                                     </tr>
                                 ))

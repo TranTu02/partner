@@ -47,16 +47,19 @@ export interface ContactPerson {
  * Là phần tử trong samples[].analyses[] (jsonb[])
  */
 export interface OrderAnalysis {
-    id?: string;                // temp ID khi chưa submit
+    id?: string; // temp ID khi chưa submit
     parameterId?: string;
     parameterName: string;
-    parameterPrice?: number;    // Đơn giá niêm yết
-    feeBeforeTax?: number;      // Đơn giá sau chiết khấu (có thể null)
+    parameterPrice?: number; // Đơn giá niêm yết
+    feeBeforeTax?: number; // Đơn giá sau chiết khấu (có thể null)
     feeAfterTax?: number;
     taxRate?: number;
     quantity?: number;
     protocolCode?: string;
     matrixId?: string;
+    sampleTypeId?: string;
+    sampleTypeName?: string;
+    protocolAccreditation?: any;
 }
 
 /**
@@ -65,8 +68,8 @@ export interface OrderAnalysis {
  */
 export interface OrderSample {
     sampleName: string;
-    sampleMatrix?: string;      // Tên nền mẫu
-    sampleTypeName?: string;    // Tên loại mẫu
+    sampleTypeId?: string; // ID loại mẫu (Nền mẫu)
+    sampleTypeName?: string; // Tên loại mẫu (Nền mẫu)
     sampleNote?: string;
     sampleInfo?: { label: string; value: string }[]; // Thông tin chi tiết mẫu
     quantity?: number;
@@ -104,27 +107,27 @@ export type PaymentStatus = "Unpaid" | "Partial" | "Paid" | "Debt" | "Variance";
  */
 export interface Order {
     // === Core Fields ===
-    orderId: string;            // PK - Custom Text ID (VD: DH26D0370)
-    quoteId?: string;           // FK crm.quotes
-    clientId: string;           // FK crm.clients
+    orderId: string; // PK - Custom Text ID (VD: DH26D0370)
+    quoteId?: string; // FK crm.quotes
+    clientId: string; // FK crm.clients
 
     // === Snapshots (jsonb) ===
-    client?: Client;            // Snapshot thông tin khách hàng
+    client?: Client; // Snapshot thông tin khách hàng
     contactPerson?: ContactPerson;
     reportRecipient?: ReportRecipient;
 
     // === Nhân viên kinh doanh ===
     salePersonId?: string;
-    salePerson?: string;        // Tên Sale
+    salePerson?: string; // Tên Sale
     saleCommissionPercent?: number;
 
     // === Samples (jsonb[]) ===
     samples: OrderSample[];
 
     // === Pricing ===
-    totalAmount?: number;                    // Giá trị hợp đồng (sau thuế)
-    totalFeeBeforeTax?: number;              // Tổng chưa thuế
-    totalFeeBeforeTaxAndDiscount?: number;   // Tổng giá niêm yết
+    totalAmount?: number; // Giá trị hợp đồng (sau thuế)
+    totalFeeBeforeTax?: number; // Tổng chưa thuế
+    totalFeeBeforeTaxAndDiscount?: number; // Tổng giá niêm yết
     totalTaxValue?: number;
     totalDiscountValue?: number;
     taxRate?: number;
@@ -141,13 +144,14 @@ export interface Order {
     transactions?: OrderTransaction[];
 
     // === Hóa đơn / Lab ===
-    receiptId?: string;         // FK lab.receipts
-    requestDate?: string;       // Ngày khách yêu cầu gửi mẫu
+    receiptId?: string; // FK lab.receipts
+    requestDate?: string; // Ngày khách yêu cầu gửi mẫu
     orderNote?: string;
 
     // === Form yêu cầu ===
-    orderUri?: string;          // Token public link phiếu gửi mẫu
-    requestForm?: string;       // Nội dung HTML Editor
+    orderUri?: string; // Token public link phiếu gửi mẫu
+    requestForm?: string; // Nội dung HTML Editor
+    orderCustomerFileIds?: string[]; // Danh sách ID file đính kèm từ user
 
     // === Phụ phí ===
     otherItems?: OtherItem[];
@@ -176,6 +180,7 @@ export interface CreateOrderPayload {
     taxRate?: number;
     orderNote?: string;
     requestDate?: string;
+    orderCustomerFileIds?: string[];
 }
 
 /**
@@ -196,6 +201,7 @@ export interface UpdateOrderPayload {
     totalAmount?: number;
     contactPerson?: ContactPerson;
     reportRecipient?: ReportRecipient;
+    orderCustomerFileIds?: string[];
 }
 
 /**

@@ -31,12 +31,11 @@ export function CustomerDashboardPage() {
         setEditForm({ ...editForm, clientContacts: newContacts });
     };
 
-
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
             const [profileRes, ordersRes] = await Promise.all([
-                customerMe({}),   // GET /customer/v1/auth/me — authoritative client profile
+                customerMe({}), // GET /customer/v1/auth/me — authoritative client profile
                 customerGetOrders({ query: { page: 1, itemsPerPage: 8 } }),
             ]);
 
@@ -68,14 +67,14 @@ export function CustomerDashboardPage() {
     const handleSaveProfile = async () => {
         setIsSaving(true);
         try {
-            // Ensure invoiceInfo is flat for update if API expects it that way, 
+            // Ensure invoiceInfo is flat for update if API expects it that way,
             // or keep nested if that's the structure.
             const res = await customerUpdateProfile({ body: editForm });
             if (res.success) {
                 toast.success("Cập nhật thông tin thành công");
                 setClient(editForm);
                 setIsEditModalOpen(false);
-                
+
                 const customerStr = localStorage.getItem("customer");
                 if (customerStr) {
                     const customer = JSON.parse(customerStr);
@@ -91,7 +90,9 @@ export function CustomerDashboardPage() {
         }
     };
 
-    useEffect(() => { fetchData(); }, [fetchData]);
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     const statusColors: Record<string, string> = {
         Processing: "bg-blue-100 text-blue-700 border-blue-200",
@@ -121,15 +122,15 @@ export function CustomerDashboardPage() {
                     <p className="text-sm text-muted-foreground">Chào mừng bạn quay lại, {client?.clientName || "Khách hàng"}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button 
-                        onClick={() => navigate("/customer/quotes")} 
+                    <button
+                        onClick={() => navigate("/customer/quotes")}
                         className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-card border border-border text-foreground rounded-xl text-sm font-medium hover:bg-muted/50 transition-colors shadow-sm"
                     >
                         <Plus className="w-4 h-4" />
                         Tạo báo giá
                     </button>
-                    <button 
-                        onClick={() => navigate("/customer/orders")} 
+                    <button
+                        onClick={() => navigate("/customer/orders")}
                         className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
                     >
                         <Plus className="w-4 h-4" />
@@ -148,15 +149,18 @@ export function CustomerDashboardPage() {
                             <span className="text-xs font-mono font-bold text-primary">{client?.clientId || "—"}</span>
                         </div>
                     </div>
-                    <button 
-                        onClick={() => { setEditForm(client); setIsEditModalOpen(true); }}
+                    <button
+                        onClick={() => {
+                            setEditForm(client);
+                            setIsEditModalOpen(true);
+                        }}
                         className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-colors border border-border flex items-center gap-2 text-xs font-medium"
                     >
                         <Pencil className="w-3.5 h-3.5" />
                         Chỉnh sửa
                     </button>
                 </div>
-                
+
                 <div className="p-6 space-y-8">
                     {/* Main Client Info */}
                     <div className="space-y-4">
@@ -186,24 +190,9 @@ export function CustomerDashboardPage() {
 
                     {/* Mini Stats Row */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <MiniStatBox 
-                            label="Tổng doanh thu" 
-                            value={`${(client?.totalRevenue || 0).toLocaleString("vi-VN")} đ`} 
-                            icon={DollarSign} 
-                            color="blue" 
-                        />
-                        <MiniStatBox 
-                            label="Đơn hàng cuối" 
-                            value={client?.lastOrderDate ? new Date(client.lastOrderDate).toLocaleDateString("vi-VN") : "Chưa có"} 
-                            icon={Calendar} 
-                            color="green" 
-                        />
-                        <MiniStatBox 
-                            label="Phạm vi truy cập" 
-                            value={client?.accessScope || "Private"} 
-                            icon={ShieldCheck} 
-                            color="orange" 
-                        />
+                        <MiniStatBox label="Tổng doanh thu" value={`${Math.ceil(client?.totalRevenue || 0).toLocaleString("vi-VN")} đ`} icon={DollarSign} color="blue" />
+                        <MiniStatBox label="Đơn hàng cuối" value={client?.lastOrderDate ? new Date(client.lastOrderDate).toLocaleDateString("vi-VN") : "Chưa có"} icon={Calendar} color="green" />
+                        <MiniStatBox label="Phạm vi truy cập" value={client?.accessScope || "Private"} icon={ShieldCheck} color="orange" />
                     </div>
 
                     {/* Contacts & Responsibles */}
@@ -271,38 +260,23 @@ export function CustomerDashboardPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="md:col-span-2">
                                             <EditLabel>Tên khách hàng</EditLabel>
-                                            <EditInput 
-                                                value={editForm?.clientName} 
-                                                onChange={(val) => setEditForm({ ...editForm, clientName: val })} 
-                                            />
+                                            <EditInput value={editForm?.clientName} onChange={(val) => setEditForm({ ...editForm, clientName: val })} />
                                         </div>
                                         <div>
                                             <EditLabel>Mã số thuế</EditLabel>
-                                            <EditInput 
-                                                value={editForm?.legalId} 
-                                                onChange={(val) => setEditForm({ ...editForm, legalId: val })} 
-                                            />
+                                            <EditInput value={editForm?.legalId} onChange={(val) => setEditForm({ ...editForm, legalId: val })} />
                                         </div>
                                         <div>
                                             <EditLabel>Số điện thoại</EditLabel>
-                                            <EditInput 
-                                                value={editForm?.clientPhone} 
-                                                onChange={(val) => setEditForm({ ...editForm, clientPhone: val })} 
-                                            />
+                                            <EditInput value={editForm?.clientPhone} onChange={(val) => setEditForm({ ...editForm, clientPhone: val })} />
                                         </div>
                                         <div className="md:col-span-2">
                                             <EditLabel>Email liên hệ</EditLabel>
-                                            <EditInput 
-                                                value={editForm?.clientEmail} 
-                                                onChange={(val) => setEditForm({ ...editForm, clientEmail: val })} 
-                                            />
+                                            <EditInput value={editForm?.clientEmail} onChange={(val) => setEditForm({ ...editForm, clientEmail: val })} />
                                         </div>
                                         <div className="md:col-span-2">
                                             <EditLabel>Địa chỉ</EditLabel>
-                                            <EditArea 
-                                                value={editForm?.clientAddress} 
-                                                onChange={(val) => setEditForm({ ...editForm, clientAddress: val })} 
-                                            />
+                                            <EditArea value={editForm?.clientAddress} onChange={(val) => setEditForm({ ...editForm, clientAddress: val })} />
                                         </div>
                                     </div>
                                 </div>
@@ -316,42 +290,50 @@ export function CustomerDashboardPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="md:col-span-2">
                                             <EditLabel>Email hóa đơn</EditLabel>
-                                            <EditInput 
-                                                value={editForm?.invoiceInfo?.taxEmail} 
-                                                onChange={(val) => setEditForm({ 
-                                                    ...editForm, 
-                                                    invoiceInfo: { ...(editForm.invoiceInfo || {}), taxEmail: val } 
-                                                })} 
+                                            <EditInput
+                                                value={editForm?.invoiceInfo?.taxEmail}
+                                                onChange={(val) =>
+                                                    setEditForm({
+                                                        ...editForm,
+                                                        invoiceInfo: { ...(editForm.invoiceInfo || {}), taxEmail: val },
+                                                    })
+                                                }
                                             />
                                         </div>
                                         <div className="md:col-span-2">
                                             <EditLabel>Tên công ty (HĐ)</EditLabel>
-                                            <EditInput 
-                                                value={editForm?.invoiceInfo?.taxName} 
-                                                onChange={(val) => setEditForm({ 
-                                                    ...editForm, 
-                                                    invoiceInfo: { ...(editForm.invoiceInfo || {}), taxName: val } 
-                                                })} 
+                                            <EditInput
+                                                value={editForm?.invoiceInfo?.taxName}
+                                                onChange={(val) =>
+                                                    setEditForm({
+                                                        ...editForm,
+                                                        invoiceInfo: { ...(editForm.invoiceInfo || {}), taxName: val },
+                                                    })
+                                                }
                                             />
                                         </div>
                                         <div>
                                             <EditLabel>Mã số thuế (HĐ)</EditLabel>
-                                            <EditInput 
-                                                value={editForm?.invoiceInfo?.taxCode} 
-                                                onChange={(val) => setEditForm({ 
-                                                    ...editForm, 
-                                                    invoiceInfo: { ...(editForm.invoiceInfo || {}), taxCode: val } 
-                                                })} 
+                                            <EditInput
+                                                value={editForm?.invoiceInfo?.taxCode}
+                                                onChange={(val) =>
+                                                    setEditForm({
+                                                        ...editForm,
+                                                        invoiceInfo: { ...(editForm.invoiceInfo || {}), taxCode: val },
+                                                    })
+                                                }
                                             />
                                         </div>
                                         <div className="md:col-span-2">
                                             <EditLabel>Địa chỉ (HĐ)</EditLabel>
-                                            <EditArea 
-                                                value={editForm?.invoiceInfo?.taxAddress} 
-                                                onChange={(val) => setEditForm({ 
-                                                    ...editForm, 
-                                                    invoiceInfo: { ...(editForm.invoiceInfo || {}), taxAddress: val } 
-                                                })} 
+                                            <EditArea
+                                                value={editForm?.invoiceInfo?.taxAddress}
+                                                onChange={(val) =>
+                                                    setEditForm({
+                                                        ...editForm,
+                                                        invoiceInfo: { ...(editForm.invoiceInfo || {}), taxAddress: val },
+                                                    })
+                                                }
                                             />
                                         </div>
                                     </div>
@@ -364,7 +346,7 @@ export function CustomerDashboardPage() {
                                             <Users className="w-3.5 h-3.5" />
                                             Người liên hệ ({editForm?.clientContacts?.length || 0})
                                         </h4>
-                                        <button 
+                                        <button
                                             onClick={handleAddContact}
                                             className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-lg text-xs font-semibold hover:bg-primary/20 transition-all"
                                         >
@@ -374,7 +356,7 @@ export function CustomerDashboardPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                         {(editForm?.clientContacts || []).map((contact: any, idx: number) => (
                                             <div key={idx} className="p-4 bg-muted/30 border border-border rounded-xl relative group">
-                                                <button 
+                                                <button
                                                     onClick={() => handleRemoveContact(idx)}
                                                     className="absolute top-2 right-2 p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
                                                 >
@@ -383,43 +365,43 @@ export function CustomerDashboardPage() {
                                                 <div className="space-y-3">
                                                     <div>
                                                         <EditLabel>Tên người liên hệ</EditLabel>
-                                                        <input 
+                                                        <input
                                                             className="w-full px-3 py-1.5 bg-background border border-border rounded-lg text-xs font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
-                                                            value={contact.contactName || ""} 
-                                                            onChange={(e) => handleContactChange(idx, "contactName", e.target.value)} 
+                                                            value={contact.contactName || ""}
+                                                            onChange={(e) => handleContactChange(idx, "contactName", e.target.value)}
                                                         />
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <div>
                                                             <EditLabel>Số điện thoại</EditLabel>
-                                                            <input 
+                                                            <input
                                                                 className="w-full px-3 py-1.5 bg-background border border-border rounded-lg text-xs font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
-                                                                value={contact.contactPhone || ""} 
-                                                                onChange={(e) => handleContactChange(idx, "contactPhone", e.target.value)} 
+                                                                value={contact.contactPhone || ""}
+                                                                onChange={(e) => handleContactChange(idx, "contactPhone", e.target.value)}
                                                             />
                                                         </div>
                                                         <div>
                                                             <EditLabel>Mã định danh (CCCD)</EditLabel>
-                                                            <input 
+                                                            <input
                                                                 className="w-full px-3 py-1.5 bg-background border border-border rounded-lg text-xs font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
-                                                                value={contact.contactId || ""} 
-                                                                onChange={(e) => handleContactChange(idx, "contactId", e.target.value)} 
+                                                                value={contact.contactId || ""}
+                                                                onChange={(e) => handleContactChange(idx, "contactId", e.target.value)}
                                                             />
                                                         </div>
                                                         <div className="col-span-2">
                                                             <EditLabel>Email</EditLabel>
-                                                            <input 
+                                                            <input
                                                                 className="w-full px-3 py-1.5 bg-background border border-border rounded-lg text-xs font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
-                                                                value={contact.contactEmail || ""} 
-                                                                onChange={(e) => handleContactChange(idx, "contactEmail", e.target.value)} 
+                                                                value={contact.contactEmail || ""}
+                                                                onChange={(e) => handleContactChange(idx, "contactEmail", e.target.value)}
                                                             />
                                                         </div>
                                                         <div className="col-span-2">
                                                             <EditLabel>Địa chỉ liên hệ</EditLabel>
-                                                            <input 
+                                                            <input
                                                                 className="w-full px-3 py-1.5 bg-background border border-border rounded-lg text-xs font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
-                                                                value={contact.contactAddress || ""} 
-                                                                onChange={(e) => handleContactChange(idx, "contactAddress", e.target.value)} 
+                                                                value={contact.contactAddress || ""}
+                                                                onChange={(e) => handleContactChange(idx, "contactAddress", e.target.value)}
                                                             />
                                                         </div>
                                                     </div>
@@ -436,13 +418,10 @@ export function CustomerDashboardPage() {
                             </div>
                         </div>
                         <div className="px-6 py-4 border-t border-border bg-muted/30 flex items-center justify-end gap-3">
-                            <button 
-                                onClick={() => setIsEditModalOpen(false)}
-                                className="px-5 py-2 text-sm font-medium text-muted-foreground hover:bg-muted rounded-xl transition-colors"
-                            >
+                            <button onClick={() => setIsEditModalOpen(false)} className="px-5 py-2 text-sm font-medium text-muted-foreground hover:bg-muted rounded-xl transition-colors">
                                 Hủy
                             </button>
-                            <button 
+                            <button
                                 onClick={handleSaveProfile}
                                 disabled={isSaving}
                                 className="flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
@@ -467,10 +446,7 @@ export function CustomerDashboardPage() {
             <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-border flex items-center justify-between">
                     <h3 className="text-base font-semibold text-foreground">Đơn hàng gần đây</h3>
-                    <button
-                        onClick={() => navigate("/customer/orders")}
-                        className="flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
-                    >
+                    <button onClick={() => navigate("/customer/orders")} className="flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
                         Xem tất cả <ArrowRight className="w-4 h-4" />
                     </button>
                 </div>
@@ -488,7 +464,9 @@ export function CustomerDashboardPage() {
                         <tbody>
                             {recentOrders.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">Chưa có đơn hàng nào</td>
+                                    <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                                        Chưa có đơn hàng nào
+                                    </td>
                                 </tr>
                             ) : (
                                 recentOrders.map((order: any) => (
@@ -498,18 +476,16 @@ export function CustomerDashboardPage() {
                                         onClick={() => navigate(`/customer/orders?orderId=${order.orderId}`)}
                                     >
                                         <td className="px-4 py-3 text-sm font-semibold text-primary">{order.orderId}</td>
-                                        <td className="px-4 py-3 text-sm text-foreground">
-                                            {order.createdAt ? new Date(order.createdAt).toLocaleDateString("vi-VN") : "—"}
-                                        </td>
+                                        <td className="px-4 py-3 text-sm text-foreground">{order.createdAt ? new Date(order.createdAt).toLocaleDateString("vi-VN") : "—"}</td>
                                         <td className="px-4 py-3 text-sm text-center text-foreground">{order.samples?.length || 0}</td>
                                         <td className="px-4 py-3">
-                                            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold border ${statusColors[order.orderStatus] || "bg-muted text-muted-foreground border-border"}`}>
+                                            <span
+                                                className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold border ${statusColors[order.orderStatus] || "bg-muted text-muted-foreground border-border"}`}
+                                            >
                                                 {order.orderStatus || "—"}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-right font-medium text-foreground">
-                                            {Number(order.totalAmount || 0).toLocaleString("vi-VN")} đ
-                                        </td>
+                                        <td className="px-4 py-3 text-sm text-right font-medium text-foreground">{Math.ceil(Number(order.totalAmount || 0)).toLocaleString("vi-VN")} đ</td>
                                     </tr>
                                 ))
                             )}
@@ -529,9 +505,7 @@ function DetailItem({ label, value, icon: Icon }: { label: string; value?: strin
                 {Icon && <Icon className="w-3 h-3" />}
                 {label}
             </span>
-            <p className="text-sm font-semibold text-foreground leading-relaxed">
-                {value || <span className="text-muted-foreground/50 italic font-normal">Chưa cập nhật</span>}
-            </p>
+            <p className="text-sm font-semibold text-foreground leading-relaxed">{value || <span className="text-muted-foreground/50 italic font-normal">Chưa cập nhật</span>}</p>
         </div>
     );
 }
@@ -571,9 +545,9 @@ function EditLabel({ children }: { children: React.ReactNode }) {
 
 function EditInput({ value, onChange, type = "text" }: { value: string; onChange: (val: string) => void; type?: string }) {
     return (
-        <input 
-            type={type} 
-            value={value || ""} 
+        <input
+            type={type}
+            value={value || ""}
             onChange={(e) => onChange(e.target.value)}
             className="w-full px-4 py-2.5 bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
         />
@@ -582,15 +556,14 @@ function EditInput({ value, onChange, type = "text" }: { value: string; onChange
 
 function EditArea({ value, onChange, rows = 3 }: { value: string; onChange: (val: string) => void; rows?: number }) {
     return (
-        <textarea 
-            value={value || ""} 
+        <textarea
+            value={value || ""}
             onChange={(e) => onChange(e.target.value)}
             rows={rows}
             className="w-full px-4 py-2.5 bg-input border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium resize-none"
         />
     );
 }
-
 
 function StatCard({ label, value, icon: Icon, color, onClick }: { label: string; value: number; icon: any; color: string; onClick?: () => void }) {
     const colorMap: Record<string, string> = {
@@ -601,10 +574,7 @@ function StatCard({ label, value, icon: Icon, color, onClick }: { label: string;
     };
 
     return (
-        <div
-            className={`rounded-2xl border p-5 transition-all ${colorMap[color]} ${onClick ? "cursor-pointer hover:shadow-md" : ""}`}
-            onClick={onClick}
-        >
+        <div className={`rounded-2xl border p-5 transition-all ${colorMap[color]} ${onClick ? "cursor-pointer hover:shadow-md" : ""}`} onClick={onClick}>
             <div className="flex items-center justify-between mb-3">
                 <Icon className="w-5 h-5 opacity-70" />
                 {onClick && <ArrowRight className="w-4 h-4 opacity-50" />}
@@ -614,4 +584,3 @@ function StatCard({ label, value, icon: Icon, color, onClick }: { label: string;
         </div>
     );
 }
-

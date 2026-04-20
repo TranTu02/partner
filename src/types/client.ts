@@ -78,6 +78,7 @@ export interface Client {
     lastOrder?: string | null;  // Computed - ngày đơn hàng gần nhất
     salePerson?: string;        // Snapshot tên sale (từ Order context)
     salePersonId?: string;      // FK identity
+    invoiceEmail?: string;      // Legacy UI property
 }
 
 /**

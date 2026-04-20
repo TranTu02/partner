@@ -751,98 +751,52 @@ For any endpoint ending in `/get/list`, the following standard query parameters 
 
 ---
 
-## 8. Parameter Group Management (`/v1/parameter-group`)
+## 8. Parameter Group Management (`/v2/parameterGroups`)
 
-### **GET /v1/parameter-group/get/list**
+### **GET /v2/parameterGroups/get/list**
 
 - **Description**: Get list of parameter groups (packages).
 - **Input**: `page=1&itemsPerPage=20&search=PackageName`
 
 - **Output**:
+    ```json
+    {
+        "success": true,
+        "statusCode": 200,
+        "data": [...],
+        "meta": {
+            "page": 1,
+            "itemsPerPage": 20,
+            "total": 15,
+            "totalPages": 1
+        },
+        "error": null
+    }
+    ```
 
-```json
-{
-    "success": true,
-    "statusCode": 200,
-    "data": [
-        {
-            "parameterGroupId": "GRP-001",
-            "groupName": "Gói kiểm thực phẩm cơ bản",
-            "sampleTypeName": "Thực phẩm",
-            "feeAfterTax": 1500000,
-            "groupNote": "Gói tiêu chuẩn"
-        }
-    ],
-    "meta": {
-        "page": 1,
-        "itemsPerPage": 20,
-        "total": 5,
-        "totalPages": 1
-    },
-    "error": null
-}
-```
-
-### **GET /v1/parameter-group/get/detail**
+### **GET /v2/parameterGroups/get/detail**
 
 - **Description**: Get details of a parameter group.
-- **Input**: `parameterGroupId=GRP-001`
+- **Input**: `groupId=GRP00001`
 
-- **Output**:
+- **Output**: Returns group detail object.
 
-```json
-{
-    "success": true,
-    "statusCode": 200,
-    "data": {
-        "parameterGroupId": "GRP-001",
-        "groupName": "Gói kiểm thực phẩm cơ bản",
-        "matrixIds": ["MAT-001", "MAT-002"],
-        "sampleTypeId": "ST-001",
-        "sampleTypeName": "Thực phẩm",
-        "feeBeforeTaxAndDiscount": 1400000,
-        "discountRate": 0,
-        "feeBeforeTax": 1400000,
-        "feeAfterTax": 1512000,
-        "taxRate": 8,
-        "groupNote": "Ghi chí",
-        "createdAt": "..."
-    },
-    "error": null
-}
-```
+### **GET /v2/parameterGroups/get/full**
 
-### **POST /v1/parameter-group/create**
+- **Description**: Get full group data including matrix snapshots.
+- **Input**: `groupId=GRP00001`
+
+- **Output**: Returns group object with `matrices` snapshots.
+
+### **POST /v2/parameterGroups/create**
 
 - **Description**: Create a new parameter group.
-- **Input**:
-    - Body:
-        ```json
-        {
-            "groupName": "New Package",
-            "matrixIds": ["MAT-001", "MAT-005"],
-            "sampleTypeId": "ST-001",
-            "feeBeforeTaxAndDiscount": 1000000,
-            "discountRate": 0,
-            "feeBeforeTax": 1000000,
-            "taxRate": 8,
-            "feeAfterTax": 1080000,
-            "groupNote": "Description"
-        }
-        ```
 
-- **Output**: Created ParameterGroup object.
-
-### **POST /v1/parameter-group/edit**
+### **POST /v2/parameterGroups/update**
 
 - **Description**: Update a parameter group.
-- **Input**: Body `{ "parameterGroupId": "GRP-001", "groupName": "Updated Name", ... }`
 
-- **Output**: Updated ParameterGroup object.
-
-### **POST /v1/parameter-group/delete**
+### **POST /v2/parameterGroups/delete**
 
 - **Description**: Delete a parameter group.
-- **Input**: Body `{ "parameterGroupId": "GRP-001" }`
-
-- **Output**: Success message.
+- **Input**: `{ "groupId": "GRP00001" }`

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+﻿import { useRef, useState } from "react";
 import { X, FileDown, Printer } from "lucide-react";
 import { Editor } from "@tinymce/tinymce-react";
 // @ts-ignore
@@ -53,28 +53,78 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
             <div style="margin-bottom: 20px;">
                 <div style="background-color: #f0f0f0; padding: 5px 10px; margin-bottom: 5px;">
                     <div style="font-weight: bold;">${t("order.print.sample")} ${index + 1}: ${sample.sampleName}</div>
-                    ${sample.sampleNote ? `<div style="font-style: italic; margin-top: 2px;">${t("sample.note")}: ${sample.sampleNote}</div>` : ""}
+                    <div style="font-size: 11px; margin-bottom: 2px;">Loại mẫu: ${(() => {
+                        const s = sample as any;
+                        const name = s.sampleTypeName || s.sampleMatrix || s.librarySampleType?.sampleTypeName || s.matrix?.matrixName;
+                        if (name) return name;
+                        // Fallback to first analysis info if available
+                        if (s.analyses && s.analyses.length > 0) {
+                            return s.analyses[0].sampleTypeName || s.analyses[0].sampleMatrix || "--";
+                        }
+                        return "--";
+                    })()}</div>
+                    ${sample.sampleNote ? `<div style="font-style: italic; margin-top: 2px; color: #555;">${t("sample.note")}: ${sample.sampleNote}</div>` : ""}
                 </div>
                 <table class="data-table" style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr style="background-color: #e6e6e6;">
-                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; width: 50px; vertical-align: top;">${t("order.print.stt")}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; width: 30px; vertical-align: top;">${t("order.print.stt")}</th>
                             <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: left; vertical-align: top;">${t("order.print.parameter")}</th>
-                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">${t("order.print.amount")}</th>
-                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; width: 80px; vertical-align: top;">${t("order.print.tax", "Thuế")} (%)</th>
-                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">${t("order.print.total")}</th>
+                            <th colspan="2" style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top;">Phương pháp / Công nhận</th>
+                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top; width: 100px;">${fmtMoney(0).includes(",") ? t("order.print.amount") : "Số tiền"}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; width: 60px; vertical-align: top;">${t("order.print.tax", "Thuế")} (%)</th>
+                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top; width: 130px;">${t("order.print.total")}</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${sample.analyses
                             .map((analysis, i) => {
-                                const price = analysis.feeBeforeTaxAndDiscount ?? analysis.feeBeforeTax ?? 0;
+                                const price = (analysis.unitPrice || 0) * (1 - (analysis.discountRate || 0) / 100);
                                 return `
                             <tr>
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top;">${i + 1}</td>
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; vertical-align: top;">${analysis.parameterName}</td>
+                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top; font-size: 11px;">${(analysis as any).protocolCode || ""}</td>
+                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top; font-size: 11px;">
+                                     ${(() => {
+                                         const s = sample as any;
+                                         const a = analysis as any;
+                                         let acc = a.protocolAccreditation;
+                                         if (typeof acc === "string" && acc.startsWith("{")) {
+                                             try {
+                                                 acc = JSON.parse(acc);
+                                             } catch {
+                                                 acc = null;
+                                             }
+                                         }
+                                         const sFullType = (s.sampleTypeName || s.sampleMatrix || s.librarySampleType?.sampleTypeName || s.matrix?.matrixName || "")
+                                             .toString()
+                                             .normalize("NFC")
+                                             .toLowerCase()
+                                             .trim();
+                                         const aFullType = (a.sampleTypeName || a.sampleMatrix || a.librarySampleType?.sampleTypeName || "").toString().normalize("NFC").toLowerCase().trim();
+                                         const isMatch = !sFullType || !aFullType || sFullType === aFullType;
+                                         const source = (a.protocolSource || "").trim();
+                                         let accKeys = "";
+                                         if (acc && isMatch) {
+                                             accKeys =
+                                                 typeof acc === "object"
+                                                     ? Object.entries(acc)
+                                                           .filter(([, v]) => v)
+                                                           .map(([k]) => k)
+                                                           .join(" ")
+                                                     : acc.toString();
+                                         }
+                                         return [source, accKeys].filter(Boolean).join(" ");
+                                     })()}
+                                 </td>
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">
                                     ${fmtMoney(price)}
+                                    ${
+                                        (analysis.discountRate || 0) > 0
+                                            ? `<br/><span style="text-decoration: line-through; font-size: 10px; color: #666;">${fmtMoney(analysis.unitPrice || 0)}</span>`
+                                            : ""
+                                    }
                                 </td>
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top;">${analysis.taxRate || 0}%</td>
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">
@@ -84,16 +134,24 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                         `;
                             })
                             .join("")}
-                        <tr>
-                            <td colspan="4" style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">${t("parameter.sumAfterTax", "Tổng tiền")}</td>
+                            <td colspan="6" style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">${t("parameter.sumAfterTax", "Tổng tiền")}</td>
                             <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">${fmtMoney(sampleTotalAfterTax)} </td>
-                        </tr>
                     </tbody>
                 </table>
             </div>
         `;
             })
             .join("");
+
+        const legendHtml = `
+            <div style="margin-top: 8px; margin-bottom: 12px; font-size: 11px; color: #333; border-top: 1px solid #ccc; padding-top: 6px;">
+            <span style="font-weight: bold;">Chú thích:</span>
+            <br/><span style="margin-left: 8px;"><b>IRDOP</b>: Chỉ tiêu được thực hiện tại IRDOP.</span>
+            <br/><span style="margin-left: 8px;"><b>EX</b>: Chỉ tiêu được thực hiện bởi nhà thầu phụ.</span>
+            <br/><span style="margin-left: 8px;"><b>VILAS997</b>: Chỉ tiêu được công nhận ISO/IEC 17025:2017.</span>
+            <br/><span style="margin-left: 8px;"><b>TDC</b>: Chỉ tiêu được công nhận đánh giá sự phù hợp theo NĐ 107/2016/NĐ-CP.</span>
+        </div>
+        `;
 
         // Other Items (phụ phí) section
         const otherItemsHtml =
@@ -209,6 +267,8 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
             <div>
                 <h3 style="font-size: 14px; font-weight: bold; padding-bottom: 2px; margin-bottom: 6px;">2. ${t("order.print.samplesAndAnalysis")}</h3>
                 ${samplesHtml}
+                ${legendHtml}
+                
             </div>
 
              ${otherItemsHtml}
@@ -217,10 +277,6 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                 <h3 style="font-size: 14px; font-weight: bold; padding-bottom: 2px; margin-bottom: 6px;">3. ${t("order.print.total")}</h3>
                  <table class="total-table" style="width: 100%; margin-top: 10px; border-collapse: collapse;">
                     <tbody>
-                        <tr>
-                            <td style="text-align: right; padding-right: 20px; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("parameter.sumUnitPrice", "Tổng đơn giá")}:</td>
-                            <td style="width: 150px; text-align: right; font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${fmtMoney(data.pricing.subtotal)} </td>
-                        </tr>
                         ${
                             data.otherItems && data.otherItems.length > 0
                                 ? `
@@ -233,11 +289,15 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                         `
                                 : ""
                         }
+                        <tr>
+                            <td style="text-align: right; padding-right: 20px; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("parameter.sumUnitPrice", "Tổng đơn giá")}:</td>
+                            <td style="text-align: right; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${fmtMoney(data.pricing.subtotal || 0)} </td>
+                        </tr>
                         ${
-                            (data.pricing.discountAmount || 0) > 0 || data.discountRate > 0
+                            (data.pricing.discountAmount || 0) > 0
                                 ? `<tr>
-                            <td style="text-align: right; padding-right: 20px; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("parameter.totalDiscount", "Giảm giá")} (${data.discountRate}%):</td>
-                            <td style="text-align: right; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">- ${fmtMoney(data.pricing.discountAmount || (data.pricing.subtotal * data.discountRate) / 100)} </td>
+                            <td style="text-align: right; padding-right: 20px; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("parameter.totalDiscount", "Chiết khấu")}:</td>
+                            <td style="text-align: right; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">- ${fmtMoney(data.pricing.discountAmount || 0)} </td>
                         </tr>`
                                 : ""
                         }
@@ -246,12 +306,12 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                             <td style="text-align: right; font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${fmtMoney(data.pricing.feeBeforeTax || 0)} </td>
                         </tr>
                         <tr>
-                            <td style="text-align: right; padding-right: 20px; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("order.print.vat")}:</td>
+                            <td style="text-align: right; padding-right: 20px; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("order.print.vat", "Tiền thuế (VAT)")}:</td>
                             <td style="text-align: right; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${fmtMoney(data.pricing.tax)} </td>
                         </tr>
 
                         <tr style="font-size: 16px;">
-                            <td style="text-align: right; padding-right: 20px; font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("order.total", "Tổng thanh toán")}:</td>
+                            <td style="text-align: right; padding-right: 20px; font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${t("order.total", "Tổng tiền")}:</td>
                             <td style="text-align: right; font-weight: bold; border: none !important; padding: 2px 5px 8px 5px; vertical-align: top;">${fmtMoney(Math.ceil(grandTotal))} </td>
                         </tr>
                     </tbody>

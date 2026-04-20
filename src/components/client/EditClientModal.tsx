@@ -29,7 +29,7 @@ export function EditClientModal({ isOpen, onClose, client, onConfirm }: EditClie
 
     const [clientContacts, setClientContacts] = useState<any[]>(client.clientContacts || []);
 
-    const [clientSaleScope, setClientSaleScope] = useState<"public" | "private">(client.clientSaleScope);
+    const [clientSaleScope, setClientSaleScope] = useState<"public" | "private">((client.clientSaleScope as "public" | "private") || "private");
 
     // Sync state with props and Fetch Details on Open
     useEffect(() => {
@@ -41,7 +41,7 @@ export function EditClientModal({ isOpen, onClose, client, onConfirm }: EditClie
             setClientEmail(client.clientEmail || "");
             setInvoiceInfo(client.invoiceInfo || {});
             setClientContacts(client.clientContacts || []);
-            setClientSaleScope(client.clientSaleScope || "private");
+            setClientSaleScope((client.clientSaleScope as "public" | "private") || "private");
 
             // Then fetch detailed data
             if (client.clientId) {
@@ -113,7 +113,6 @@ export function EditClientModal({ isOpen, onClose, client, onConfirm }: EditClie
             legalId,
             clientAddress,
             clientEmail,
-            invoiceEmail: clientEmail, // Mapping clientEmail to invoiceEmail for backend if needed
             invoiceInfo, // Now passed as object
             clientContacts,
             clientSaleScope,
@@ -201,6 +200,7 @@ export function EditClientModal({ isOpen, onClose, client, onConfirm }: EditClie
                         <div className="space-y-4">
                             <div className="flex items-center justify-between border-b border-border pb-2">
                                 <h3 className="text-base font-semibold text-primary">{t("client.invoiceInfo")}</h3>
+                                <div style={{ fontSize: "14px", color: "#64748b" }}>{client.invoiceInfo?.taxEmail || (client as any).invoiceEmail || "--"}</div>
                                 <button type="button" onClick={handleCopyBasicInfo} className="text-xs text-primary hover:underline flex items-center gap-1">
                                     <Copy className="w-3 h-3" />
                                     {t("client.copyBasicInfo")}
@@ -254,6 +254,8 @@ export function EditClientModal({ isOpen, onClose, client, onConfirm }: EditClie
                         <div className="space-y-4">
                             <div className="flex items-center justify-between border-b border-border pb-2">
                                 <h3 className="text-base font-semibold text-primary">{t("client.contacts")}</h3>
+                                <div>{(client as any).availableByIds?.length || 0} sale(s)</div>
+                                <div>{(client as any).totalOrderAmount?.toLocaleString("vi-VN") || 0} đ</div>
                                 <button type="button" onClick={handleAddContact} className="flex items-center gap-1 text-xs text-primary hover:bg-primary/10 px-2 py-1 rounded">
                                     <Plus className="w-3 h-3" /> {t("common.add")}
                                 </button>

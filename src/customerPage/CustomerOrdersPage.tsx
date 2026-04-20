@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft, FileText } from "lucide-react";
+import { Eye, FileDown, Search, ArrowLeft, FileText, Pencil, Save, Upload } from "lucide-react";
 import { CustomerOrderEditor } from "@/customerComponents/order/CustomerOrderEditor";
 import type { CustomerOrderEditorRef } from "@/customerComponents/order/CustomerOrderEditor";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
@@ -7,11 +7,11 @@ import { customerGetOrders, customerGetOrderDetail } from "@/api/customer";
 import type { Order } from "@/types/order";
 import { toast } from "sonner";
 import { Pagination } from "@/components/common/Pagination";
-import { CustomerOrderPrintPreviewModal } from "@/customerComponents/order/CustomerOrderPrintPreviewModal";
-import { CustomerSampleRequestPrintPreviewModal } from "@/customerComponents/order/CustomerSampleRequestPrintPreviewModal";
+import { CustomerOrderPrintPreviewModal as OrderPrintPreviewModal } from "@/customerComponents/order/CustomerOrderPrintPreviewModal";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 
 export function CustomerOrdersPage() {
+    // const { t } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams] = useSearchParams();
@@ -25,7 +25,6 @@ export function CustomerOrdersPage() {
 
     // Print State
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-    const [isSampleRequestModalOpen, setIsSampleRequestModalOpen] = useState(false);
     const [printData, setPrintData] = useState<OrderPrintData | null>(null);
 
     // Pagination
@@ -44,14 +43,17 @@ export function CustomerOrdersPage() {
     const isEditorActive = isCreate || isDetail || isEdit;
     const initialViewMode = isCreate ? "create" : isEdit ? "edit" : "view";
     const [localViewMode, setLocalViewMode] = useState(initialViewMode);
-
-    useEffect(() => { setLocalViewMode(initialViewMode); }, [initialViewMode]);
-    const toggleLocalMode = () => setLocalViewMode(prev => prev === "view" ? "edit" : "view");
+    useEffect(() => {
+        setLocalViewMode(initialViewMode);
+    }, [initialViewMode]);
 
     // Customer info from localStorage
     const customerInfo = (() => {
-        try { return JSON.parse(localStorage.getItem("customer") || "{}"); }
-        catch { return {}; }
+        try {
+            return JSON.parse(localStorage.getItem("customer") || "{}");
+        } catch {
+            return {};
+        }
     })();
     const clientId = customerInfo?.clientId;
 
@@ -61,8 +63,8 @@ export function CustomerOrdersPage() {
             const res = await customerGetOrders({ query: { search: searchQuery || undefined, page: currentPage, itemsPerPage, ...localFilters } });
             if (res.success && res.data) {
                 const data = res.data as any;
-                const ordersList = Array.isArray(data) ? data : (data.orders || data.items || []);
-                
+                const ordersList = Array.isArray(data) ? data : data.orders || data.items || [];
+
                 setOrders(ordersList);
                 if (res.meta) {
                     setTotalPages(res.meta.totalPages);
@@ -82,9 +84,10 @@ export function CustomerOrdersPage() {
     }, [searchQuery, currentPage, itemsPerPage, localFilters]);
 
     useEffect(() => {
+        if (isEditorActive) return; // Don't fetch list when in editor mode
         const timer = setTimeout(() => fetchOrders(), 300);
         return () => clearTimeout(timer);
-    }, [fetchOrders]);
+    }, [fetchOrders, isEditorActive]);
 
     useEffect(() => {
         const loadSelected = async () => {
@@ -92,18 +95,18 @@ export function CustomerOrdersPage() {
                 try {
                     const res = await customerGetOrderDetail({ query: { orderId, clientId } });
                     if (res.success && res.data) setSelectedOrder(res.data as Order);
-                    else setSelectedOrder(orders.find(o => o.orderId === orderId) || null);
+                    else setSelectedOrder(null);
                 } catch {
-                    setSelectedOrder(orders.find(o => o.orderId === orderId) || null);
+                    setSelectedOrder(null);
                 }
             } else if (isCreate) {
                 if (duplicateId) {
                     try {
                         const res = await customerGetOrderDetail({ query: { orderId: duplicateId, clientId } });
                         if (res.success && res.data) setSelectedOrder(res.data as Order);
-                        else setSelectedOrder(orders.find(o => o.orderId === duplicateId) || null);
+                        else setSelectedOrder(null);
                     } catch {
-                        setSelectedOrder(orders.find(o => o.orderId === duplicateId) || null);
+                        setSelectedOrder(null);
                     }
                 } else {
                     setSelectedOrder(null);
@@ -111,19 +114,20 @@ export function CustomerOrdersPage() {
             }
         };
         loadSelected();
-    }, [orderId, isDetail, isEdit, isCreate, duplicateId, orders, clientId]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [orderId, isDetail, isEdit, isCreate, duplicateId, clientId]);
 
-    const handleCreate = () => navigate("/customer/orders/create");
     const handleViewDetail = (order: Order) => navigate(`/customer/orders/detail?orderId=${order.orderId}`);
-    const handleEdit = (order: Order) => navigate(`/customer/orders/edit?orderId=${order.orderId}`);
 
     const preparePrintData = async (order: Order): Promise<OrderPrintData | null> => {
         let fullOrder = order;
-        if (!order.samples || order.samples.length === 0) {
-            try {
-                const res = await customerGetOrderDetail({ query: { orderId: order.orderId, clientId } });
-                if (res.success && res.data) fullOrder = res.data as Order;
-            } catch { toast.error("Lỗi tải chi tiết đơn hàng để in"); return null; }
+        try {
+            const res = await customerGetOrderDetail({ query: { orderId: order.orderId, clientId } });
+            if (res.success && res.data) {
+                fullOrder = res.data as Order;
+            }
+        } catch (error) {
+            console.error("Error fetching order detail for print", error);
         }
         const storedSubtotal = Number(fullOrder.totalFeeBeforeTax) || 0;
         const storedDiscount = Number(fullOrder.totalDiscountValue) || 0;
@@ -147,19 +151,55 @@ export function CustomerOrdersPage() {
             taxName: fullOrder.client?.invoiceInfo?.taxName || fullOrder.client?.clientName || "",
             taxCode: fullOrder.client?.invoiceInfo?.taxCode || fullOrder.client?.legalId || "",
             invoiceAddress: fullOrder.client?.invoiceInfo?.taxAddress || fullOrder.client?.clientAddress || "",
-            samples: (fullOrder.samples || []).map(s => ({
-                sampleName: s.sampleName || "",
-                sampleMatrix: s.sampleMatrix || "",
-                sampleNote: s.sampleNote || "",
-                analyses: (s.analyses || []).map((a: any) => ({
-                    parameterName: a.parameterName,
-                    parameterId: a.parameterId,
-                    feeBeforeTax: a.feeBeforeTax || 0,
-                    taxRate: a.taxRate || 0,
-                    feeAfterTax: a.feeAfterTax || 0,
-                    protocolCode: a.protocolCode,
-                })),
-            })),
+            samples: ((fullOrder as any).samples || (fullOrder as any).orderSamples || []).map((s: any) => {
+                const sType =
+                    s?.sampleTypeName ??
+                    s?.sample_type_name ??
+                    s?.librarySampleType?.sampleTypeName ??
+                    (s as any)?.library_sample_type?.sample_type_name ??
+                    s?.sampleMatrix ??
+                    s?.sample_matrix ??
+                    s?.matrix?.matrixName ??
+                    (s as any)?.matrix?.matrix_name ??
+                    s?.matrixName ??
+                    "";
+                const sId = s?.sampleTypeId ?? s?.sample_type_id ?? s?.librarySampleType?.sampleTypeId ?? (s as any)?.library_sample_type?.sample_type_id ?? "";
+
+                return {
+                    ...s,
+                    sampleName: s?.sampleName ?? s?.sample_name ?? "",
+                    sampleMatrix: sType,
+                    sampleTypeName: sType,
+                    sampleTypeId: sId,
+                    sampleNote: s?.sampleNote ?? s?.sample_note ?? "",
+                    analyses: ((s as any).analyses || (s as any).orderAnalyses || []).map((a: any) => ({
+                        ...a,
+                        parameterName: a?.parameterName ?? a?.parameter_name ?? "",
+                        parameterId: a?.parameterId ?? a?.parameter_id,
+                        sampleTypeName: a?.sampleTypeName ?? a?.sample_type_name ?? a?.librarySampleType?.sampleTypeName ?? (a as any)?.library_sample_type?.sample_type_name ?? sType ?? "",
+                        sampleTypeId: a?.sampleTypeId ?? a?.sample_type_id ?? a?.librarySampleType?.sampleTypeId ?? (a as any)?.library_sample_type?.sample_type_id ?? sId ?? "",
+                        protocolAccreditation:
+                            a?.protocolAccreditation ??
+                            a?.protocol_accreditation ??
+                            (a?.protocol as any)?.protocolAccreditation ??
+                            (a?.protocol as any)?.protocol_accreditation ??
+                            (a?.libraryParameterProtocol as any)?.protocolAccreditation ??
+                            (a?.libraryParameterProtocol as any)?.protocol_accreditation ??
+                            null,
+                        feeBeforeTax: Number(a?.feeBeforeTax ?? a?.fee_before_tax ?? 0),
+                        taxRate: Number(a?.taxRate ?? a?.tax_rate ?? 0),
+                        feeAfterTax: Number(a?.feeAfterTax ?? a?.fee_after_tax ?? 0),
+                        protocolCode:
+                            a?.protocolCode ??
+                            a?.protocol_code ??
+                            (a?.protocol as any)?.protocolCode ??
+                            (a?.protocol as any)?.protocol_code ??
+                            (a?.libraryParameterProtocol as any)?.protocolCode ??
+                            (a?.libraryParameterProtocol as any)?.protocol_code ??
+                            "",
+                    })),
+                };
+            }),
             pricing: { subtotal: storedSubtotal, discountAmount: storedDiscount, feeBeforeTax: storedNet, tax: storedTax, total: storedTotal },
             discountRate: fullOrder.discountRate || 0,
             orderUri: fullOrder.orderUri || "",
@@ -169,13 +209,10 @@ export function CustomerOrdersPage() {
 
     const handlePrint = async (order: Order) => {
         const data = await preparePrintData(order);
-        if (data) { setPrintData(data); setIsPrintModalOpen(true); }
-    };
-
-    const handleSampleRequestPrint = async (order: Order) => {
-        const data = await preparePrintData(order);
-        if (data) { setPrintData(data); setIsSampleRequestModalOpen(true); }
-        else toast.error("Lỗi chuẩn bị dữ liệu in");
+        if (data) {
+            setPrintData(data);
+            setIsPrintModalOpen(true);
+        }
     };
 
     const handleBack = () => {
@@ -192,8 +229,6 @@ export function CustomerOrdersPage() {
         else navigate("/customer/orders");
     };
 
-    const handleSaveTrigger = () => editorRef.current?.save();
-
     // ====== EDITOR MODE (full-screen) ======
     if (isEditorActive) {
         return (
@@ -204,32 +239,63 @@ export function CustomerOrdersPage() {
                             <ArrowLeft className="w-5 h-5" />
                         </button>
                         <h1 className="text-lg font-semibold text-foreground">
-                            {isCreate ? "Tạo đơn hàng mới"
-                                : initialViewMode === "edit" ? `Chỉnh sửa - ${selectedOrder?.orderId || ""}`
-                                : `Chi tiết - ${selectedOrder?.orderId || ""}`}
+                            {isCreate ? "Tạo đơn hàng mới" : initialViewMode === "edit" ? `Chỉnh sửa - ${selectedOrder?.orderId || ""}` : `Chi tiết - ${selectedOrder?.orderId || ""}`}
                         </h1>
                     </div>
                     <div className="flex gap-2">
-                        {!isCreate && (
-                            <button onClick={toggleLocalMode} className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
-                                {localViewMode === "view" ? <Pencil className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                <span className="hidden sm:inline">{localViewMode === "view" ? "Chỉnh sửa" : "Xem"}</span>
-                            </button>
-                        )}
                         {localViewMode === "view" && (
                             <>
-                                <button onClick={() => editorRef.current?.export()} className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
-                                    <FileDown className="w-4 h-4" /><span className="hidden sm:inline">In Đơn hàng</span>
+                                {(selectedOrder?.orderStatus?.toLowerCase() === "pending" ||
+                                    selectedOrder?.orderStatus?.toLowerCase() === "new" ||
+                                    selectedOrder?.orderStatus?.toLowerCase() === "draft") && (
+                                    <button
+                                        onClick={() => setLocalViewMode("edit")}
+                                        className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                                    >
+                                        <Pencil className="w-4 h-4" />
+                                        <span>Chỉnh sửa</span>
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => editorRef.current?.triggerUpload()}
+                                    className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
+                                >
+                                    <Upload className="w-4 h-4" />
+                                    <span>Tải tài liệu</span>
                                 </button>
-                                <button onClick={() => editorRef.current?.exportSampleRequest()} className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
-                                    <FileText className="w-4 h-4" /><span className="hidden sm:inline">Phiếu gửi mẫu</span>
+                                <button
+                                    onClick={() => editorRef.current?.export()}
+                                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+                                >
+                                    <FileDown className="w-4 h-4" />
+                                    <span className="hidden sm:inline">In Đơn hàng</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (orderId) {
+                                            window.open(`/customer/orders/sample-request?orderId=${orderId}`, "_blank", "noopener,noreferrer");
+                                        }
+                                    }}
+                                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+                                >
+                                    <FileText className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Phiếu gửi mẫu</span>
                                 </button>
                             </>
                         )}
-                        {localViewMode !== "view" && (
-                            <button onClick={handleSaveTrigger} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium">
-                                <Save className="w-4 h-4" /><span className="hidden sm:inline">Lưu</span>
-                            </button>
+                        {localViewMode === "edit" && (
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => editorRef.current?.save()}
+                                    className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-bold shadow-md scale-105 active:scale-95"
+                                >
+                                    <Save className="w-4 h-4" />
+                                    <span>Lưu thay đổi</span>
+                                </button>
+                                <button onClick={() => setLocalViewMode("view")} className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
+                                    Hủy
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -243,7 +309,6 @@ export function CustomerOrdersPage() {
                         initialQuoteId={quoteId || undefined}
                     />
                 </div>
-                {printData && <CustomerSampleRequestPrintPreviewModal isOpen={isSampleRequestModalOpen} onClose={() => setIsSampleRequestModalOpen(false)} data={printData} />}
             </div>
         );
     }
@@ -270,9 +335,6 @@ export function CustomerOrdersPage() {
                     <h1 className="text-xl font-bold text-foreground">Đơn hàng</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">Quản lý đơn hàng và phiếu gửi mẫu</p>
                 </div>
-                <button onClick={handleCreate} className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm">
-                    <Plus className="w-4 h-4" />Tạo đơn hàng mới
-                </button>
             </div>
 
             {/* Search */}
@@ -284,7 +346,10 @@ export function CustomerOrdersPage() {
                         placeholder="Tìm kiếm đơn hàng..."
                         className="w-full pl-9 pr-4 py-1.5 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm"
                         value={searchQuery}
-                        onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                        onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            setCurrentPage(1);
+                        }}
                     />
                 </div>
             </div>
@@ -306,15 +371,24 @@ export function CustomerOrdersPage() {
                         </thead>
                         <tbody className="divide-y divide-border">
                             {isLoading ? (
-                                <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-muted-foreground">
-                                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />Đang tải...
-                                </td></tr>
+                                <tr>
+                                    <td colSpan={7} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                                        Đang tải...
+                                    </td>
+                                </tr>
                             ) : orders.length === 0 ? (
-                                <tr><td colSpan={7} className="px-3 py-8 text-center text-sm text-muted-foreground">Chưa có đơn hàng nào</td></tr>
+                                <tr>
+                                    <td colSpan={7} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                                        Chưa có đơn hàng nào
+                                    </td>
+                                </tr>
                             ) : (
                                 orders.map((order) => (
                                     <tr key={order.orderId} className="hover:bg-muted/50 transition-colors">
-                                        <td className="px-3 py-2.5 text-sm font-semibold text-primary cursor-pointer" onClick={() => handleViewDetail(order)}>{order.orderId}</td>
+                                        <td className="px-3 py-2.5 text-sm font-semibold text-primary cursor-pointer" onClick={() => handleViewDetail(order)}>
+                                            {order.orderId}
+                                        </td>
                                         <td className="px-3 py-2.5 text-sm text-foreground">
                                             <div className="font-medium">{(order as any).contactPerson?.contactName || "—"}</div>
                                             <div className="text-xs text-muted-foreground">{(order as any).contactPerson?.contactPhone || ""}</div>
@@ -324,25 +398,34 @@ export function CustomerOrdersPage() {
                                             {order.createdAt ? new Date(order.createdAt).toLocaleDateString("vi-VN") : "—"}
                                         </td>
                                         <td className="px-3 py-2.5">
-                                            <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${statusColors[(order as any).orderStatus] || "bg-muted text-muted-foreground border-border"}`}>
+                                            <span
+                                                className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${statusColors[(order as any).orderStatus] || "bg-muted text-muted-foreground border-border"}`}
+                                            >
                                                 {(order as any).orderStatus || "—"}
                                             </span>
                                         </td>
-                                        <td className="px-3 py-2.5 text-sm text-right font-medium text-foreground">
-                                            {Number((order as any).totalAmount || 0).toLocaleString("vi-VN")} đ
-                                        </td>
+                                        <td className="px-3 py-2.5 text-sm text-right font-medium text-foreground">{Math.ceil(Number((order as any).totalAmount || 0)).toLocaleString("vi-VN")} đ</td>
                                         <td className="px-3 py-2.5">
                                             <div className="flex items-center gap-1.5">
-                                                <button onClick={() => handleViewDetail(order)} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors" title="Xem">
+                                                <button
+                                                    onClick={() => handleViewDetail(order)}
+                                                    className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors"
+                                                    title="Xem"
+                                                >
                                                     <Eye className="w-4 h-4" />
                                                 </button>
-                                                <button onClick={() => handleEdit(order)} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors" title="Sửa">
-                                                    <Pencil className="w-4 h-4" />
-                                                </button>
-                                                <button onClick={() => handlePrint(order)} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors" title="In đơn hàng">
+                                                <button
+                                                    onClick={() => handlePrint(order)}
+                                                    className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors"
+                                                    title="In đơn hàng"
+                                                >
                                                     <FileDown className="w-4 h-4" />
                                                 </button>
-                                                <button onClick={() => handleSampleRequestPrint(order)} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors" title="Phiếu gửi mẫu">
+                                                <button
+                                                    onClick={() => window.open(`/customer/orders/sample-request?orderId=${order.orderId}`, "_blank", "noopener,noreferrer")}
+                                                    className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors"
+                                                    title="Phiếu gửi mẫu"
+                                                >
                                                     <FileText className="w-4 h-4" />
                                                 </button>
                                             </div>
@@ -361,26 +444,15 @@ export function CustomerOrdersPage() {
                         totalItems={totalItems}
                         itemsPerPage={itemsPerPage}
                         onPageChange={setCurrentPage}
-                        onItemsPerPageChange={(items) => { setItemsPerPage(items); setCurrentPage(1); }}
+                        onItemsPerPageChange={(items) => {
+                            setItemsPerPage(items);
+                            setCurrentPage(1);
+                        }}
                     />
                 )}
             </div>
 
-            {isPrintModalOpen && printData && (
-                <CustomerOrderPrintPreviewModal
-                    isOpen={isPrintModalOpen}
-                    onClose={() => setIsPrintModalOpen(false)}
-                    data={printData}
-                />
-            )}
-
-            {isSampleRequestModalOpen && printData && (
-                <CustomerSampleRequestPrintPreviewModal
-                    isOpen={isSampleRequestModalOpen}
-                    onClose={() => setIsSampleRequestModalOpen(false)}
-                    data={printData}
-                />
-            )}
+            {printData && <OrderPrintPreviewModal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} data={printData} />}
         </div>
     );
 }
