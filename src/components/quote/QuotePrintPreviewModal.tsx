@@ -37,13 +37,12 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                     const quantity = Number(a.quantity) || 1;
                     const unitPrice = Number(a.unitPrice) || 0;
                     const discountRate = Number(a.discountRate) || 0;
+                    const globalDiscountRate = Number(data.discountRate) || 0;
                     const taxRate = Number(a.taxRate) || 0;
 
-                    const lineGross = unitPrice * quantity;
-                    const lineDiscount = lineGross * (discountRate / 100);
-                    const lineNet = lineGross - lineDiscount;
-                    const lineTax = lineNet * (taxRate / 100);
-                    const lineAfterTax = lineNet + lineTax;
+                    const actualUP = unitPrice * (1 - discountRate / 100);
+                    const discountedUP = actualUP * (1 - globalDiscountRate / 100);
+                    const lineAfterTax = discountedUP * quantity * (1 + taxRate / 100);
 
                     sampleTotalAfterTax += lineAfterTax;
                 });
@@ -74,11 +73,37 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top;">${i + 1}</td>
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; vertical-align: top;">${analysis.parameterName}</td>
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">
-                                    ${fmtMoney(price)}
+                                    ${(() => {
+                                        const globalDiscountRate = Number(data.discountRate) || 0;
+                                        const lineDiscountRate = Number(analysis.discountRate) || 0;
+                                        const originalUP = Number(analysis.unitPrice) || 0;
+                                        const actualUP = originalUP * (1 - lineDiscountRate / 100);
+                                        const discountedUP = actualUP * (1 - globalDiscountRate / 100);
+                                        const hasDiscount = discountedUP < originalUP - 0.1;
+                                        return hasDiscount
+                                            ? `<div style="font-weight: bold;">${fmtMoney(discountedUP)}</div>
+                                               <div style="text-decoration: line-through; font-size: 9px; color: #666; margin-top: 2px;">${fmtMoney(originalUP)}</div>`
+                                            : fmtMoney(discountedUP);
+                                    })()}
                                 </td>
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top;">${analysis.taxRate || 0}%</td>
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">
-                                    ${fmtMoney(analysis.feeAfterTax)} 
+                                    ${(() => {
+                                        const globalDiscountRate = Number(data.discountRate) || 0;
+                                        const lineDiscountRate = Number(analysis.discountRate) || 0;
+                                        const quantity = Number(analysis.quantity) || 1;
+                                        const originalUP = Number(analysis.unitPrice) || 0;
+                                        const taxRate = Number(analysis.taxRate) || 0;
+                                        const actualUP = originalUP * (1 - lineDiscountRate / 100);
+                                        const discountedUP = actualUP * (1 - globalDiscountRate / 100);
+                                        const originalTotal = originalUP * quantity * (1 + taxRate / 100);
+                                        const finalTotal = discountedUP * quantity * (1 + taxRate / 100);
+                                        const hasDiscount = finalTotal < originalTotal - 0.1;
+                                        return hasDiscount
+                                            ? `<div style="font-weight: bold;">${fmtMoney(finalTotal)}</div>
+                                               <div style="text-decoration: line-through; font-size: 9px; color: #666; margin-top: 2px;">${fmtMoney(originalTotal)}</div>`
+                                            : fmtMoney(finalTotal);
+                                    })()}
                                 </td>
                             </tr>
                         `;

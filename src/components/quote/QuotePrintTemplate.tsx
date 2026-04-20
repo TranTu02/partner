@@ -23,12 +23,18 @@ export interface QuotePrintData {
     taxAddress?: string;
     samples: {
         sampleName: string;
-        sampleMatrix: string;
+        sampleTypeName?: string;
+        sampleTypeId?: string;
         sampleNote: string;
         quantity?: number;
+        sampleInfo?: { label: string; value: string }[];
         analyses: {
             parameterName: string;
             parameterId?: string;
+            protocolCode?: string;
+            sampleTypeName?: string;
+            sampleTypeId?: string;
+            protocolAccreditation?: any;
             feeBeforeTax: number;
             taxRate: number;
             feeAfterTax: number;
@@ -118,7 +124,7 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                     <div key={index} style={{ marginBottom: "10px", pageBreakInside: "auto" }}>
                         <div style={{ backgroundColor: "#f0f0f0", padding: "3px 8px", fontWeight: "bold", marginBottom: "3px", fontSize: "12px", display: "flex", justifyContent: "space-between" }}>
                             <span>
-                                {t("order.print.sample")} {index + 1}: {sample.sampleName} ({sample.sampleMatrix})
+                                {t("order.print.sample")} {index + 1}: {sample.sampleName} ({sample.sampleTypeName || "--"})
                             </span>
                             {sample.quantity && sample.quantity > 1 ? (
                                 <span>
@@ -126,30 +132,113 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                                 </span>
                             ) : null}
                         </div>
-                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
                             <thead>
                                 <tr style={{ backgroundColor: "#e6e6e6" }}>
-                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "left", verticalAlign: "top" }}>{t("order.print.stt")}</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "left", verticalAlign: "top" }}>{t("order.print.parameter")}</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "right", verticalAlign: "top" }}>{t("order.print.amount")}</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "center", verticalAlign: "top" }}>{t("order.print.tax")} (%)</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "right", verticalAlign: "top" }}>{t("order.print.total")}</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "11px", width: "4%" }}>{t("order.print.stt")}</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "left", fontSize: "11px", width: "31%" }}>{t("order.print.parameter")}</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "left", fontSize: "11px", width: "24%" }}>Phương pháp và công nhận</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "11px", width: "14%" }}>{t("order.print.amount")}</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "11px", width: "10%" }}>{t("order.print.tax")} (%)</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "11px", width: "17%" }}>{t("order.print.total")}</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {sample.analyses.map((analysis, i) => (
-                                    <tr key={i} style={{ pageBreakInside: "avoid" }}>
-                                        <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "center", width: "40px", verticalAlign: "top" }}>{i + 1}</td>
-                                        <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{analysis.parameterName}</td>
-                                        <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "right", width: "100px", verticalAlign: "top" }}>
-                                            {analysis.feeBeforeTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                                        </td>
-                                        <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "center", width: "70px", verticalAlign: "top" }}>{analysis.taxRate || 0}%</td>
-                                        <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "right", width: "120px", verticalAlign: "top" }}>
-                                            {analysis.feeAfterTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                                        </td>
-                                    </tr>
-                                ))}
+                                {sample.analyses.map((analysis, i) => {
+                                    const globalDiscountRate = data.discountRate || 0;
+                                    const lineDiscountRate = analysis.discountRate || 0;
+                                    const taxRate = analysis.taxRate || 0;
+                                    const quantity = analysis.quantity || 1;
+
+                                    const originalUP = (analysis as any).unitPrice || (analysis.feeBeforeTaxAndDiscount ? analysis.feeBeforeTaxAndDiscount / quantity : 0) || 0;
+                                    const actualUP = originalUP * (1 - lineDiscountRate / 100);
+                                    const discountedUP = actualUP * (1 - globalDiscountRate / 100);
+                                    const hasDiscount = discountedUP < originalUP - 0.1;
+
+                                    const originalTotal = originalUP * quantity * (1 + taxRate / 100);
+                                    const finalTotal = discountedUP * quantity * (1 + taxRate / 100);
+                                    const hasLineDiscount = finalTotal < originalTotal - 0.1;
+
+                                    return (
+                                        <tr key={i} style={{ pageBreakInside: "avoid" }}>
+                                            <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "10px" }}>{i + 1}</td>
+                                            <td style={{ border: "1px solid #ccc", padding: "2px 5px", fontSize: "10px" }}>{analysis.parameterName}</td>
+                                            <td style={{ border: "1px solid #ccc", padding: "2px 5px", fontSize: "10px" }}>
+                                                <div style={{ fontWeight: "bold" }}>{analysis.protocolCode || "--"}</div>
+                                                <div style={{ fontSize: "9px", marginTop: "2px" }}>
+                                                    {(() => {
+                                                        const source = ((analysis as any).protocolSource || "").trim();
+
+                                                        // Chỉ hiển thị thêm ISO accreditation keys nếu nền mẫu của chỉ tiêu khớp với nền mẫu của mẫu
+                                                        const showAccreditation = analysis.sampleTypeName === sample.sampleTypeName;
+
+                                                        let accKeys = "";
+                                                        if (showAccreditation) {
+                                                            let acc = analysis.protocolAccreditation;
+                                                            if (typeof acc === "string" && acc.startsWith("{")) {
+                                                                try {
+                                                                    acc = JSON.parse(acc);
+                                                                } catch {
+                                                                    acc = null;
+                                                                }
+                                                            }
+                                                            if (acc && typeof acc === "object") {
+                                                                accKeys = Object.entries(acc)
+                                                                    .filter(([, v]) => v)
+                                                                    .map(([k]) => k)
+                                                                    .join(" ");
+                                                            } else if (acc) {
+                                                                accKeys = acc.toString();
+                                                            }
+                                                        }
+                                                        return [source, accKeys].filter(Boolean).join(" ") || "--";
+                                                    })()}
+                                                </div>
+                                            </td>
+                                            <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "10px" }}>
+                                                {hasDiscount ? (
+                                                    <>
+                                                        <div style={{ fontWeight: "bold" }}>{discountedUP.toLocaleString("vi-VN")}</div>
+                                                        <div style={{ textDecoration: "line-through", fontSize: "8px", color: "#666" }}>{originalUP.toLocaleString("vi-VN")}</div>
+                                                    </>
+                                                ) : (
+                                                    discountedUP.toLocaleString("vi-VN")
+                                                )}
+                                            </td>
+                                            <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "10px" }}>{analysis.taxRate || 0}%</td>
+                                            <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "10px" }}>
+                                                {hasLineDiscount ? (
+                                                    <>
+                                                        <div style={{ fontWeight: "bold" }}>{finalTotal.toLocaleString("vi-VN")}</div>
+                                                        <div style={{ textDecoration: "line-through", fontSize: "8px", color: "#666" }}>{originalTotal.toLocaleString("vi-VN")}</div>
+                                                    </>
+                                                ) : (
+                                                    finalTotal.toLocaleString("vi-VN")
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                                <tr>
+                                    <td colSpan={7} style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontWeight: "bold", verticalAlign: "top", fontSize: "11px" }}>
+                                        {t("parameter.sumAfterTax", "Tổng cộng mẫu")}
+                                    </td>
+                                    <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontWeight: "bold", verticalAlign: "top", fontSize: "11px" }}>
+                                        {sample.analyses
+                                            .reduce((sum, a) => {
+                                                const globalDR = data.discountRate || 0;
+                                                const lineDR = a.discountRate || 0;
+                                                const taxR = a.taxRate || 0;
+                                                const qty = a.quantity || 1;
+                                                const originalUP = (a as any).unitPrice || (a.feeBeforeTaxAndDiscount ? a.feeBeforeTaxAndDiscount / qty : 0) || 0;
+                                                const actualUP = originalUP * (1 - lineDR / 100);
+                                                const discountedUP = actualUP * (1 - globalDR / 100);
+                                                const subFinalTotal = discountedUP * qty * (1 + taxR / 100);
+                                                return sum + Math.round(subFinalTotal);
+                                            }, 0)
+                                            .toLocaleString("vi-VN")}
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -161,59 +250,67 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                 <table style={{ width: "100%", marginTop: "5px", borderCollapse: "collapse" }}>
                     <tbody>
                         <tr style={{ pageBreakInside: "avoid" }}>
-                            <td style={{ textAlign: "right", paddingRight: "20px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.print.subtotal")}:</td>
-                            <td style={{ width: "150px", textAlign: "right", fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
-                                {data.pricing.subtotal.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
-                            </td>
+                            <td style={{ textAlign: "right", paddingRight: "20px", padding: "4px 5px", verticalAlign: "top" }}>{t("order.print.subtotal")}:</td>
+                            <td style={{ width: "150px", textAlign: "right", fontWeight: "bold", padding: "4px 5px", verticalAlign: "top" }}>{data.pricing.subtotal.toLocaleString("vi-VN")} đ</td>
                         </tr>
                         {data.otherItems && data.otherItems.length > 0 && (
                             <tr style={{ pageBreakInside: "avoid" }}>
-                                <td style={{ textAlign: "right", paddingRight: "20px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
+                                <td style={{ textAlign: "right", paddingRight: "20px", padding: "4px 5px", verticalAlign: "top" }}>
                                     {t("order.otherItems.title", "Phụ phí")} ({t("order.pricing.feeBeforeTax")}):
                                 </td>
-                                <td style={{ textAlign: "right", fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
-                                    {data.otherItems.reduce((acc, current) => acc + current.feeBeforeTax, 0).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
+                                <td style={{ textAlign: "right", fontWeight: "bold", padding: "4px 5px", verticalAlign: "top" }}>
+                                    {data.otherItems.reduce((acc, current) => acc + current.feeBeforeTax, 0).toLocaleString("vi-VN")} đ
                                 </td>
                             </tr>
                         )}
-                        {data.discountRate > 0 && (
-                            <tr style={{ pageBreakInside: "avoid" }}>
-                                <td style={{ textAlign: "right", paddingRight: "20px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
-                                    {t("order.print.discount")} ({data.discountRate}%):
-                                </td>
-                                <td style={{ textAlign: "right", color: "red", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
-                                    -{" "}
-                                    {(data.pricing.discountAmount || (data.pricing.subtotal * data.discountRate) / 100).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}{" "}
-                                    đ
-                                </td>
-                            </tr>
-                        )}
-                        {data.pricing.feeBeforeTax !== undefined && (
-                            <tr style={{ pageBreakInside: "avoid" }}>
-                                <td style={{ textAlign: "right", paddingRight: "20px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.pricing.feeBeforeTax")}:</td>
-                                <td style={{ textAlign: "right", fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
-                                    {data.pricing.feeBeforeTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
-                                </td>
-                            </tr>
+                        {(data.pricing.discountAmount || 0) > 0 && (
+                            <>
+                                <tr style={{ pageBreakInside: "avoid" }}>
+                                    <td style={{ textAlign: "right", paddingRight: "20px", padding: "4px 5px", verticalAlign: "top" }}>{t("order.print.discount")}:</td>
+                                    <td style={{ textAlign: "right", color: "#16a34a", padding: "4px 5px", verticalAlign: "top" }}>- {data.pricing.discountAmount?.toLocaleString("vi-VN")} VNĐ</td>
+                                </tr>
+                                <tr style={{ pageBreakInside: "avoid" }}>
+                                    <td style={{ textAlign: "right", paddingRight: "20px", fontWeight: "bold", padding: "4px 5px", verticalAlign: "top" }}>Tổng chiết khấu:</td>
+                                    <td style={{ textAlign: "right", color: "#16a34a", fontWeight: "bold", padding: "4px 5px", verticalAlign: "top" }}>
+                                        - {data.pricing.discountAmount?.toLocaleString("vi-VN")} VNĐ
+                                    </td>
+                                </tr>
+                            </>
                         )}
                         <tr style={{ pageBreakInside: "avoid" }}>
-                            <td style={{ textAlign: "right", paddingRight: "20px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.print.vat")}:</td>
-                            <td style={{ textAlign: "right", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
-                                {data.pricing.tax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
-                            </td>
+                            <td style={{ textAlign: "right", paddingRight: "20px", padding: "4px 5px", verticalAlign: "top" }}>{t("order.print.vat")}:</td>
+                            <td style={{ textAlign: "right", padding: "4px 5px", verticalAlign: "top" }}>{data.pricing.tax.toLocaleString("vi-VN")} đ</td>
                         </tr>
                         <tr style={{ fontSize: "14px", pageBreakInside: "avoid" }}>
-                            <td style={{ textAlign: "right", paddingRight: "20px", fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.print.grandTotal")}:</td>
-                            <td style={{ textAlign: "right", fontWeight: "bold", color: "#1890FF", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
-                                {data.pricing.total.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} đ
-                            </td>
+                            <td style={{ textAlign: "right", paddingRight: "20px", fontWeight: "bold", padding: "4px 5px", verticalAlign: "top" }}>{t("order.print.grandTotal")}:</td>
+                            <td style={{ textAlign: "right", fontWeight: "bold", color: "#1890FF", padding: "4px 5px", verticalAlign: "top" }}>{data.pricing.total.toLocaleString("vi-VN")} đ</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div style={{ marginTop: "10px", textAlign: "center", height: "14px" }}>
-                <p style={{ fontStyle: "italic", fontSize: "12px" }}>
+            <div style={{ marginTop: "10px", marginBottom: "12px", fontSize: "11px", color: "#333", borderTop: "1px solid #ccc", paddingTop: "6px" }}>
+                <span style={{ fontWeight: "bold" }}>Chú thích:</span>
+                <br />
+                <span style={{ marginLeft: "8px" }}>
+                    <b>IRDOP</b>: Chỉ tiêu được thực hiện tại IRDOP.
+                </span>
+                <br />
+                <span style={{ marginLeft: "8px" }}>
+                    <b>EX</b>: Chỉ tiêu được thực hiện bởi nhà thầu phụ.
+                </span>
+                <br />
+                <span style={{ marginLeft: "8px" }}>
+                    <b>VILAS997</b>: Chỉ tiêu được công nhận ISO/IEC 17025:2017.
+                </span>
+                <br />
+                <span style={{ marginLeft: "8px" }}>
+                    <b>TDC</b>: Chỉ tiêu được công nhận đánh giá sự phù hợp theo NĐ 107/2016/NĐ-CP.
+                </span>
+            </div>
+
+            <div style={{ marginTop: "20px", textAlign: "center" }}>
+                <p style={{ fontStyle: "italic", fontSize: "11px" }}>
                     {t("quote.print.validityNote")} {new Date().toLocaleDateString("vi-VN")}
                 </p>
             </div>
