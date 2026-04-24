@@ -226,6 +226,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                             quantity: quantity,
                         };
                     }),
+                    sampleTypeName: s.sampleTypeName || s.sampleMatrix || s.matrix || s.librarySampleType?.sampleTypeName || "",
                 }));
                 setSamples(mappedSamples);
             }
@@ -361,7 +362,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                 sampleId: undefined, // Create new sample for order
                                 sampleName: s.sampleName || s.name || "Sample",
                                 sampleTypeId: s.sampleTypeId,
-                                sampleTypeName: s.sampleTypeName || s.matrix || "",
+                                sampleTypeName: s.sampleTypeName || s.sampleMatrix || s.matrix || s.librarySampleType?.sampleTypeName || "",
                                 sampleNote: s.sampleNote || "",
                                 analyses: (s.analyses || []).map((a: any) => ({
                                     ...a,

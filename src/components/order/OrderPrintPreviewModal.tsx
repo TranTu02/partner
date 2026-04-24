@@ -430,7 +430,7 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                 <div className="flex-grow bg-gray-100/50 overflow-auto p-4 flex justify-center">
                     <div className="w-[794px] min-w-[794px] mx-auto bg-white shadow-lg relative">
                         {!editorReady && <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted/50">{t("common.loading")}</div>}
-                        <div style={{ visibility: editorReady ? "visible" : "hidden", height: "100%" }}>
+                        <div style={{ visibility: editorReady ? "visible" : "hidden" }}>
                             <Editor
                                 tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
                                 onInit={(_evt: any, editor: any) => {
@@ -439,7 +439,6 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                                 }}
                                 initialValue={generateOrderHtml(data)}
                                 init={{
-                                    height: "100%",
                                     width: "100%",
                                     menubar: false,
                                     statusbar: false,
@@ -451,8 +450,11 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                                     autoresize_bottom_margin: 0,
                                     content_style: `
                                         * { margin: 0; padding: 0; box-sizing: border-box; }
-                                        html { 
-                                            overflow-y: hidden;
+                                         html { 
+                                            background-color: #f0f0f0; 
+                                            display: block; 
+                                            overflow: hidden; 
+                                            text-align: left; 
                                         }
                                         body { 
                                             width: 100%;
@@ -462,6 +464,7 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                                             font-family: "Times New Roman", Times, serif; 
                                             font-size: 13px;
                                             line-height: 1.3;
+                                            overflow: hidden;
                                         }
                                         table { width: 100% !important; border-collapse: collapse; margin-bottom: 8px; }
                                         .data-table th, .data-table td { border: 1px solid black !important; padding: 2px 5px 8px 5px !important; vertical-align: top; }
@@ -471,7 +474,6 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                                         h3 { font-size: 14px; font-weight: bold; }
                                         thead { display: table-header-group !important; }
                                         tr { page-break-inside: avoid !important; }
-                                        html { background-color: #f0f0f0; display: block; overflow: auto; text-align: left; }
                                         @media print {
                                             body { margin: 0 !important; box-shadow: none !important; width: 100% !important; padding: 0 !important; }
                                             html { background: none; display: block; }

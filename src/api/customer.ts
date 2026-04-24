@@ -107,6 +107,11 @@ export const customerGetProfile = async (input: ApiInput): Promise<ApiResponse> 
     return getCustomer("/customer/v1/clients/get/detail", input);
 };
 
+/** GET /customer/v1/clients/get/full */
+export const customerGetClientFull = async (input: ApiInput): Promise<ApiResponse> => {
+    return getCustomer("/customer/v1/clients/get/full", input);
+};
+
 /** POST /customer/v1/clients/update */
 export const customerUpdateProfile = async (input: ApiInput): Promise<ApiResponse> => {
     return postCustomer("/customer/v1/clients/update", input);

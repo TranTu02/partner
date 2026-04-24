@@ -428,6 +428,10 @@ function mapOrderDetailResponseToPrintData(resp: any): OrderPrintData {
             analyses: (s?.analyses ?? []).map((a: any) => ({
                 parameterName: a?.parameterName ?? "",
                 parameterId: a?.parameterId ?? undefined,
+                protocolCode: a?.protocolCode ?? "",
+                protocolSource: a?.protocolSource ?? "",
+                protocolAccreditation: a?.protocolAccreditation ?? null,
+                analysisUnit: a?.analysisUnit ?? "",
                 feeBeforeTax: Number(a?.feeBeforeTax ?? 0),
                 taxRate: Number(a?.taxRate ?? 0),
                 feeAfterTax: Number(a?.feeAfterTax ?? 0),
@@ -499,10 +503,33 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             `
                         : "";
 
-                    // Method and Note columns merged per sample (rowspan)
-                    const methodCell = isFirst
-                        ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;">Đã thống nhất phương pháp kiểm nghiệm với Irdop</td>`
-                        : "";
+                    // Method and Accreditation cells per sample analysis
+                    const methodHtml = analysis.protocolCode || "Đã thống nhất với Irdop";
+
+                    let accHtml = "--";
+                    let accObj = analysis.protocolAccreditation;
+                    if (typeof accObj === "string" && accObj.startsWith("{")) {
+                        try {
+                            accObj = JSON.parse(accObj);
+                        } catch {
+                            accObj = null;
+                        }
+                    }
+                    if (accObj && typeof accObj === "object") {
+                        const accs = Object.entries(accObj)
+                            .filter(([, v]) => v)
+                            .map(([k]) => k);
+                        if (accs.length > 0) accHtml = accs.join(", ");
+                    }
+
+                    const sourceText = (analysis as any).protocolSource || "";
+                    const methodCell = `<td style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important; text-align:left;">${methodHtml}</td>`;
+                    const accCellContent = `
+                        <div>${sourceText}</div>
+                        <div style="font-weight: bold; ${sourceText && accHtml !== "--" ? "margin-top: 2px;" : ""}">${accHtml !== "--" ? accHtml : ""}</div>
+                        ${!sourceText && accHtml === "--" ? "--" : ""}
+                    `;
+                    const accCell = `<td style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important; text-align:left; font-size:11px;">${accCellContent}</td>`;
 
                     const noteCell = isFirst ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;"></td>` : "";
 
@@ -512,7 +539,9 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             ${sampleCell}
             ${descCell}
             <td style="padding:5px; border: 1px solid #000 !important;">${analysis.parameterName || ""}</td>
+            <td style="padding:5px; border: 1px solid #000 !important; text-align:center;">${analysis.analysisUnit || ""}</td>
             ${methodCell}
+            ${accCell}
             ${noteCell}
           </tr>
         `;
@@ -704,8 +733,10 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                 ${t("sampleRequest.table.sampleDesc")}</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700;">
                 ${t("sampleRequest.table.parameters")}</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 115px;">
-                ${t("table.method")}</th>
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 105px;">
+                ${t("table.method", "Phương pháp")}</th>
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 65px;">
+                ${t("parameter.accreditation", "Công nhận")}</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 70px;">
                 ${t("sample.note")}</th>
             </tr>

@@ -53,57 +53,35 @@ export function PricingSummary({
 
                 <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">{"Tổng đơn giá"}:</span>
+                        <span className="text-sm text-muted-foreground">{t("parameter.sumUnitPrice", "Tổng đơn giá")}:</span>
                         <span className="text-sm font-medium">{FMT(subtotal)} đ</span>
                     </div>
 
-                    {/* ── Other Items (phụ phí) summary ─────────────────────────────────── */}
-                    {otherItems.length > 0 && (
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">
-                                {t("order.otherItems.title")} ({t("order.pricing.feeBeforeTax")}):
-                            </span>
-                            <span className="text-sm font-medium">{FMT(otherFeeBeforeTax)} đ</span>
-                        </div>
-                    )}
-
-                    <div className="flex justify-between items-start">
-                        <div className="space-y-1">
-                            <span className="text-sm text-muted-foreground block">{"Chiết khấu"}:</span>
-                            {(lineDiscountAmount > 0 || orderDiscountAmount > 0) && (
-                                <>
-                                    {lineDiscountAmount > 0 && <div className="text-[10px] text-muted-foreground italic">- Chỉ tiêu: -{FMT(lineDiscountAmount)} đ</div>}
-                                    {orderDiscountAmount > 0 && (
-                                        <div className="text-[10px] text-muted-foreground italic">
-                                            - Đơn hàng ({discountRate}%): -{FMT(orderDiscountAmount)} đ
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                        <span className="text-sm font-medium text-success">-{FMT(discountAmount)} đ</span>
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm">{"Chiết khấu toàn đơn"}:</span>
+                        <span className="text-sm font-medium">-{FMT(orderDiscountAmount || (subtotal * discountRate) / 100)} đ</span>
                     </div>
 
                     <div className="flex justify-between items-center border-t border-border pt-2 mt-2">
-                        <span className="text-sm font-medium italic">{"Tổng chiết khấu"}:</span>
-                        <span className="text-sm font-bold text-success">-{FMT(discountAmount)} đ</span>
+                        <span className="text-sm font-bold italic">{"Tổng chiết khấu"}:</span>
+                        <span className="text-sm font-bold">-{FMT(discountAmount)} đ</span>
                     </div>
 
                     <div className="flex justify-between items-center border-t border-border/50 pt-2">
-                        <span className="text-sm font-medium italic">{"Tiền trước thuế"}:</span>
+                        <span className="text-sm font-medium italic">{t("parameter.sumBeforeTax", "Tiền trước thuế")}:</span>
                         <span className="text-sm font-bold italic">{FMT(feeBeforeTax)} đ</span>
                     </div>
 
                     <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">{"Tiền thuế (VAT)"}:</span>
+                        <span className="text-sm text-muted-foreground">{t("parameter.totalTax", "Thuế VAT")}:</span>
                         <span className="text-sm font-medium">{FMT(tax)} đ</span>
                     </div>
 
                     {/* ── Final Grand Total (includes everything) ───────────────────────── */}
                     <div className="border-t border-border pt-3 mt-3">
                         <div className="flex justify-between items-center">
-                            <span className="text-base font-semibold">{"Tổng tiền"}:</span>
-                            <span className="text-xl font-bold text-primary">{FMT(total)} đ</span>
+                            <span className="text-base font-bold uppercase">{t("quote.total", "Tổng thanh toán")}:</span>
+                            <span className="text-xl font-bold">{FMT(total)} VNĐ</span>
                         </div>
                     </div>
 

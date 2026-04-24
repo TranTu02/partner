@@ -661,7 +661,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
             const response = mode === "create" ? await customerCreateOrder({ body: orderData }) : await customerUpdateOrder({ body: orderData });
 
             if (response.success) {
-                toast.success(mode === "create" ? "Tạo báo giá thành công" : "Cập nhật báo giá thành công");
+                toast.success(mode === "create" ? "Tạo đơn hàng thành công" : "Cập nhật đơn hàng thành công");
                 setHasUnsavedChanges(false);
                 setInternalMode("view");
                 onSaveSuccess?.(response.data);

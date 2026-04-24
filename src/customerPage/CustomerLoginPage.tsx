@@ -36,26 +36,28 @@ export function CustomerLoginPage() {
         if (!token) return;
 
         // Validate customer token with backend
-        customerMe({}).then((res) => {
-            if (res.success && res.data) {
-                // Token valid — refresh profile and redirect
-                const profile = res.data?.identity || res.data;
-                localStorage.setItem(CUSTOMER_DATA_KEY, JSON.stringify(profile));
-                navigate("/customer/dashboard", { replace: true });
-            } else {
-                // Token invalid/expired — clear customer session only
-                Cookies.remove(CUSTOMER_TOKEN_KEY);
-                localStorage.removeItem(CUSTOMER_DATA_KEY);
-            }
-        }).catch(() => {
-            // Network error: let user stay on login page
-        });
+        customerMe({})
+            .then((res) => {
+                if (res.success && res.data) {
+                    // Token valid — refresh profile and redirect
+                    const profile = res.data?.identity || res.data;
+                    localStorage.setItem(CUSTOMER_DATA_KEY, JSON.stringify(profile));
+                    navigate("/customer/dashboard", { replace: true });
+                } else {
+                    // Token invalid/expired — clear customer session only
+                    Cookies.remove(CUSTOMER_TOKEN_KEY);
+                    localStorage.removeItem(CUSTOMER_DATA_KEY);
+                }
+            })
+            .catch(() => {
+                // Network error: let user stay on login page
+            });
     }, [navigate]);
 
     const handleRequestOtp = async () => {
         const trimmed = clientId.trim();
         if (!trimmed) {
-            setError("Vui lòng nhập mã khách hàng");
+            setError("Vui lòng nhập Email hoặc mã khách hàng");
             return;
         }
 
@@ -70,7 +72,7 @@ export function CustomerLoginPage() {
                 setCountdown(300); // 5 minutes
                 toast.success("Mã xác thực đã được gửi đến email của bạn");
             } else {
-                setError(res.error?.message || "Không tìm thấy mã khách hàng hoặc lỗi hệ thống");
+                setError(res.error?.message || "Không tìm thấy thông tin hoặc lỗi hệ thống");
             }
         } catch {
             setError("Lỗi kết nối. Vui lòng thử lại.");
@@ -116,19 +118,23 @@ export function CustomerLoginPage() {
                 <div className="text-center mb-8">
                     <img src={LogoFull} alt="Logo" className="h-20 w-auto object-contain mx-auto mb-4" />
                     <h1 className="text-lg font-bold text-foreground">Cổng thông tin Khách hàng</h1>
-                    <p className="text-sm text-muted-foreground mt-1">Đăng nhập bằng mã khách hàng & xác thực OTP</p>
+                    <p className="text-sm text-muted-foreground mt-1">Đăng nhập bằng Email / Mã khách hàng & xác thực OTP</p>
                 </div>
 
                 {/* Login Card */}
                 <div className="bg-card rounded-2xl shadow-xl border border-border p-8 transition-all duration-500">
                     {/* Step Indicator */}
                     <div className="flex items-center justify-center gap-3 mb-6">
-                        <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${step >= 1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                        <div
+                            className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${step >= 1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                        >
                             <Mail className="w-3.5 h-3.5" />
-                            Mã KH
+                            Email / Mã KH
                         </div>
                         <div className="w-8 h-px bg-border" />
-                        <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${step >= 2 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                        <div
+                            className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${step >= 2 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                        >
                             <Shield className="w-3.5 h-3.5" />
                             Xác thực
                         </div>
@@ -138,24 +144,23 @@ export function CustomerLoginPage() {
                         /* Step 1: Client ID */
                         <div className="space-y-5 animate-fade-in-scale">
                             <div>
-                                <label className="block text-sm font-semibold text-foreground mb-2">Mã Khách Hàng</label>
+                                <label className="block text-sm font-semibold text-foreground mb-2">Email hoặc Mã Khách Hàng</label>
                                 <input
                                     type="text"
                                     value={clientId}
-                                    onChange={(e) => { setClientId(e.target.value.toUpperCase()); setError(""); }}
+                                    onChange={(e) => {
+                                        setClientId(e.target.value);
+                                        setError("");
+                                    }}
                                     onKeyDown={(e) => e.key === "Enter" && handleRequestOtp()}
-                                    className="w-full px-4 py-3 border-2 border-border rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 bg-input text-foreground text-sm font-mono tracking-wider placeholder:font-sans placeholder:tracking-normal transition-all"
-                                    placeholder="Ví dụ: CLI-001"
+                                    className="w-full px-4 py-3 border-2 border-border rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 bg-input text-foreground text-sm tracking-wide placeholder:font-sans placeholder:tracking-normal transition-all"
+                                    placeholder="ví dụ: abc@email.com hoặc CLI-001"
                                     disabled={isLoading}
                                     autoFocus
                                 />
                             </div>
 
-                            {error && (
-                                <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-2.5 rounded-xl text-sm animate-fade-in-scale">
-                                    {error}
-                                </div>
-                            )}
+                            {error && <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-2.5 rounded-xl text-sm animate-fade-in-scale">{error}</div>}
 
                             <button
                                 onClick={handleRequestOtp}
@@ -176,9 +181,7 @@ export function CustomerLoginPage() {
                         /* Step 2: OTP Verification */
                         <div className="space-y-5 animate-fade-in-scale">
                             <div className="text-center">
-                                <p className="text-sm text-muted-foreground">
-                                    Mã xác thực đã gửi đến
-                                </p>
+                                <p className="text-sm text-muted-foreground">Mã xác thực đã gửi đến</p>
                                 <p className="text-sm font-semibold text-foreground mt-1">{maskedEmail}</p>
                             </div>
 
@@ -191,11 +194,7 @@ export function CustomerLoginPage() {
                                 </p>
                             )}
 
-                            {error && (
-                                <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-2.5 rounded-xl text-sm animate-fade-in-scale">
-                                    {error}
-                                </div>
-                            )}
+                            {error && <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-2.5 rounded-xl text-sm animate-fade-in-scale">{error}</div>}
 
                             {isLoading && (
                                 <div className="flex justify-center">
@@ -205,7 +204,11 @@ export function CustomerLoginPage() {
 
                             <div className="flex items-center justify-between pt-2">
                                 <button
-                                    onClick={() => { setStep(1); setError(""); setCountdown(0); }}
+                                    onClick={() => {
+                                        setStep(1);
+                                        setError("");
+                                        setCountdown(0);
+                                    }}
                                     className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                                 >
                                     <ArrowLeft className="w-4 h-4" />

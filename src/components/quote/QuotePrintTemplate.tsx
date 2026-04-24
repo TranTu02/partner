@@ -139,7 +139,7 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                                 <tr style={{ backgroundColor: "#e6e6e6" }}>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "11px", width: "4%" }}>{t("order.print.stt")}</th>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "left", fontSize: "11px", width: "31%" }}>{t("order.print.parameter")}</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "left", fontSize: "11px", width: "24%" }}>Phương pháp và công nhận</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "left", fontSize: "11px", width: "24%" }}>{t("table.method", "Phương pháp")}</th>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "11px", width: "14%" }}>{t("order.print.amount")}</th>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "11px", width: "10%" }}>{t("order.print.tax")} (%)</th>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "11px", width: "17%" }}>{t("order.print.total")}</th>
@@ -167,35 +167,7 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                                             <td style={{ border: "1px solid #ccc", padding: "2px 5px", fontSize: "10px" }}>{analysis.parameterName}</td>
                                             <td style={{ border: "1px solid #ccc", padding: "2px 5px", fontSize: "10px" }}>
                                                 <div style={{ fontWeight: "bold" }}>{analysis.protocolCode || "--"}</div>
-                                                <div style={{ fontSize: "9px", marginTop: "2px" }}>
-                                                    {(() => {
-                                                        const source = ((analysis as any).protocolSource || "").trim();
-
-                                                        // Chỉ hiển thị thêm ISO accreditation keys nếu nền mẫu của chỉ tiêu khớp với nền mẫu của mẫu
-                                                        const showAccreditation = analysis.sampleTypeName === sample.sampleTypeName;
-
-                                                        let accKeys = "";
-                                                        if (showAccreditation) {
-                                                            let acc = analysis.protocolAccreditation;
-                                                            if (typeof acc === "string" && acc.startsWith("{")) {
-                                                                try {
-                                                                    acc = JSON.parse(acc);
-                                                                } catch {
-                                                                    acc = null;
-                                                                }
-                                                            }
-                                                            if (acc && typeof acc === "object") {
-                                                                accKeys = Object.entries(acc)
-                                                                    .filter(([, v]) => v)
-                                                                    .map(([k]) => k)
-                                                                    .join(" ");
-                                                            } else if (acc) {
-                                                                accKeys = acc.toString();
-                                                            }
-                                                        }
-                                                        return [source, accKeys].filter(Boolean).join(" ") || "--";
-                                                    })()}
-                                                </div>
+                                                <div style={{ fontSize: "9px", marginTop: "2px" }}>{((analysis as any).protocolSource || "").trim() || ""}</div>
                                             </td>
                                             <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "10px" }}>
                                                 {hasDiscount ? (

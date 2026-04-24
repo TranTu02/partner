@@ -436,7 +436,7 @@ export function CustomerSampleCard({
                     <tbody>
                         {sample.analyses.length === 0 ? (
                             <tr>
-                                <td colSpan={tableReadOnly ? 9 : 11} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                                <td colSpan={tableReadOnly ? 10 : 12} className="px-4 py-8 text-center text-muted-foreground text-sm">
                                     {t("order.noAnalyses")}
                                 </td>
                             </tr>
@@ -610,39 +610,34 @@ export function CustomerSampleCard({
                     </tbody>
                     <tfoot className="bg-muted/20 font-medium">
                         <tr>
-                            <td colSpan={isReadOnly ? 8 : 10} className="px-4 py-2 text-right border-t border-border">
+                            <td colSpan={isReadOnly ? 9 : 11} className="px-4 py-2 text-right border-t border-border">
                                 {t("parameter.sumUnitPrice", "Tổng đơn giá")}:
                             </td>
                             <td className="px-4 py-2 text-right border-t border-border">{summary.totalUnitPrice.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ</td>
-                            {!isReadOnly && <td className="border-t border-border"></td>}
                         </tr>
                         <tr>
-                            <td colSpan={isReadOnly ? 8 : 10} className="px-4 py-2 text-right border-t border-border">
+                            <td colSpan={isReadOnly ? 9 : 11} className="px-4 py-2 text-right border-t border-border">
                                 {t("parameter.totalDiscount", "Chiết khấu")}:
                             </td>
                             <td className="px-4 py-2 text-right border-t border-border">{summary.totalDiscount.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ</td>
-                            {!isReadOnly && <td className="border-t border-border"></td>}
                         </tr>
                         <tr>
-                            <td colSpan={isReadOnly ? 8 : 10} className="px-4 py-2 text-right border-t border-border text-sm italic">
+                            <td colSpan={isReadOnly ? 9 : 11} className="px-4 py-2 text-right border-t border-border text-sm italic">
                                 {t("parameter.sumBeforeTax", "Tiền trước thuế")}:
                             </td>
                             <td className="px-4 py-2 text-right border-t border-border text-sm italic">{summary.totalBeforeTax.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ</td>
-                            {!isReadOnly && <td className="border-t border-border"></td>}
                         </tr>
                         <tr>
-                            <td colSpan={isReadOnly ? 8 : 10} className="px-4 py-2 text-right border-t border-border text-xs text-muted-foreground">
+                            <td colSpan={isReadOnly ? 9 : 11} className="px-4 py-2 text-right border-t border-border text-xs text-muted-foreground">
                                 {t("parameter.totalTax", "Tiền thuế (VAT)")}:
                             </td>
                             <td className="px-4 py-2 text-right border-t border-border text-xs text-muted-foreground">{summary.totalTax.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ</td>
-                            {!isReadOnly && <td className="border-t border-border"></td>}
                         </tr>
                         <tr>
-                            <td colSpan={isReadOnly ? 8 : 10} className="px-4 py-2 text-right border-t border-border font-bold">
+                            <td colSpan={isReadOnly ? 9 : 11} className="px-4 py-2 text-right border-t border-border font-bold">
                                 {t("parameter.sumAfterTax", "Tổng tiền")}:
                             </td>
                             <td className="px-4 py-2 text-right border-t border-border font-bold text-primary">{summary.totalAfterTax.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ</td>
-                            {!isReadOnly && <td className="border-t border-border"></td>}
                         </tr>
                     </tfoot>
                 </table>

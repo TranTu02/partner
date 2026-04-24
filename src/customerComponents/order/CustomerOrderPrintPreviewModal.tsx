@@ -459,8 +459,11 @@ export function CustomerOrderPrintPreviewModal({ isOpen, onClose, data }: Custom
                                     autoresize_bottom_margin: 0,
                                     content_style: `
                                         * { margin: 0; padding: 0; box-sizing: border-box; }
-                                        html { 
-                                            overflow-y: hidden;
+                                         html { 
+                                            background-color: #f0f0f0; 
+                                            display: block; 
+                                            overflow: hidden; 
+                                            text-align: left; 
                                         }
                                         body { 
                                             width: 100%;
@@ -470,6 +473,7 @@ export function CustomerOrderPrintPreviewModal({ isOpen, onClose, data }: Custom
                                             font-family: "Times New Roman", Times, serif; 
                                             font-size: 13px;
                                             line-height: 1.3;
+                                            overflow: hidden;
                                         }
                                         table { width: 100% !important; border-collapse: collapse; margin-bottom: 8px; }
                                         .data-table th, .data-table td { border: 1px solid black !important; padding: 2px 5px 8px 5px !important; vertical-align: top; }
@@ -479,7 +483,6 @@ export function CustomerOrderPrintPreviewModal({ isOpen, onClose, data }: Custom
                                         h3 { font-size: 14px; font-weight: bold; }
                                         thead { display: table-header-group !important; }
                                         tr { page-break-inside: avoid !important; }
-                                        html { background-color: #f0f0f0; display: block; overflow: auto; text-align: left; }
                                         @media print {
                                             body { margin: 0 !important; box-shadow: none !important; width: 100% !important; padding: 0 !important; }
                                             html { background: none; display: block; }

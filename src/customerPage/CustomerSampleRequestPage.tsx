@@ -467,7 +467,7 @@ export function CustomerSampleRequestPage() {
                                 <Section key={sIdx} title={`Mẫu ${sIdx + 1}`} color="indigo">
                                     <div className="grid grid-cols-2 gap-3 mb-4">
                                         <Field label="Tên mẫu" value={sample.sampleName} onChange={(v) => handleUpdateSample(sIdx, "sampleName", v)} onBlur={handleRefreshPreview} />
-                                        <Field label="Ghi chú/Ma trận" value={sample.sampleNote} onChange={(v) => handleUpdateSample(sIdx, "sampleNote", v)} onBlur={handleRefreshPreview} />
+                                        <Field label="Ghi chú" value={sample.sampleNote} onChange={(v) => handleUpdateSample(sIdx, "sampleNote", v)} onBlur={handleRefreshPreview} />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mô tả mẫu thử</label>
@@ -483,9 +483,26 @@ export function CustomerSampleRequestPage() {
                                     <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-4 p-4 bg-muted/20 rounded-xl border border-border/50 shadow-inner">
                                         {DEFAULT_SAMPLE_INFO_LABELS.map((label) => {
                                             const info = (sample.sampleInfo || []).find((i) => i.label === label);
+                                            const isTextArea = label === "Thông tin khác";
                                             return (
-                                                <div key={label}>
-                                                    <Field label={label} value={info?.value || ""} onChange={(v) => handleUpdateSampleInfoByLabel(sIdx, label, v)} onBlur={handleRefreshPreview} />
+                                                <div key={label} className={isTextArea ? "col-span-2" : "col-span-1"}>
+                                                    <label className="block mb-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</label>
+                                                    {isTextArea ? (
+                                                        <textarea
+                                                            className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[60px]"
+                                                            value={info?.value || ""}
+                                                            onChange={(e) => handleUpdateSampleInfoByLabel(sIdx, label, e.target.value)}
+                                                            onBlur={handleRefreshPreview}
+                                                        />
+                                                    ) : (
+                                                        <input
+                                                            type="text"
+                                                            className="w-full px-3 py-1.5 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none"
+                                                            value={info?.value || ""}
+                                                            onChange={(e) => handleUpdateSampleInfoByLabel(sIdx, label, e.target.value)}
+                                                            onBlur={handleRefreshPreview}
+                                                        />
+                                                    )}
                                                 </div>
                                             );
                                         })}

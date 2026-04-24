@@ -6,6 +6,15 @@ import { Pagination } from "@/components/common/Pagination";
 
 type TabType = "matrix" | "parameters" | "groups";
 
+const parseSimpleMarkdown = (text?: string) => {
+    if (!text) return "";
+    let html = text
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.*?)\*/g, "<em>$1</em>")
+        .replace(/\n/g, "<br/>");
+    return html;
+};
+
 export function CustomerParametersPage() {
     const [activeTab, setActiveTab] = useState<TabType>("matrix");
     const [data, setData] = useState<any[]>([]);
@@ -61,7 +70,7 @@ export function CustomerParametersPage() {
         setSearchQuery("");
     };
 
-    const colSpan = activeTab === "matrix" ? 7 : activeTab === "groups" ? 5 : 3;
+    const colSpan = activeTab === "matrix" ? 8 : activeTab === "groups" ? 5 : 4;
 
     const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
         { id: "matrix", label: "Chỉ tiêu - Phương pháp", icon: <FlaskConical className="w-4 h-4" /> },
@@ -120,7 +129,8 @@ export function CustomerParametersPage() {
                                         <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Chỉ tiêu</th>
                                         <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Loại mẫu</th>
                                         <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phương pháp</th>
-                                        <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">Công nhận</th>
+                                        <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">Nơi thực hiện</th>
+                                        <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">Chứng chỉ</th>
                                         <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Đơn giá</th>
                                         <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">Thuế</th>
                                         <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Thành tiền</th>
@@ -129,7 +139,8 @@ export function CustomerParametersPage() {
                                     <>
                                         <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Mã</th>
                                         <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tên chỉ tiêu</th>
-                                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Hiển thị</th>
+                                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Hiển thị (VI / EN)</th>
+                                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ngày tạo</th>
                                     </>
                                 ) : (
                                     <>
@@ -162,16 +173,29 @@ export function CustomerParametersPage() {
                                         <td className="px-4 py-3 text-sm font-medium text-foreground">{item.parameterName}</td>
                                         <td className="px-4 py-3 text-sm text-foreground">{item.sampleTypeName}</td>
                                         <td className="px-4 py-3 text-sm text-foreground">{item.protocolCode}</td>
+                                        <td className="px-4 py-3 text-sm text-center text-muted-foreground">{item.protocolSource || "--"}</td>
                                         <td className="px-4 py-3 text-center">
                                             <div className="flex flex-wrap gap-1 justify-center">
-                                                {item.protocolAccreditation &&
-                                                    Object.entries(item.protocolAccreditation)
+                                                {(() => {
+                                                    let acc = item.protocolAccreditation;
+                                                    if (typeof acc === "string" && acc.startsWith("{")) {
+                                                        try {
+                                                            acc = JSON.parse(acc);
+                                                        } catch {
+                                                            acc = null;
+                                                        }
+                                                    }
+                                                    if (!acc || typeof acc !== "object") return "--";
+                                                    const keys = Object.entries(acc)
                                                         .filter(([, v]) => v)
-                                                        .map(([k]) => (
-                                                            <span key={k} className="px-2 py-0.5 bg-blue-100/50 border border-blue-200 text-blue-700 rounded text-[10px] font-semibold">
-                                                                {k}
-                                                            </span>
-                                                        ))}
+                                                        .map(([k]) => k);
+                                                    if (keys.length === 0) return "--";
+                                                    return keys.map((k) => (
+                                                        <span key={k} className="px-2 py-0.5 bg-blue-100/50 border border-blue-200 text-blue-700 rounded text-[10px] font-semibold">
+                                                            {k}
+                                                        </span>
+                                                    ));
+                                                })()}
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-sm text-right text-foreground">{Math.ceil(item.feeBeforeTax || 0).toLocaleString("vi-VN")} đ</td>
@@ -186,7 +210,12 @@ export function CustomerParametersPage() {
                                     <tr key={item.parameterId} className="border-t border-border hover:bg-muted/30 transition-colors">
                                         <td className="px-4 py-3 text-sm text-muted-foreground font-mono">{item.parameterId}</td>
                                         <td className="px-4 py-3 text-sm font-medium text-foreground">{item.parameterName}</td>
-                                        <td className="px-4 py-3 text-sm text-foreground">{item.displayStyle?.default || item.displayStyle?.eng || "—"}</td>
+                                        <td className="px-4 py-3 text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                                            {item.displayStyle?.default && <div className="mb-2" dangerouslySetInnerHTML={{ __html: parseSimpleMarkdown(item.displayStyle.default) }} />}
+                                            {item.displayStyle?.eng && <div className="text-muted-foreground" dangerouslySetInnerHTML={{ __html: parseSimpleMarkdown(item.displayStyle.eng) }} />}
+                                            {!item.displayStyle?.default && !item.displayStyle?.eng && <span className="text-muted-foreground">-</span>}
+                                        </td>
+                                        <td className="px-4 py-3 text-sm text-foreground">{item.createdAt ? new Date(item.createdAt).toLocaleDateString("vi-VN") : "—"}</td>
                                     </tr>
                                 ))
                             ) : (
@@ -197,7 +226,7 @@ export function CustomerParametersPage() {
 
                                     return (
                                         <tr key={g.groupId} className="border-t border-border hover:bg-muted/30 transition-colors">
-                                            <td className="px-4 py-3 text-sm font-semibold text-foreground align-top">
+                                            <td className="px-4 py-3 text-sm font-bold text-foreground align-top uppercase">
                                                 <div className="flex items-center gap-2">
                                                     <Package className="w-4 h-4 text-primary shrink-0" />
                                                     {g.groupName}

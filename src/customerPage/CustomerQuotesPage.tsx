@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Eye, FileDown, Search, ArrowLeft, Pencil } from "lucide-react";
+import { Eye, FileDown, Search, ArrowLeft, Pencil, Save } from "lucide-react";
 import { CustomerQuoteEditor } from "@/customerComponents/order/CustomerQuoteEditor";
 import type { CustomerQuoteEditorRef } from "@/customerComponents/order/CustomerQuoteEditor";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
@@ -171,6 +171,10 @@ export function CustomerQuotesPage() {
                     feeBeforeTax: a.feeBeforeTax || 0,
                     taxRate: a.taxRate || 0,
                     feeAfterTax: a.feeAfterTax || 0,
+                    protocolCode: a.protocolCode || "",
+                    protocolSource: a.protocolSource || "",
+                    protocolAccreditation: a.protocolAccreditation || "",
+                    sampleTypeName: a.sampleTypeName || "",
                 })),
             })),
             pricing: { subtotal: storedSubtotal, discountAmount: storedDiscount, feeBeforeTax: storedNet, tax: storedTax, total: storedTotal },
@@ -191,6 +195,7 @@ export function CustomerQuotesPage() {
 
     const handleSaveSuccess = (createdQuote?: any) => {
         fetchQuotes();
+        setLocalViewMode("view");
         if (createdQuote?.quoteId) navigate(`/customer/quotes/detail?quoteId=${createdQuote.quoteId}`);
         else navigate("/customer/quotes");
     };
@@ -228,6 +233,20 @@ export function CustomerQuotesPage() {
                                     <span className="hidden sm:inline">In Báo giá</span>
                                 </button>
                             </>
+                        )}
+                        {localViewMode === "edit" && (
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => editorRef.current?.save()}
+                                    className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-bold shadow-md scale-105 active:scale-95"
+                                >
+                                    <Save className="w-4 h-4" />
+                                    <span>Lưu thay đổi</span>
+                                </button>
+                                <button onClick={() => setLocalViewMode("view")} className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
+                                    Hủy
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>

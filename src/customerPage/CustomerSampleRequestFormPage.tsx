@@ -25,6 +25,8 @@ export function SampleRequestFormPage() {
     const [showGuide, setShowGuide] = useState(false); // For mobile modal
     const [showPrintConfirm, setShowPrintConfirm] = useState(false);
 
+    const DEFAULT_SAMPLE_INFO_LABELS = ["Số lô", "Ngày sản xuất", "Nơi sản xuất", "Hạn sử dụng", "Số công bố", "Số đăng ký", "Thông tin khác"];
+
     // Removed isLocked logic to allow editing at all times
 
     // Removed URI verification effect here, combined below
@@ -243,6 +245,26 @@ export function SampleRequestFormPage() {
         const newAnalyses = [...newSamples[sampleIndex].analyses];
         newAnalyses[analysisIndex] = { ...newAnalyses[analysisIndex], [field]: value };
         newSamples[sampleIndex] = { ...newSamples[sampleIndex], analyses: newAnalyses };
+        const newData = { ...data, samples: newSamples };
+        setData(newData);
+
+        if (editorRef.current) {
+            const html = generateSampleRequestHtml(newData, t);
+            editorRef.current.setContent(html);
+        }
+    };
+
+    const updateSampleInfoData = (sampleIndex: number, label: string, value: string) => {
+        if (!data) return;
+        const newSamples = [...data.samples];
+        const currentInfo = [...(newSamples[sampleIndex].sampleInfo || [])];
+        const foundIdx = currentInfo.findIndex((i) => i.label === label);
+        if (foundIdx >= 0) {
+            currentInfo[foundIdx] = { ...currentInfo[foundIdx], value };
+        } else {
+            currentInfo.push({ label, value });
+        }
+        newSamples[sampleIndex] = { ...newSamples[sampleIndex], sampleInfo: currentInfo };
         const newData = { ...data, samples: newSamples };
         setData(newData);
 
@@ -545,16 +567,60 @@ export function SampleRequestFormPage() {
                             {data.samples.map((sample, sampleIdx) => (
                                 <div key={sampleIdx} className="bg-card rounded-lg border border-border p-4 shadow-sm relative pt-5">
                                     <div className="absolute top-0 left-0 bg-primary/10 text-primary px-2 py-0.5 rounded-br-lg text-[10px] font-bold uppercase tracking-wider">Mẫu {sampleIdx + 1}</div>
-                                    <div className="font-semibold text-sm mb-3 mt-1 text-foreground border-b pb-2">{sample.sampleName}</div>
+                                    <div className="grid grid-cols-2 gap-3 mb-4 mt-1">
+                                        <div>
+                                            <label className="block mb-1 text-[11px] font-bold text-muted-foreground uppercase">Tên mẫu</label>
+                                            <input
+                                                type="text"
+                                                className="w-full px-3 py-1.5 border border-border rounded-lg bg-input text-foreground text-xs focus:ring-1 focus:ring-primary outline-none"
+                                                value={sample.sampleName || ""}
+                                                onChange={(e) => updateSampleData(sampleIdx, "sampleName", e.target.value)}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block mb-1 text-[11px] font-bold text-muted-foreground uppercase">Ghi chú/Ma trận</label>
+                                            <input
+                                                type="text"
+                                                className="w-full px-3 py-1.5 border border-border rounded-lg bg-input text-foreground text-xs focus:ring-1 focus:ring-primary outline-none"
+                                                value={sample.sampleNote || ""}
+                                                onChange={(e) => updateSampleData(sampleIdx, "sampleNote", e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
                                     <div className="mb-4">
                                         <label className="block mb-1.5 text-xs font-medium text-muted-foreground">{t("sampleRequest.table.sampleDesc", "Mô tả mẫu")}</label>
-                                        <input
-                                            type="text"
-                                            className="w-full px-3 py-1.5 border border-border rounded-md focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm transition-shadow"
+                                        <textarea
+                                            className="w-full px-3 py-2 border border-border rounded-md focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm transition-shadow min-h-[80px]"
                                             value={sample.sampleDesc || ""}
                                             onChange={(e) => updateSampleData(sampleIdx, "sampleDesc", e.target.value)}
-                                            placeholder="Ghi chú thêm về mẫu này..."
+                                            placeholder="Nhập mô tả mẫu thử..."
                                         />
+                                    </div>
+
+                                    <div className="mb-6 grid grid-cols-2 gap-x-3 gap-y-3 p-3 bg-muted/20 rounded-lg border border-border/50">
+                                        {DEFAULT_SAMPLE_INFO_LABELS.map((label) => {
+                                            const info = (sample.sampleInfo || []).find((i) => i.label === label);
+                                            const isTextArea = label === "Thông tin khác";
+                                            return (
+                                                <div key={label} className={isTextArea ? "col-span-2" : "col-span-1"}>
+                                                    <label className="block mb-1 text-[10px] font-bold text-muted-foreground uppercase">{label}</label>
+                                                    {isTextArea ? (
+                                                        <textarea
+                                                            className="w-full px-2 py-1.5 border border-border rounded-md bg-white text-xs focus:ring-1 focus:ring-primary outline-none min-h-[60px]"
+                                                            value={info?.value || ""}
+                                                            onChange={(e) => updateSampleInfoData(sampleIdx, label, e.target.value)}
+                                                        />
+                                                    ) : (
+                                                        <input
+                                                            type="text"
+                                                            className="w-full px-2 py-1 border border-border rounded-md bg-white text-xs focus:ring-1 focus:ring-primary outline-none"
+                                                            value={info?.value || ""}
+                                                            onChange={(e) => updateSampleInfoData(sampleIdx, label, e.target.value)}
+                                                        />
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
 
                                     <div className="space-y-4">
@@ -815,6 +881,7 @@ function mapOrderDetailResponseToPrintData(resp: any): OrderPrintData {
             sampleMatrix: s?.sampleMatrix ?? "",
             sampleNote: s?.sampleNote ?? "",
             sampleDesc: s?.sampleDesc ?? "",
+            sampleInfo: s?.sampleInfo ?? [],
             analyses: (s?.analyses ?? []).map((a: any) => ({
                 parameterName: a?.parameterName ?? "",
                 parameterId: a?.parameterId ?? undefined,
@@ -824,6 +891,7 @@ function mapOrderDetailResponseToPrintData(resp: any): OrderPrintData {
                 analysisUnit: a?.analysisUnit ?? undefined,
                 protocolCode: a?.protocolCode ?? undefined,
                 protocolAccreditation: a?.protocolAccreditation ?? undefined,
+                protocolSource: a?.protocolSource ?? undefined,
                 sampleTypeName: a?.sampleTypeName ?? undefined,
             })),
         })),
@@ -871,18 +939,29 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                         ? `<td rowspan="${rowCount}" style="text-align:center; padding:5px; border: 1px solid #000 !important; vertical-align: top !important;">${sampleIdx + 1}</td>`
                         : "";
 
+                    // Build all sampleInfo lines, filtering out empty values for preview
+                    const allSampleInfo = sample.sampleInfo && sample.sampleInfo.length > 0 ? sample.sampleInfo.filter((i: any) => i.value && i.value.trim().length > 0) : [];
+
+                    // Always show Tên mẫu thử if it was handled as sampleName and no sampleInfo yet
+                    const hasSampleNameInInfo = allSampleInfo.some((i: any) => i.label === "Tên mẫu thử");
+                    const sampleInfoLines = allSampleInfo
+                        .map((info: any) => `<div><span style="font-weight:300;">${info.label}</span><strong>:</strong> <span style="font-weight:700;">${info.value || ""}</span></div>`)
+                        .join("");
+
+                    const sampleNameLineHtml =
+                        !hasSampleNameInInfo && sample.sampleName
+                            ? `<div><span style="font-weight:300;">Tên mẫu thử</span><strong>:</strong> <span style="font-weight:700;">${sample.sampleName}</span></div>`
+                            : "";
+
                     const sampleCell = isFirst
                         ? `
-              <td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important ; vertical-align:top !important;">
-                <div style="margin-bottom:2px;"><span style="font-weight:300;">${t("sampleRequest.sampleInfo.sampleName")}</span><strong>:</strong> <span style="font-weight:700;">${sample.sampleName || ""}</span></div>
-                <div style="font-size:13px; line-height:1.2;">
-                  <div><span style="font-weight:300;">${t("sampleRequest.sampleInfo.lotNo")}</span><strong>:</strong></div>
-                  <div><span style="font-weight:300;">${t("sampleRequest.sampleInfo.mfgDate")}</span><strong>:</strong></div>
-                  <div><span style="font-weight:300;">${t("sampleRequest.sampleInfo.expDate")}</span><strong>:</strong></div>
-                  <div><span style="font-weight:300;">${t("sampleRequest.sampleInfo.placeOfOrigin")}</span><strong>:</strong></div>
-                </div>
-              </td>
-            `
+               <td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important ; vertical-align:top !important;">
+                 <div style="font-size:13px; line-height:1.4;">
+                   ${sampleNameLineHtml}
+                   ${sampleInfoLines}
+                 </div>
+               </td>
+             `
                         : "";
 
                     const descCell = isFirst
@@ -893,28 +972,34 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             `
                         : "";
 
-                    const allMethodsEmpty = analyses.every((a: any) => !a.protocolCode || (a.protocolCode || "").trim() === "");
+                    // Method and Accreditation cells per sample analysis
+                    const methodHtml = analysis.protocolCode || "Đã thống nhất với Irdop";
 
-                    // Method and Note columns
-                    let methodCell = "";
-                    if (allMethodsEmpty) {
-                        methodCell = isFirst
-                            ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;">Đã thống nhất phương pháp kiểm nghiệm với Irdop</td>`
-                            : "";
-                    } else {
-                        methodCell = `<td style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;">${analysis.protocolCode || ""}</td>`;
+                    let accHtml = "--";
+                    let accObj = analysis.protocolAccreditation;
+                    if (typeof accObj === "string" && accObj.startsWith("{")) {
+                        try {
+                            accObj = JSON.parse(accObj);
+                        } catch {
+                            accObj = null;
+                        }
+                    }
+                    if (accObj && typeof accObj === "object") {
+                        const accs = Object.entries(accObj)
+                            .filter(([, v]) => v)
+                            .map(([k]) => k);
+                        if (accs.length > 0) accHtml = accs.join(", ");
                     }
 
-                    const isAccredited = analysis.sampleTypeName === (sample.sampleTypeName || sample.sampleMatrix);
-                    const accrHtml =
-                        isAccredited && analysis.protocolAccreditation && typeof analysis.protocolAccreditation === "object"
-                            ? Object.entries(analysis.protocolAccreditation)
-                                  .filter(([, v]) => v)
-                                  .map(([k]) => k)
-                                  .join(", ")
-                            : "";
+                    const sourceText = (analysis as any).protocolSource || "";
+                    const methodCell = `<td style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important; text-align:left;">${methodHtml}</td>`;
+                    const accCellContent = `
+                        <div>${sourceText}</div>
+                        <div style="font-weight: bold; ${sourceText && accHtml !== "--" ? "margin-top: 2px;" : ""}">${accHtml !== "--" ? accHtml : ""}</div>
+                        ${!sourceText && accHtml === "--" ? "--" : ""}
+                    `;
+                    const accrCell = `<td style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important; text-align:left; font-size:11px;">${accCellContent}</td>`;
 
-                    const accrCell = `<td style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important; text-align: center; font-size: 11px;">${accrHtml}</td>`;
                     const noteCell = isFirst ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;"></td>` : "";
 
                     return `
@@ -1115,10 +1200,10 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                 ${t("sampleRequest.table.parameters")}</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 55px;">
                 Đơn vị</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 115px;">
-                ${t("table.method")}</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 80px;">
-                C.Nhận</th>
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 105px;">
+                ${t("table.method", "Phương pháp")}</th>
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 65px;">
+                ${t("parameter.accreditation", "Công nhận")}</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 60px;">
                 ${t("sample.note")}</th>
             </tr>

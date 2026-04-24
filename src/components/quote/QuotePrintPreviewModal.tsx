@@ -59,6 +59,7 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                         <tr style="background-color: #e6e6e6;">
                             <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; width: 50px; vertical-align: top;">${t("order.print.stt")}</th>
                             <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: left; vertical-align: top;">${t("order.print.parameter")}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: left; width: 24%; vertical-align: top;">${t("table.method", "Phương pháp")}</th>
                             <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">${t("order.print.amount")}</th>
                             <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; width: 80px; vertical-align: top;">${t("order.print.tax", "Thuế")} (%)</th>
                             <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">${t("order.print.total")}</th>
@@ -71,6 +72,10 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                             <tr style="page-break-inside: avoid;">
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top;">${i + 1}</td>
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; vertical-align: top;">${analysis.parameterName}</td>
+                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: left; vertical-align: top;">
+                                    <div style="font-weight: bold;">${analysis.protocolCode || "--"}</div>
+                                    <div style="font-size: 9px; margin-top: 2px;">${((analysis as any).protocolSource || "").trim() || ""}</div>
+                                </td>
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">
                                     ${(() => {
                                         const globalDiscountRate = Number(data.discountRate) || 0;
@@ -110,14 +115,14 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                             .join("")}
                         
                         <tr>
-                            <td colspan="4" style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">${t("parameter.sumAfterTax", "Tổng tiền")}</td>
+                            <td colspan="5" style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">${t("parameter.sumAfterTax", "Tổng tiền")}</td>
                             <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">${fmtMoney(sampleTotalAfterTax)} </td>
                         </tr>
                         ${
                             data.samples.length > 0 && Number(sample.quantity) > 1
                                 ? `
                         <tr>
-                            <td colspan="4" style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">
+                            <td colspan="5" style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">
                                 ${t("sample.grandTotal", "Tổng cộng (x{{qty}} mẫu)", { qty: sample.quantity })}
                             </td>
                             <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top; color: #2563eb;">
@@ -391,7 +396,7 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                 <div className="flex-grow bg-gray-100/50 overflow-auto p-4 flex justify-center">
                     <div className="w-[794px] min-w-[794px] mx-auto bg-white shadow-lg relative">
                         {!editorReady && <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted/50">{t("common.loading")}</div>}
-                        <div style={{ visibility: editorReady ? "visible" : "hidden", height: "100%" }}>
+                        <div style={{ visibility: editorReady ? "visible" : "hidden" }}>
                             <Editor
                                 tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
                                 onInit={(_evt: any, editor: any) => {
@@ -400,7 +405,6 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                                 }}
                                 initialValue={generateQuoteHtml(data)}
                                 init={{
-                                    height: "100%",
                                     width: "100%",
                                     menubar: false,
                                     statusbar: false,
@@ -413,8 +417,11 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                                     autoresize_bottom_margin: 0,
                                     content_style: `
                                         * { margin: 0; padding: 0; box-sizing: border-box; }
-                                        html { 
-                                            overflow-y: hidden;
+                                         html { 
+                                            background-color: #f0f0f0; 
+                                            display: block; 
+                                            overflow: hidden; 
+                                            text-align: left; 
                                         }
                                         body { 
                                             width: 100%;
@@ -424,6 +431,7 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                                             font-family: "Times New Roman", Times, serif; 
                                             font-size: 13px;
                                             line-height: 1.3;
+                                            overflow: hidden;
                                         }
                                         table { width: 100% !important; border-collapse: collapse; margin-bottom: 8px; }
                                         .data-table th, .data-table td { border: 1px solid black !important; padding: 2px 5px 8px 5px !important; vertical-align: top; }
@@ -433,7 +441,6 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                                         h3 { font-size: 14px; font-weight: bold; }
                                         thead { display: table-header-group !important; }
                                         tr { page-break-inside: avoid !important; }
-                                        html { background-color: #f0f0f0; display: block; overflow: auto; text-align: left; }
                                         @media print {
                                             body { margin: 0 !important; box-shadow: none !important; width: 100% !important; padding: 0 !important; }
                                             html { background: none; display: block; }

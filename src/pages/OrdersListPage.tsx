@@ -211,7 +211,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
             samples: ((fullOrder as any).samples || (fullOrder as any).orderSamples || []).map((s: any) => ({
                 ...s,
                 sampleName: s.sampleName || "",
-                sampleTypeName: s.sampleTypeName || (s as any).sampleMatrix || "",
+                sampleTypeName: s.sampleTypeName || (s as any).sampleMatrix || (s as any).matrix || (s as any).librarySampleType?.sampleTypeName || "",
                 sampleNote: s.sampleNote || "",
                 analyses: (s.analyses || []).map((a: any) => ({
                     ...a,

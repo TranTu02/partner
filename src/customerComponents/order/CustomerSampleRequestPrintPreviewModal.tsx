@@ -260,14 +260,42 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                             <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Danh sách mẫu</h4>
                             {tempData.samples.map((sample, sIdx) => (
                                 <Section key={sIdx} title={`Mẫu ${sIdx + 1}`} color="indigo">
-                                    <Field label="Tên mẫu" value={sample.sampleName} onChange={(v) => handleUpdateSample(sIdx, "sampleName", v)} onBlur={handleRefreshPreview} />
-                                    <Field label="Mô tả" value={sample.sampleDesc} onChange={(v) => handleUpdateSample(sIdx, "sampleDesc", v)} onBlur={handleRefreshPreview} />
+                                    <div className="grid grid-cols-2 gap-3 mb-4">
+                                        <Field label="Tên mẫu" value={sample.sampleName} onChange={(v) => handleUpdateSample(sIdx, "sampleName", v)} onBlur={handleRefreshPreview} />
+                                        <Field label="Ghi chú/Ma trận" value={sample.sampleNote || ""} onChange={(v) => handleUpdateSample(sIdx, "sampleNote", v)} onBlur={handleRefreshPreview} />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-0.5">Mô tả mẫu thử</label>
+                                        <textarea
+                                            className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[80px]"
+                                            value={sample.sampleDesc || ""}
+                                            onChange={(e) => handleUpdateSample(sIdx, "sampleDesc", e.target.value)}
+                                            onBlur={handleRefreshPreview}
+                                        />
+                                    </div>
 
                                     {sample.sampleInfo && sample.sampleInfo.length > 0 && (
                                         <div className="mt-3 grid grid-cols-2 gap-2 p-2 bg-muted/20 rounded-md border border-border/50">
-                                            {sample.sampleInfo.map((info, iIdx) => (
-                                                <Field key={iIdx} label={info.label} value={info.value} onChange={(v) => handleUpdateSampleInfo(sIdx, iIdx, v)} onBlur={handleRefreshPreview} />
-                                            ))}
+                                            {sample.sampleInfo.map((info, iIdx) => {
+                                                const isTextArea = info.label === "Thông tin khác";
+                                                return (
+                                                    <div key={iIdx} className={isTextArea ? "col-span-2" : "col-span-1"}>
+                                                        {isTextArea ? (
+                                                            <div>
+                                                                <label className="block mb-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{info.label}</label>
+                                                                <textarea
+                                                                    className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[60px]"
+                                                                    value={info.value || ""}
+                                                                    onChange={(e) => handleUpdateSampleInfo(sIdx, iIdx, e.target.value)}
+                                                                    onBlur={handleRefreshPreview}
+                                                                />
+                                                            </div>
+                                                        ) : (
+                                                            <Field label={info.label} value={info.value} onChange={(v) => handleUpdateSampleInfo(sIdx, iIdx, v)} onBlur={handleRefreshPreview} />
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     )}
 
@@ -318,28 +346,29 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                                 </div>
                             </div>
                         )}
-                        <Editor
-                            key={tempData.orderId}
-                            tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
-                            onInit={(_evt, editor) => {
-                                editorRef.current = editor;
-                                editor.mode.set(isLocked ? "readonly" : "design");
-                                setEditorReady(true);
-                            }}
-                            initialValue={initialHtml}
-                            init={{
-                                width: "100%",
-                                min_height: 1123,
-                                menubar: false,
-                                statusbar: false,
-                                plugins: "table lists code print noneditable autoresize paste",
-                                toolbar: "bold italic | alignleft aligncenter alignright | table | code print",
-                                toolbar_mode: "wrap",
-                                paste_as_text: true,
-                                noneditable_noneditable_class: "mceNonEditable",
-                                noneditable_editable_class: "mceEditable",
-                                visual: false,
-                                content_style: `
+                        <div style={{ visibility: editorReady ? "visible" : "hidden" }}>
+                            <Editor
+                                key={tempData.orderId}
+                                tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
+                                onInit={(_evt, editor) => {
+                                    editorRef.current = editor;
+                                    editor.mode.set(isLocked ? "readonly" : "design");
+                                    setEditorReady(true);
+                                }}
+                                initialValue={initialHtml}
+                                init={{
+                                    width: "100%",
+                                    min_height: 1123,
+                                    menubar: false,
+                                    statusbar: false,
+                                    plugins: "table lists code print noneditable autoresize paste",
+                                    toolbar: "bold italic | alignleft aligncenter alignright | table | code print",
+                                    toolbar_mode: "wrap",
+                                    paste_as_text: true,
+                                    noneditable_noneditable_class: "mceNonEditable",
+                                    noneditable_editable_class: "mceEditable",
+                                    visual: false,
+                                    content_style: `
                                     @import url('https://fonts.googleapis.com/css2?family=Reddit+Mono:wght@200..900&display=swap');
                                     body { 
                                         font-family: 'Reddit Mono', monospace !important;
@@ -349,7 +378,9 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                                         font-size: 13px;
                                         line-height: 1.4;
                                         color: #1e293b;
+                                        overflow: hidden;
                                     }
+                                    html { overflow: hidden; }
                                     table { width: 100% !important; border-collapse: collapse; margin-bottom: 10px; }
                                     th, td { border: 1px solid black !important; padding: 5px !important; vertical-align: top; }
                                     .mceNonEditable { color: #64748b; }
@@ -358,10 +389,12 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                                         @page { size: A4 portrait; margin: 0; }
                                         body { padding: 8mm !important; }
                                         .mceEditable { border-bottom: none !important; }
+                                        html { overflow: visible; }
                                     }
                                 `,
-                            }}
-                        />
+                                }}
+                            />
+                        </div>
                     </div>
                 </div>
 

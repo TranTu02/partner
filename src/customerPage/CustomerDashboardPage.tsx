@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Building2, Mail, MapPin, ShoppingCart, FileText, Clock, CheckCircle, ArrowRight, Pencil, Plus, X, Save, Loader2, User, Users, ShieldCheck, DollarSign, Calendar, Trash2 } from "lucide-react";
-import { customerMe, customerGetOrders, customerUpdateProfile } from "@/api/customer";
+import { customerMe, customerGetOrders, customerUpdateProfile, customerGetClientFull } from "@/api/customer";
 import { toast } from "sonner";
 
 export function CustomerDashboardPage() {
@@ -34,18 +34,26 @@ export function CustomerDashboardPage() {
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [profileRes, ordersRes] = await Promise.all([
-                customerMe({}), // GET /customer/v1/auth/me — authoritative client profile
-                customerGetOrders({ query: { page: 1, itemsPerPage: 8 } }),
-            ]);
+            const [meRes, ordersRes] = await Promise.all([customerMe({}), customerGetOrders({ query: { page: 1, itemsPerPage: 8 } })]);
 
-            if (profileRes.success && profileRes.data) {
-                // me returns identity or the profile directly
-                const profile = profileRes.data?.identity || profileRes.data;
-                setClient(profile);
-                setEditForm(profile);
-                // Keep localStorage in sync
-                localStorage.setItem("customer", JSON.stringify(profile));
+            if (meRes.success && meRes.data) {
+                const identity = meRes.data?.identity || meRes.data;
+                const clientId = identity?.clientId;
+
+                if (clientId) {
+                    const fullRes = await customerGetClientFull({ query: { clientId } });
+                    if (fullRes.success && fullRes.data) {
+                        const profile = fullRes.data;
+                        setClient(profile);
+                        setEditForm(profile);
+                        localStorage.setItem("customer", JSON.stringify(profile));
+                    } else {
+                        // Fallback to identity if full profile fails
+                        setClient(identity);
+                        setEditForm(identity);
+                        localStorage.setItem("customer", JSON.stringify(identity));
+                    }
+                }
             }
 
             if (ordersRes.success && ordersRes.data) {
@@ -242,7 +250,7 @@ export function CustomerDashboardPage() {
             {isEditModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsEditModalOpen(false)} />
-                    <div className="relative w-full max-w-5xl bg-card rounded-2xl shadow-2xl border border-border overflow-hidden animate-fade-in-scale">
+                    <div className="relative w-full max-w-7xl bg-card rounded-2xl shadow-2xl border border-border overflow-hidden animate-fade-in-scale">
                         <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-muted/30">
                             <h3 className="text-lg font-bold text-foreground">Chỉnh sửa thông tin khách hàng</h3>
                             <button onClick={() => setIsEditModalOpen(false)} className="p-2 hover:bg-muted rounded-lg transition-colors">

@@ -236,8 +236,8 @@ export function SampleCard({
         <div className="bg-card rounded-lg border border-border p-6">
             {/* Header */}
             <div className="flex items-start gap-4 mb-4">
-                <div className={`flex-1 grid gap-4 ${showSampleQuantity ? "grid-cols-5" : "grid-cols-4"}`}>
-                    <div className={showSampleQuantity ? "col-span-2" : "col-span-3"}>
+                <div className={`flex-1 grid gap-4 ${showSampleQuantity ? "grid-cols-6" : "grid-cols-5"}`}>
+                    <div className="col-span-2">
                         <label className="block mb-2 text-sm font-medium text-foreground">
                             {t("order.sampleName")} #{sampleIndex + 1} <span className="text-destructive">*</span>
                         </label>
@@ -250,7 +250,18 @@ export function SampleCard({
                             disabled={isReadOnly}
                         />
                     </div>
-                    <div className={showSampleQuantity ? "col-span-2" : ""}>
+                    <div className="col-span-1">
+                        <label className="block mb-2 text-sm font-medium text-foreground">{t("order.sampleMatrix")}</label>
+                        <input
+                            type="text"
+                            className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            value={sample.sampleTypeName || ""}
+                            onChange={(e) => onUpdateSample({ sampleTypeName: e.target.value })}
+                            placeholder={t("order.sampleMatrixPlaceholder", "Nền mẫu")}
+                            disabled={isReadOnly}
+                        />
+                    </div>
+                    <div className={showSampleQuantity ? "col-span-2" : "col-span-2"}>
                         <label className="block mb-2 text-sm font-medium text-foreground">{t("sample.note")}</label>
                         <input
                             type="text"
@@ -338,6 +349,8 @@ export function SampleCard({
                             <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.print.stt")}</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.print.parameter")}</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.sampleMatrix")}</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("parameter.protocol", "Phương pháp")}</th>
+                            <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">{t("parameter.accreditation", "Công nhận")}</th>
                             <th className="px-2 py-3 text-right text-sm font-semibold text-foreground w-[130px]">{t("order.print.unitPrice")}</th>
                             <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">{t("parameter.tax")}</th>
                             <th className="px-2 py-3 text-right text-sm font-semibold text-foreground w-[150px]">{t("order.lineTotal")}</th>
@@ -347,7 +360,7 @@ export function SampleCard({
                     <tbody>
                         {sample.analyses.length === 0 ? (
                             <tr>
-                                <td colSpan={isReadOnly ? 6 : 8} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                                <td colSpan={isReadOnly ? 8 : 10} className="px-4 py-8 text-center text-muted-foreground text-sm">
                                     {t("order.noAnalyses")}
                                 </td>
                             </tr>
@@ -387,6 +400,38 @@ export function SampleCard({
                                                 </td>
                                                 <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
                                                     {analysis.sampleTypeName}
+                                                </td>
+                                                <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
+                                                    {isReadOnly ? (
+                                                        (analysis as any).protocolCode
+                                                    ) : (
+                                                        <input
+                                                            type="text"
+                                                            className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent"
+                                                            value={(analysis as any).protocolCode || ""}
+                                                            onChange={(e) => handleAnalysisChange(index, "protocolCode" as any, e.target.value)}
+                                                            placeholder={t("parameter.protocol")}
+                                                        />
+                                                    )}
+                                                </td>
+                                                <td className={`px-4 py-3 text-sm text-center ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
+                                                    <div className="flex flex-wrap gap-1 justify-center">
+                                                        {(() => {
+                                                            if ((analysis as any).protocolAccreditation) {
+                                                                const accs = Object.entries((analysis as any).protocolAccreditation)
+                                                                    .filter(([, v]) => v)
+                                                                    .map(([k]) => k);
+                                                                if (accs.length > 0) {
+                                                                    return accs.map((k) => (
+                                                                        <span key={k} className="px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded text-[10px] font-bold">
+                                                                            {k}
+                                                                        </span>
+                                                                    ));
+                                                                }
+                                                            }
+                                                            return "--";
+                                                        })()}
+                                                    </div>
                                                 </td>
                                                 <td className={`px-2 py-3 text-right text-sm text-foreground w-[130px] ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
                                                     <div className="flex flex-col items-end">
@@ -523,39 +568,39 @@ export function SampleCard({
                     </tbody>
                     <tfoot className="bg-muted/20 font-medium">
                         <tr>
-                            <td colSpan={isReadOnly ? 5 : 6} className="px-4 py-2 text-right border-t border-border">
+                            <td colSpan={isReadOnly ? 7 : 8} className="px-4 py-2 text-right border-t border-border">
                                 {t("parameter.sumUnitPrice", "Tổng đơn giá")}:
                             </td>
                             <td className="px-4 py-2 text-right border-t border-border">{summary.totalUnitPrice.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ</td>
                             {!isReadOnly && <td className="border-t border-border"></td>}
                         </tr>
                         <tr>
-                            <td colSpan={isReadOnly ? 5 : 6} className="px-4 py-2 text-right border-t border-border">
-                                {t("parameter.totalDiscount", "Giảm giá")}:
+                            <td colSpan={isReadOnly ? 7 : 8} className="px-4 py-2 text-right border-t border-border">
+                                {t("parameter.totalDiscount", "Chiết khấu")}:
                             </td>
                             <td className="px-4 py-2 text-right border-t border-border">{summary.totalDiscount.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ</td>
                             {!isReadOnly && <td className="border-t border-border"></td>}
                         </tr>
                         <tr>
-                            <td colSpan={isReadOnly ? 5 : 6} className="px-4 py-2 text-right border-t border-border">
-                                {t("parameter.sumBeforeTax", "Tổng tiền trước thuế")}:
+                            <td colSpan={isReadOnly ? 7 : 8} className="px-4 py-2 text-right border-t border-border">
+                                {t("parameter.sumBeforeTax", "Tiền trước thuế")}:
                             </td>
                             <td className="px-4 py-2 text-right border-t border-border">{summary.totalBeforeTax.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ</td>
                             {!isReadOnly && <td className="border-t border-border"></td>}
                         </tr>
                         <tr>
-                            <td colSpan={isReadOnly ? 5 : 6} className="px-4 py-2 text-right border-t border-border font-bold">
-                                {t("parameter.sumAfterTax", "Tổng tiền sau thuế")}:
+                            <td colSpan={isReadOnly ? 7 : 8} className="px-4 py-2 text-right border-t border-border font-bold">
+                                {t("parameter.sumAfterTax", "Tổng tiền")}:
                             </td>
-                            <td className="px-4 py-2 text-right border-t border-border font-bold text-primary">{summary.totalAfterTax.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ</td>
+                            <td className="px-4 py-2 text-right border-t border-border font-bold">{summary.totalAfterTax.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ</td>
                             {!isReadOnly && <td className="border-t border-border"></td>}
                         </tr>
                         {showSampleQuantity && (
                             <tr>
-                                <td colSpan={isReadOnly ? 5 : 6} className="px-4 py-2 text-right border-t border-border font-bold">
+                                <td colSpan={isReadOnly ? 7 : 8} className="px-4 py-2 text-right border-t border-border font-bold">
                                     {t("sample.grandTotal", "Tổng cộng (x{{qty}} mẫu)", { qty: summary.sampleQuantity })}:
                                 </td>
-                                <td className="px-4 py-2 text-right border-t border-border font-bold text-primary">
+                                <td className="px-4 py-2 text-right border-t border-border font-bold">
                                     {(summary.totalAfterTax * summary.sampleQuantity).toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ
                                 </td>
                                 {!isReadOnly && <td className="border-t border-border"></td>}

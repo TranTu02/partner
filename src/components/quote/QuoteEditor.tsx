@@ -150,7 +150,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                             protocolAccreditation: (a as any).protocolAccreditation || (a.protocol && a.protocol.protocolAccreditation),
                         };
                     }),
-                    sampleTypeName: s.sampleTypeName || s.sampleMatrix || "",
+                    sampleTypeName: s.sampleTypeName || s.sampleMatrix || s.matrix || s.librarySampleType?.sampleTypeName || "",
                 }));
                 setSamples(mappedSamples);
             }

@@ -152,39 +152,58 @@ export const CustomerQuoteEditor = forwardRef<CustomerQuoteEditorRef, CustomerQu
 
     // Pricing calculation
     const calculatePricing = () => {
-        let totalFeeBeforeTax = 0;
+        let totalListPrice = 0;
+        let totalIndividualDiscount = 0;
+        let totalFeeBeforeTaxNet = 0;
         let sumVAT = 0;
+
         samples.forEach((sample) => {
-            let sampleSubtotal = 0;
+            let sampleListPrice = 0;
+            let sampleIndividualDiscount = 0;
+            let sampleSubtotalNet = 0;
             let sampleVAT = 0;
+
             sample.analyses.forEach((a) => {
                 const qty = Number(a.quantity || 1);
                 const unitPrice = Number(a.unitPrice || 0);
                 const dr = Number(a.discountRate || 0);
                 const tr = Number(a.taxRate || 0);
-                const lineNet = unitPrice * qty * (1 - dr / 100);
-                sampleSubtotal += lineNet;
+
+                const lineList = unitPrice * qty;
+                const lineDiscount = lineList * (dr / 100);
+                const lineNet = lineList - lineDiscount;
+
+                sampleListPrice += lineList;
+                sampleIndividualDiscount += lineDiscount;
+                sampleSubtotalNet += lineNet;
                 sampleVAT += lineNet * (tr / 100);
             });
             const sampleQty = Number(sample.quantity || 1);
-            totalFeeBeforeTax += sampleSubtotal * sampleQty;
+            totalListPrice += sampleListPrice * sampleQty;
+            totalIndividualDiscount += sampleIndividualDiscount * sampleQty;
+            totalFeeBeforeTaxNet += sampleSubtotalNet * sampleQty;
             sumVAT += sampleVAT * sampleQty;
         });
-        const discountAmount = totalFeeBeforeTax * (discountRate / 100);
-        const feeBeforeTaxAfterDiscount = totalFeeBeforeTax - discountAmount;
+
+        const globalDiscountAmount = totalFeeBeforeTaxNet * (discountRate / 100);
+        const totalDiscount = totalIndividualDiscount + globalDiscountAmount;
+        const feeBeforeTaxAfterGlobalDiscount = totalFeeBeforeTaxNet - globalDiscountAmount;
         const totalTax = sumVAT * (1 - discountRate / 100);
+
         let otherFee = 0,
             otherVAT = 0;
         otherItems.forEach((i) => {
             otherFee += Number(i.feeBeforeTax || 0);
             otherVAT += (Number(i.feeBeforeTax || 0) * Number(i.taxRate || 0)) / 100;
         });
+
         return {
-            subtotal: totalFeeBeforeTax,
-            discountAmount,
-            feeBeforeTax: feeBeforeTaxAfterDiscount + otherFee,
+            subtotal: totalListPrice,
+            globalDiscountAmount,
+            totalDiscount,
+            feeBeforeTax: feeBeforeTaxAfterGlobalDiscount + otherFee,
             tax: totalTax + otherVAT,
-            total: feeBeforeTaxAfterDiscount + totalTax + otherFee + otherVAT,
+            total: feeBeforeTaxAfterGlobalDiscount + totalTax + otherFee + otherVAT,
         };
     };
     const pricing = calculatePricing();
@@ -316,7 +335,7 @@ export const CustomerQuoteEditor = forwardRef<CustomerQuoteEditorRef, CustomerQu
             discountRate,
             otherItems,
             totalFeeBeforeTax: pricing.subtotal,
-            totalDiscountValue: pricing.discountAmount,
+            totalDiscountValue: pricing.totalDiscount,
             totalFeeBeforeTaxAndDiscount: pricing.feeBeforeTax,
             totalTaxValue: pricing.tax,
             totalAmount: pricing.total,
@@ -369,6 +388,7 @@ export const CustomerQuoteEditor = forwardRef<CustomerQuoteEditorRef, CustomerQu
                 return {
                     sampleName: s.sampleName || "",
                     sampleNote: s.sampleNote || "",
+                    sampleTypeName: s.sampleTypeName || "",
                     sampleInfo: finalInfo,
                     quantity: s.quantity || 1,
                     analyses: s.analyses.map((a) => {
@@ -381,6 +401,10 @@ export const CustomerQuoteEditor = forwardRef<CustomerQuoteEditorRef, CustomerQu
                         return {
                             parameterName: a.parameterName,
                             parameterId: a.parameterId,
+                            protocolCode: a.protocolCode || "",
+                            protocolSource: (a as any).protocolSource || "",
+                            protocolAccreditation: (a as any).protocolAccreditation || "",
+                            sampleTypeName: (a as any).sampleTypeName || "",
                             feeBeforeTax: lineNet,
                             feeBeforeTaxAndDiscount: lineList,
                             taxRate: tr,
@@ -628,7 +652,9 @@ export const CustomerQuoteEditor = forwardRef<CustomerQuoteEditorRef, CustomerQu
                                 <PricingSummary
                                     subtotal={pricing.subtotal}
                                     discountRate={discountRate}
-                                    discountAmount={pricing.discountAmount}
+                                    discountAmount={pricing.totalDiscount}
+                                    lineDiscountAmount={pricing.totalDiscount - pricing.globalDiscountAmount}
+                                    orderDiscountAmount={pricing.globalDiscountAmount}
                                     feeBeforeTax={pricing.feeBeforeTax}
                                     tax={pricing.tax}
                                     total={pricing.total}

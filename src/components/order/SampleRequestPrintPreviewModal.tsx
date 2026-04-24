@@ -278,11 +278,13 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             ${descCell}
             <td style="padding:5px; border: 1px solid #000 !important; width: 20%;">${analysis.parameterName || ""}</td>
             <td style="padding:5px; border: 1px solid #000 !important; text-align: center; width: 7%;">${analysis.analysisUnit || ""}</td>
-            <td style="padding:5px; border: 1px solid #000 !important; text-align: left; width: 24%;">
+            <td style="padding:5px; border: 1px solid #000 !important; text-align: left; width: 16%;">
                 <div style="font-weight: 700;">${analysis.protocolCode || "--"}</div>
-                <div style="font-size: 11px; margin-top: 2px;">
-                 ${[(analysis as any).protocolSource, accKeys].filter(Boolean).join(" ") || "--"}
-                </div>
+            </td>
+            <td style="padding:5px; border: 1px solid #000 !important; text-align: left; font-size: 11px; width: 8%;">
+                <div>${(analysis as any).protocolSource || ""}</div>
+                <div style="font-weight: bold; ${(analysis as any).protocolSource && accKeys ? "margin-top: 2px;" : ""}">${accKeys || ""}</div>
+                ${!(analysis as any).protocolSource && !accKeys ? "--" : ""}
             </td>
             <td style="padding:5px; border: 1px solid #000 !important; width: 10%;">${analysis.parameterNote || ""}</td>
           </tr>
@@ -478,8 +480,10 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                 ${t("sampleRequest.table.parameters")}</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 7%;">
                 Đơn vị</th>
-               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 24%;">
-                Phương pháp và công nhận</th>
+               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 16%;">
+                Phương pháp</th>
+               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 8%;">
+                Công nhận</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 10%;">
                 ${t("sample.note")}</th>
             </tr>

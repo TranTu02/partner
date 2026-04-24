@@ -225,6 +225,7 @@ export function CustomerOrdersPage() {
 
     const handleSaveSuccess = (createdOrder?: any) => {
         fetchOrders();
+        setLocalViewMode("view");
         if (createdOrder?.orderId) navigate(`/customer/orders/detail?orderId=${createdOrder.orderId}`);
         else navigate("/customer/orders");
     };
