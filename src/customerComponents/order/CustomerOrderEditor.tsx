@@ -17,6 +17,24 @@ import { toast } from "sonner";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
+// ─── Module-level constants (available before component renders) ─────────────
+const SAMPLE_INFO_ORDER = ["Tên mẫu thử", "Số lô", "Ngày sản xuất", "Nơi sản xuất", "Hạn sử dụng", "Số công bố", "Số đăng ký", "Thông tin khác"];
+
+const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value: string }[]) => {
+    const infoMap = new Map(rawInfo.map((i) => [i.label, i.value]));
+    infoMap.set("Tên mẫu thử", sampleName || "");
+    const ordered: { label: string; value: string }[] = [];
+    for (const key of SAMPLE_INFO_ORDER) {
+        ordered.push({ label: key, value: infoMap.get(key) ?? "" });
+        infoMap.delete(key);
+    }
+    infoMap.forEach((value, label) => ordered.push({ label, value }));
+    return ordered;
+};
+
+const defaultSampleInfo = SAMPLE_INFO_ORDER.map((label) => ({ label, value: "" }));
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface CustomerOrderEditorProps {
     mode: EditorMode;
     initialData?: any;
@@ -67,14 +85,16 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
     const [contactId, setContactId] = useState(defaultContact.contactId || "");
 
     // Report Recipient
-    const [reportRecipient, setReportRecipient] = useState<any>(
-        initialData?.reportRecipient || {
-            receiverName: "",
-            receiverPhone: "",
-            receiverEmail: "",
-            receiverAddress: "",
-        },
-    );
+    const [reportRecipient, setReportRecipient] = useState<any>(() => {
+        const rec = initialData?.reportRecipient;
+        const cp = initialData?.contactPerson || customerInfo?.clientContacts?.[0] || {};
+        return {
+            receiverName: rec?.receiverName || cp.contactName || "",
+            receiverPhone: rec?.receiverPhone || cp.contactPhone || "",
+            receiverEmail: rec?.receiverEmail || cp.contactEmail || customerInfo?.clientEmail || "",
+            receiverAddress: rec?.receiverAddress || customerInfo?.clientAddress || "",
+        };
+    });
 
     // Quote ID for create mode
     const [quoteId, setQuoteId] = useState(initialData?.quoteId || initialQuoteId || "");
@@ -120,35 +140,23 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                 setContactAddress(contact.contactAddress || "");
                 setContactId(contact.contactId || "");
             }
-            if (initialData.reportRecipient)
-                setReportRecipient({
-                    receiverName: initialData.reportRecipient.receiverName || "",
-                    receiverPhone: initialData.reportRecipient.receiverPhone || "",
-                    receiverEmail: initialData.reportRecipient.receiverEmail || "",
-                    receiverAddress: initialData.reportRecipient.receiverAddress || "",
-                });
+            const rec = initialData.reportRecipient;
+            const cp = initialData.contactPerson || customerInfo?.clientContacts?.[0] || {};
+            setReportRecipient({
+                receiverName: rec?.receiverName || cp.contactName || "",
+                receiverPhone: rec?.receiverPhone || cp.contactPhone || "",
+                receiverEmail: rec?.receiverEmail || cp.contactEmail || clientEmail || customerInfo?.clientEmail || "",
+                receiverAddress: rec?.receiverAddress || clientAddress || customerInfo?.clientAddress || "",
+            });
             if (initialData.orderNote) setOrderNote(initialData.orderNote);
             if (initialData.quoteId) setQuoteId(initialData.quoteId);
             if (initialData.samples?.length > 0) {
                 setSamples(
                     initialData.samples.map((s: any) => {
-                        // Merge existing info with defaults
-                        const existingInfo = s.sampleInfo || [];
-                        const mergedInfo = [...defaultSampleInfo];
-
-                        existingInfo.forEach((item: any) => {
-                            const idx = mergedInfo.findIndex((m) => m.label === item.label);
-                            if (idx !== -1) {
-                                mergedInfo[idx] = { ...mergedInfo[idx], value: item.value };
-                            } else {
-                                mergedInfo.push(item);
-                            }
-                        });
-
                         return {
                             ...s,
                             id: s.id || `rs-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                            sampleInfo: mergedInfo,
+                            sampleInfo: normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []),
                             analyses: (s.analyses || []).map((a: any) => {
                                 const qty = a.quantity || 1;
                                 const taxRate = a.taxRate !== undefined ? a.taxRate : parseFloat(a.parameterTaxRate || "0");
@@ -377,6 +385,12 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                     setContactEmail(contact.contactEmail || "");
                     setContactAddress(contact.contactAddress || "");
                 }
+                setReportRecipient({
+                    receiverName: q.reportRecipient?.receiverName || contact?.contactName || "",
+                    receiverPhone: q.reportRecipient?.receiverPhone || contact?.contactPhone || "",
+                    receiverEmail: q.reportRecipient?.receiverEmail || contact?.contactEmail || q.client?.clientEmail || "",
+                    receiverAddress: q.reportRecipient?.receiverAddress || q.client?.clientAddress || "",
+                });
                 setDiscountRate(q.discountRate || 0);
                 const expandedSamples: SampleWithQuantity[] = [];
                 (q.samples || []).forEach((s: any) => {
@@ -399,6 +413,9 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                     }
                 });
                 setSamples(expandedSamples);
+                if (q.otherItems && Array.isArray(q.otherItems)) {
+                    setOtherItems(q.otherItems);
+                }
                 toast.success("Đã tải thông tin từ báo giá");
             } else {
                 toast.error("Không tìm thấy báo giá");
@@ -408,16 +425,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
         }
     };
 
-    // Sample handlers
-    const defaultSampleInfo = [
-        { label: "Số lô", value: "" },
-        { label: "Ngày sản xuất", value: "" },
-        { label: "Nơi sản xuất", value: "" },
-        { label: "Hạn sử dụng", value: "" },
-        { label: "Số công bố", value: "" },
-        { label: "Số đăng ký", value: "" },
-        { label: "Thông tin khác", value: "" },
-    ];
+    // defaultSampleInfo / normalizeSampleInfo are defined at module scope above
 
     const handleAddSample = () => {
         if (isReadOnly) return;
@@ -519,6 +527,11 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
             taxName,
             taxCode,
             invoiceAddress: taxAddress,
+            invoiceEmail: taxEmail,
+            reportReceiverName: reportRecipient?.receiverName || contactPerson || "",
+            reportReceiverPhone: reportRecipient?.receiverPhone || contactPhone || "",
+            reportReceiverEmail: reportRecipient?.receiverEmail || contactEmail || clientEmail || "",
+            reportReceiverAddress: reportRecipient?.receiverAddress || clientAddress || "",
             samples: samples.map((s: any) => {
                 const sType =
                     s?.sampleTypeName ??
@@ -533,14 +546,15 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                     "";
                 const sId = s?.sampleTypeId ?? s?.sample_type_id ?? s?.librarySampleType?.sampleTypeId ?? (s as any)?.library_sample_type?.sample_type_id ?? "";
 
-                const cleanInfo = (s.sampleInfo || []).filter((info: { label: string; value: string }) => info.label && info.value && info.value.trim() !== "");
-                const finalInfo = [{ label: "Tên mẫu thử", value: s.sampleName || "" }, ...cleanInfo.filter((info: { label: string; value: string }) => info.label !== "Tên mẫu thử")];
+                const finalInfo = normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []);
+                // Only send non-empty entries (except Tên mẫu thử which is always included)
+                const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
 
                 return {
                     ...s,
                     sampleName: s.sampleName || s.sample_name || "",
                     sampleNote: s.sampleNote || s.sample_note || "",
-                    sampleInfo: finalInfo,
+                    sampleInfo: apiInfo,
                     sampleTypeName: sType,
                     sampleMatrix: sType,
                     sampleTypeId: sId,
@@ -628,14 +642,14 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
             orderNote: orderNote?.trim() || null,
             samples: samples.map((s) => {
                 // Filter out empty sample info
-                const cleanInfo = (s.sampleInfo || []).filter((info: { label: string; value: string }) => info.label && info.value && info.value.trim() !== "");
-                // Ensure "Tên mẫu thử" is always present and matches sampleName
-                const finalInfo = [{ label: "Tên mẫu thử", value: s.sampleName || "" }, ...cleanInfo.filter((info: { label: string; value: string }) => info.label !== "Tên mẫu thử")];
+                const finalInfo = normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []);
+                // Only send non-empty entries (except Tên mẫu thử which is always included)
+                const apiInfo = finalInfo.filter((info: { label: string; value: string }) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
 
                 const { id: _, ...rest } = s;
                 return {
                     ...rest,
-                    sampleInfo: finalInfo,
+                    sampleInfo: apiInfo,
                     analyses: s.analyses.map((a) => ({
                         ...a,
                         unitPrice: Number(a.unitPrice) || 0,
@@ -1026,7 +1040,6 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                                     tax={pricing.tax}
                                     total={pricing.total}
                                     commission={0}
-                                    otherItems={otherItems}
                                     onDiscountRateChange={setDiscountRate}
                                     onCommissionChange={() => {}}
                                     isReadOnly={isReadOnly}

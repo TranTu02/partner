@@ -124,25 +124,35 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
 
                 {data.samples.map((sample, index) => (
                     <div key={index} style={{ marginBottom: "10px", pageBreakInside: "auto" }}>
-                        <div style={{ backgroundColor: "#f0f0f0", padding: "3px 8px", fontWeight: "bold", marginBottom: "3px", fontSize: "12px", display: "flex", justifyContent: "space-between" }}>
-                            <span>
-                                {t("order.print.sample")} {index + 1}: {sample.sampleName} ({sample.sampleTypeName || "--"})
-                            </span>
-                            {sample.quantity && sample.quantity > 1 ? (
+                        <div style={{ backgroundColor: "#f0f0f0", padding: "4px 8px", fontWeight: "bold", marginBottom: "3px", fontSize: "12px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between" }}>
                                 <span>
-                                    x {sample.quantity} {t("order.print.sample").toLowerCase()}
+                                    {t("order.print.sample")} {index + 1}: {sample.sampleName}
                                 </span>
-                            ) : null}
+                                {sample.quantity && sample.quantity > 1 ? (
+                                    <span>
+                                        x {sample.quantity} {t("order.print.sample").toLowerCase()}
+                                    </span>
+                                ) : null}
+                            </div>
+                            <div style={{ fontSize: "11px", fontWeight: "normal", color: "#333", marginTop: "2px" }}>
+                                Nền mẫu: {sample.sampleTypeName || (sample as any).sampleMatrix || "--"}
+                            </div>
+                            {sample.sampleNote && (
+                                <div style={{ fontSize: "11px", fontWeight: "normal", fontStyle: "italic", color: "#555", marginTop: "2px" }}>
+                                    Ghi chú: {sample.sampleNote}
+                                </div>
+                            )}
                         </div>
                         <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
                             <thead>
                                 <tr style={{ backgroundColor: "#e6e6e6" }}>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "11px", width: "4%" }}>{t("order.print.stt")}</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "left", fontSize: "11px", width: "31%" }}>{t("order.print.parameter")}</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "left", fontSize: "11px", width: "24%" }}>{t("table.method", "Phương pháp")}</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "11px", width: "14%" }}>{t("order.print.amount")}</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "11px", width: "10%" }}>{t("order.print.tax")} (%)</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "11px", width: "17%" }}>{t("order.print.total")}</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "left", fontSize: "11px", width: "27%" }}>{t("order.print.parameter")}</th>
+                                    <th colSpan={2} style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "11px", width: "32%" }}>Phương pháp / Công nhận</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "11px", width: "13%" }}>{t("order.print.amount")}</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "11px", width: "8%" }}>{t("order.print.tax")} (%)</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "11px", width: "16%" }}>{t("order.print.total")}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -150,7 +160,9 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                                     const globalDiscountRate = data.discountRate || 0;
                                     const lineDiscountRate = analysis.discountRate || 0;
                                     const taxRate = analysis.taxRate || 0;
-                                    const quantity = analysis.quantity || 1;
+                                    const sampleQty = sample.quantity || 1;
+                                    const analysisQty = analysis.quantity || 1;
+                                    const quantity = sampleQty * analysisQty;
 
                                     const originalUP = (analysis as any).unitPrice || (analysis.feeBeforeTaxAndDiscount ? analysis.feeBeforeTaxAndDiscount / quantity : 0) || 0;
                                     const actualUP = originalUP * (1 - lineDiscountRate / 100);
@@ -165,18 +177,42 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                                         <tr key={i} style={{ pageBreakInside: "avoid" }}>
                                             <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "10px" }}>{i + 1}</td>
                                             <td style={{ border: "1px solid #ccc", padding: "2px 5px", fontSize: "10px" }}>{analysis.parameterName}</td>
-                                            <td style={{ border: "1px solid #ccc", padding: "2px 5px", fontSize: "10px" }}>
-                                                <div style={{ fontWeight: "bold" }}>{analysis.protocolCode || "--"}</div>
-                                                <div style={{ fontSize: "9px", marginTop: "2px" }}>{((analysis as any).protocolSource || "").trim() || ""}</div>
+                                            <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "10px" }}>
+                                                {analysis.protocolCode || "--"}
+                                            </td>
+                                            <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "10px" }}>
+                                                {(() => {
+                                                    const sId = (sample as any).sampleTypeId;
+                                                    const aId = (analysis as any).sampleTypeId;
+                                                    const sType = (sample.sampleTypeName || (sample as any).sampleMatrix || "").toString().normalize("NFC").toLowerCase().trim();
+                                                    const aType = (analysis.sampleTypeName || "").toString().normalize("NFC").toLowerCase().trim();
+
+                                                    let acc = analysis.protocolAccreditation;
+                                                    if (typeof acc === "string" && acc.startsWith("{")) {
+                                                        try {
+                                                            acc = JSON.parse(acc);
+                                                        } catch {
+                                                            acc = null;
+                                                        }
+                                                    }
+                                                    const isMatch = sId && aId ? sId === aId : sType === aType || !sType;
+                                                    const source = ((analysis as any).protocolSource || "").trim();
+
+                                                    let accKeys = "";
+                                                    if (isMatch && acc) {
+                                                        accKeys = Object.keys(acc).filter((k) => acc[k]).join(", ");
+                                                    }
+                                                    return [source, accKeys].filter(Boolean).join(" ") || "--";
+                                                })()}
                                             </td>
                                             <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "10px" }}>
                                                 {hasDiscount ? (
                                                     <>
-                                                        <div style={{ fontWeight: "bold" }}>{discountedUP.toLocaleString("vi-VN")}</div>
-                                                        <div style={{ textDecoration: "line-through", fontSize: "8px", color: "#666" }}>{originalUP.toLocaleString("vi-VN")}</div>
+                                                        <div style={{ fontWeight: "bold" }}>{(discountedUP * quantity).toLocaleString("vi-VN")}</div>
+                                                        <div style={{ textDecoration: "line-through", fontSize: "8px", color: "#666" }}>{(originalUP * quantity).toLocaleString("vi-VN")}</div>
                                                     </>
                                                 ) : (
-                                                    discountedUP.toLocaleString("vi-VN")
+                                                    (discountedUP * quantity).toLocaleString("vi-VN")
                                                 )}
                                             </td>
                                             <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "10px" }}>{analysis.taxRate || 0}%</td>
@@ -194,7 +230,7 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                                     );
                                 })}
                                 <tr>
-                                    <td colSpan={7} style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontWeight: "bold", verticalAlign: "top", fontSize: "11px" }}>
+                                    <td colSpan={6} style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontWeight: "bold", verticalAlign: "top", fontSize: "11px" }}>
                                         {t("parameter.sumAfterTax", "Tổng cộng mẫu")}
                                     </td>
                                     <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontWeight: "bold", verticalAlign: "top", fontSize: "11px" }}>
@@ -219,6 +255,26 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                 ))}
             </div>
 
+            <div style={{ marginTop: "10px", marginBottom: "12px", fontSize: "11px", color: "#333", borderTop: "1px solid #ccc", paddingTop: "6px" }}>
+                <span style={{ fontWeight: "bold" }}>Chú thích:</span>
+                <br />
+                <span style={{ marginLeft: "8px" }}>
+                    <b>IRDOP</b>: Chỉ tiêu được thực hiện tại IRDOP.
+                </span>
+                <br />
+                <span style={{ marginLeft: "8px" }}>
+                    <b>EX</b>: Chỉ tiêu được thực hiện bởi nhà thầu phụ.
+                </span>
+                <br />
+                <span style={{ marginLeft: "8px" }}>
+                    <b>VILAS997</b>: Chỉ tiêu được công nhận ISO/IEC 17025:2017.
+                </span>
+                <br />
+                <span style={{ marginLeft: "8px" }}>
+                    <b>TDC</b>: Chỉ tiêu được công nhận đánh giá sự phù hợp theo NĐ 107/2016/NĐ-CP.
+                </span>
+            </div>
+
             <div style={{ marginTop: "10px" }}>
                 <h3 style={{ fontSize: "14px", fontWeight: "bold", paddingBottom: "2px" }}>3. {t("order.print.total")}</h3>
                 <table style={{ width: "100%", marginTop: "5px", borderCollapse: "collapse" }}>
@@ -241,11 +297,11 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                             <>
                                 <tr style={{ pageBreakInside: "avoid" }}>
                                     <td style={{ textAlign: "right", paddingRight: "20px", padding: "4px 5px", verticalAlign: "top" }}>{t("order.print.discount")}:</td>
-                                    <td style={{ textAlign: "right", color: "#16a34a", padding: "4px 5px", verticalAlign: "top" }}>- {data.pricing.discountAmount?.toLocaleString("vi-VN")} VNĐ</td>
+                                    <td style={{ textAlign: "right", padding: "4px 5px", verticalAlign: "top" }}>- {data.pricing.discountAmount?.toLocaleString("vi-VN")} VNĐ</td>
                                 </tr>
                                 <tr style={{ pageBreakInside: "avoid" }}>
                                     <td style={{ textAlign: "right", paddingRight: "20px", fontWeight: "bold", padding: "4px 5px", verticalAlign: "top" }}>Tổng chiết khấu:</td>
-                                    <td style={{ textAlign: "right", color: "#16a34a", fontWeight: "bold", padding: "4px 5px", verticalAlign: "top" }}>
+                                    <td style={{ textAlign: "right", fontWeight: "bold", padding: "4px 5px", verticalAlign: "top" }}>
                                         - {data.pricing.discountAmount?.toLocaleString("vi-VN")} VNĐ
                                     </td>
                                 </tr>
@@ -257,31 +313,13 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                         </tr>
                         <tr style={{ fontSize: "14px", pageBreakInside: "avoid" }}>
                             <td style={{ textAlign: "right", paddingRight: "20px", fontWeight: "bold", padding: "4px 5px", verticalAlign: "top" }}>{t("order.print.grandTotal")}:</td>
-                            <td style={{ textAlign: "right", fontWeight: "bold", color: "#1890FF", padding: "4px 5px", verticalAlign: "top" }}>{data.pricing.total.toLocaleString("vi-VN")} đ</td>
+                            <td style={{ textAlign: "right", fontWeight: "bold", padding: "4px 5px", verticalAlign: "top" }}>{data.pricing.total.toLocaleString("vi-VN")} đ</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div style={{ marginTop: "10px", marginBottom: "12px", fontSize: "11px", color: "#333", borderTop: "1px solid #ccc", paddingTop: "6px" }}>
-                <span style={{ fontWeight: "bold" }}>Chú thích:</span>
-                <br />
-                <span style={{ marginLeft: "8px" }}>
-                    <b>IRDOP</b>: Chỉ tiêu được thực hiện tại IRDOP.
-                </span>
-                <br />
-                <span style={{ marginLeft: "8px" }}>
-                    <b>EX</b>: Chỉ tiêu được thực hiện bởi nhà thầu phụ.
-                </span>
-                <br />
-                <span style={{ marginLeft: "8px" }}>
-                    <b>VILAS997</b>: Chỉ tiêu được công nhận ISO/IEC 17025:2017.
-                </span>
-                <br />
-                <span style={{ marginLeft: "8px" }}>
-                    <b>TDC</b>: Chỉ tiêu được công nhận đánh giá sự phù hợp theo NĐ 107/2016/NĐ-CP.
-                </span>
-            </div>
+
 
             <div style={{ marginTop: "20px", textAlign: "center" }}>
                 <p style={{ fontStyle: "italic", fontSize: "11px" }}>

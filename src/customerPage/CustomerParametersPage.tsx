@@ -221,8 +221,8 @@ export function CustomerParametersPage() {
                             ) : (
                                 // Groups tab
                                 data.map((g: any) => {
-                                    const subTotal = (g.matrices || []).reduce((acc: number, m: any) => acc + (m.feeBeforeTax || 0), 0);
-                                    const feeAfterTax = g.feeAfterTax || Math.ceil(subTotal * (1 - (g.discountRate || 0) / 100) * (1 + (g.taxRate || 0) / 100));
+                                    const subTotal = Number(g.totalFeeBeforeTaxAndDiscount) || (g.matrices || []).reduce((acc: number, m: any) => acc + (Number(m.feeBeforeTax) || 0), 0);
+                                    const feeAfterTax = g.feeAfterTax ? Number(g.feeAfterTax) : Math.ceil(subTotal * (1 - (Number(g.discountRate) || 0) / 100) * (1 + (Number(g.taxRate) || 0) / 100));
 
                                     return (
                                         <tr key={g.groupId} className="border-t border-border hover:bg-muted/30 transition-colors">
@@ -255,7 +255,7 @@ export function CustomerParametersPage() {
                                                                 </div>
                                                             </div>
                                                             <span className="text-xs text-muted-foreground/60 ml-auto whitespace-nowrap">
-                                                                {Math.ceil(m.feeBeforeTax || 0).toLocaleString("vi-VN")} đ
+                                                                {Math.ceil(Number(m.feeBeforeTax) || 0).toLocaleString("vi-VN")} đ
                                                             </span>
                                                         </div>
                                                     ))}
@@ -263,9 +263,9 @@ export function CustomerParametersPage() {
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3 text-sm text-right align-top">
-                                                {g.discountRate > 0 ? (
+                                                {Number(g.discountRate) > 0 ? (
                                                     <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-green-100/60 text-green-700 border border-green-200 text-xs font-semibold">
-                                                        -{g.discountRate}%
+                                                        -{Number(g.discountRate)}%
                                                     </span>
                                                 ) : (
                                                     <span className="text-muted-foreground text-xs">—</span>

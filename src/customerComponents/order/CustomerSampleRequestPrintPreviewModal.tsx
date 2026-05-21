@@ -1,11 +1,27 @@
 import { useRef, useState, useMemo, useEffect } from "react";
-import { X, Save, FileDown, HelpCircle, FileText, Lock, Unlock } from "lucide-react";
+import { X, FileDown, HelpCircle, FileText, Lock, Unlock } from "lucide-react";
 import { Editor } from "@tinymce/tinymce-react";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import { useTranslation } from "react-i18next";
 import { customerUpdateOrder } from "@/api/customer";
 import { convertHtmlToPdfForm1 } from "@/api/index";
 import { toast } from "sonner";
+
+// ─── Module-level constants (available before component renders) ─────────────
+const SAMPLE_INFO_ORDER = ["Tên mẫu thử", "Số lô", "Ngày sản xuất", "Nơi sản xuất", "Hạn sử dụng", "Số công bố", "Số đăng ký", "Thông tin khác"];
+
+const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value: string }[]) => {
+    const infoMap = new Map(rawInfo.map((i) => [i.label, i.value]));
+    infoMap.set("Tên mẫu thử", sampleName || "");
+    const ordered: { label: string; value: string }[] = [];
+    for (const key of SAMPLE_INFO_ORDER) {
+        ordered.push({ label: key, value: infoMap.get(key) ?? "" });
+        infoMap.delete(key);
+    }
+    infoMap.forEach((value, label) => ordered.push({ label, value }));
+    return ordered;
+};
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface CustomerSampleRequestPrintPreviewModalProps {
     isOpen: boolean;
@@ -24,6 +40,9 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
 
     // Local state to allow editing before saving
     const [tempData, setTempData] = useState<OrderPrintData>(data);
+
+
+    // normalizeSampleInfo is defined at module scope above
 
     useEffect(() => {
         if (isOpen) {
@@ -79,8 +98,8 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
         });
     };
 
-    const handleSave = async () => {
-        if (!editorRef.current) return;
+    const handleSave = async (): Promise<boolean> => {
+        if (!editorRef.current) return false;
         setLoading(true);
         const content = editorRef.current.getContent();
         const tid = toast.loading(t("common.saving") || "Đang lưu...");
@@ -103,7 +122,7 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                         contactName: tempData.contactPerson,
                         contactPhone: tempData.contactPhone,
                         contactId: tempData.contactIdentity,
-                        contactEmail: tempData.contactEmail,
+                        contactEmail: (tempData as any).contactEmail,
                     },
                     reportRecipient: {
                         receiverName: tempData.reportReceiverName,
@@ -111,15 +130,23 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                         receiverEmail: tempData.reportReceiverEmail,
                         receiverAddress: tempData.reportReceiverAddress,
                     },
-                    samples: tempData.samples.map((s) => ({
-                        sampleName: s.sampleName,
-                        sampleDesc: s.sampleDesc,
-                        analyses: s.analyses.map((a) => ({
-                            parameterName: a.parameterName,
-                            protocolCode: a.protocolCode,
-                            analysisUnit: a.analysisUnit,
-                        })),
-                    })),
+                    attachedDocuments: (tempData as any).attachedDocuments,
+                    samples: tempData.samples.map((s) => {
+                        const finalInfo = normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []);
+                        const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
+                        return {
+                            ...s,
+                            sampleName: s.sampleName,
+                            sampleDesc: s.sampleDesc,
+                            sampleInfo: apiInfo,
+                            analyses: s.analyses.map((a) => ({
+                                ...a,
+                                parameterName: a.parameterName,
+                                protocolCode: a.protocolCode,
+                                analysisUnit: a.analysisUnit,
+                            })),
+                        };
+                    }),
                     orderCustomerFileIds: tempData.orderCustomerFileIds,
                 },
             });
@@ -127,11 +154,14 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
             if (res.success) {
                 toast.success(t("common.saveSuccess") || "Lưu thành công", { id: tid });
                 if (onUpdateData) onUpdateData({ ...tempData, requestForm: content });
+                return true;
             } else {
                 toast.error(res.error?.message || "Lỗi khi lưu", { id: tid });
+                return false;
             }
         } catch (e: any) {
             toast.error(e.message || "Lỗi máy chủ", { id: tid });
+            return false;
         } finally {
             setLoading(false);
         }
@@ -142,10 +172,9 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
     }, [tempData, data]);
 
     const handleExportPdf = async () => {
-        if (isDirty) {
-            toast.error("Vui lòng nhấn 'Lưu' để cập nhật thay đổi trước khi xuất PDF");
-            return;
-        }
+        // Auto save before export
+        const isSaved = await handleSave();
+        if (!isSaved) return;
 
         const tid = toast.loading("Đang chuẩn bị file PDF...");
         try {
@@ -185,46 +214,88 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => {
-                            const newLock = !isLocked;
-                            setIsLocked(newLock);
-                            if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
-                            toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
-                        }}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border transition-all text-xs font-medium ${isLocked ? "bg-muted" : "bg-primary/10 text-primary border-primary/20"}`}
-                    >
-                        {isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                        <span className="hidden sm:inline">{isLocked ? "Mở khóa sửa" : "Khóa mẫu"}</span>
-                    </button>
+                    {/* Desktop Action Buttons */}
+                    <div className="hidden xl:flex items-center gap-2">
+                        <button
+                            onClick={() => {
+                                const newLock = !isLocked;
+                                setIsLocked(newLock);
+                                if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
+                                toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
+                            }}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border transition-all text-xs font-medium ${isLocked ? "bg-muted" : "bg-primary/10 text-primary border-primary/20"}`}
+                        >
+                            {isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                            <span className="hidden sm:inline">{isLocked ? "Mở khóa sửa" : "Khóa mẫu"}</span>
+                        </button>
 
-                    <button
-                        onClick={handleExportPdf}
-                        className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all text-xs font-medium ${isDirty ? "bg-muted text-muted-foreground opacity-50 cursor-not-allowed" : "bg-orange-600 text-white hover:bg-orange-700 shadow-sm"}`}
-                    >
-                        <FileDown className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">PDF</span>
-                    </button>
+                        <button
+                            onClick={handleExportPdf}
+                            disabled={loading}
+                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all text-xs font-bold shadow-md ${isDirty ? "bg-primary text-primary-foreground hover:bg-primary/90 scale-105 ring-2 ring-primary/20" : "bg-orange-600 text-white hover:bg-orange-700"}`}
+                        >
+                            <FileDown className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Lưu & Xuất PDF</span>
+                        </button>
 
-                    <button
-                        onClick={handleSave}
-                        disabled={loading}
-                        className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all text-xs font-bold shadow-md ${isDirty ? "bg-primary text-primary-foreground hover:bg-primary/90 scale-105 ring-2 ring-primary/20" : "bg-secondary text-secondary-foreground hover:bg-secondary/90"}`}
-                    >
-                        <Save className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">{t("common.save")}</span>
-                    </button>
-
-                    <div className="w-px h-6 bg-border mx-1" />
+                        <div className="w-px h-6 bg-border mx-1" />
+                    </div>
 
                     <button onClick={onClose} className="p-2 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
+
             </div>
 
             {/* Layout Body */}
             <div className="flex-1 flex overflow-hidden bg-gray-50/50 relative">
+                
+                {/* Floating Action Bar (Top Right) - Vertical Bubbles (Mobile Only) */}
+                <div className="absolute top-4 right-4 md:right-6 z-50 flex xl:hidden flex-col gap-3">
+                    <div className="relative group flex items-center justify-end">
+                        <span className="absolute right-full mr-3 whitespace-nowrap bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
+                            {isLocked ? "Mở khóa sửa" : "Khóa mẫu"}
+                        </span>
+                        <button
+                            onClick={() => {
+                                const newLock = !isLocked;
+                                setIsLocked(newLock);
+                                if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
+                                toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
+                            }}
+                            className={`p-3 rounded-full border shadow-lg transition-transform hover:scale-110 active:scale-95 backdrop-blur-sm ${isLocked ? "bg-white/90 border-border text-muted-foreground hover:text-foreground" : "bg-primary text-primary-foreground border-primary"}`}
+                        >
+                            {isLocked ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+                        </button>
+                    </div>
+
+                    <div className="relative group flex items-center justify-end">
+                        <span className="absolute right-full mr-3 whitespace-nowrap bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
+                            Lưu & Xuất PDF
+                        </span>
+                        <button
+                            onClick={handleExportPdf}
+                            disabled={loading}
+                            className={`p-3 rounded-full transition-transform shadow-lg hover:scale-110 active:scale-95 text-white ${isDirty ? "bg-orange-500 hover:bg-orange-600 ring-4 ring-orange-500/20" : "bg-orange-600 hover:bg-orange-700"}`}
+                        >
+                            <FileDown className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    <div className="relative group flex items-center justify-end">
+                        <span className="absolute right-full mr-3 whitespace-nowrap bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
+                            Hướng dẫn
+                        </span>
+                        <button
+                            onClick={() => setShowGuide(!showGuide)}
+                            className="p-3 bg-white/90 backdrop-blur-sm border border-border text-primary rounded-full shadow-lg hover:scale-110 active:scale-95 transition-transform"
+                        >
+                            <HelpCircle className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+
                 {/* Left Panel: Form */}
                 <div className="hidden lg:flex w-[550px] flex-col border-r border-border bg-white overflow-hidden shrink-0 shadow-sm">
                     <div className="px-5 py-4 border-b border-border bg-gray-50/50">
@@ -234,26 +305,42 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                         </h3>
                     </div>
                     <div className="flex-1 overflow-y-auto p-5 space-y-6 scroll-smooth">
-                        <Section title="Khách hàng" color="blue">
-                            <Field label="Tên khách hàng" value={tempData.clientName} onChange={(v) => handleUpdateTopLevel("clientName", v)} onBlur={handleRefreshPreview} />
+                        <Section title="Thông tin thể hiện trên kết quả" color="blue">
+                            <Field label="Tên khách hàng" value={(tempData as any).clientName} onChange={(v) => handleUpdateTopLevel("clientName", v)} onBlur={handleRefreshPreview} />
                             <Field label="Địa chỉ" value={tempData.clientAddress} onChange={(v) => handleUpdateTopLevel("clientAddress", v)} onBlur={handleRefreshPreview} />
+                        </Section>
+
+                        <Section title="Thông tin liên hệ" color="green">
                             <div className="grid grid-cols-2 gap-3">
-                                <Field label="SĐT" value={tempData.clientPhone} onChange={(v) => handleUpdateTopLevel("clientPhone", v)} onBlur={handleRefreshPreview} />
-                                <Field label="Mã số thuế" value={tempData.taxCode} onChange={(v) => handleUpdateTopLevel("taxCode", v)} onBlur={handleRefreshPreview} />
+                                <Field label="Người liên hệ" value={tempData.contactPerson as string} onChange={(v) => handleUpdateTopLevel("contactPerson", v)} onBlur={handleRefreshPreview} />
+                                <Field label="CCCD" value={tempData.contactIdentity} onChange={(v) => handleUpdateTopLevel("contactIdentity", v)} onBlur={handleRefreshPreview} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Field label="Điện thoại" value={tempData.contactPhone as string} onChange={(v) => handleUpdateTopLevel("contactPhone", v)} onBlur={handleRefreshPreview} />
+                                <Field label="Email" value={(tempData as any).contactEmail} onChange={(v) => handleUpdateTopLevel("contactEmail", v)} onBlur={handleRefreshPreview} />
                             </div>
                         </Section>
 
-                        <Section title="Liên hệ" color="green">
-                            <Field label="Người liên hệ" value={tempData.contactPerson} onChange={(v) => handleUpdateTopLevel("contactPerson", v)} onBlur={handleRefreshPreview} />
+                        <Section title="Thông tin nhận kết quả" color="yellow">
+                            <Field label="Người nhận" value={(tempData as any).reportReceiverName} onChange={(v) => handleUpdateTopLevel("reportReceiverName", v)} onBlur={handleRefreshPreview} />
+                            <Field label="Địa chỉ" value={(tempData as any).reportReceiverAddress} onChange={(v) => handleUpdateTopLevel("reportReceiverAddress", v)} onBlur={handleRefreshPreview} />
                             <div className="grid grid-cols-2 gap-3">
-                                <Field label="Số CCCD" value={tempData.contactIdentity} onChange={(v) => handleUpdateTopLevel("contactIdentity", v)} onBlur={handleRefreshPreview} />
-                                <Field label="Điện thoại" value={tempData.contactPhone} onChange={(v) => handleUpdateTopLevel("contactPhone", v)} onBlur={handleRefreshPreview} />
+                                <Field label="Điện thoại" value={(tempData as any).reportReceiverPhone} onChange={(v) => handleUpdateTopLevel("reportReceiverPhone", v)} onBlur={handleRefreshPreview} />
+                                <Field label="Email" value={(tempData as any).reportReceiverEmail} onChange={(v) => handleUpdateTopLevel("reportReceiverEmail", v)} onBlur={handleRefreshPreview} />
                             </div>
                         </Section>
 
-                        <Section title="Nhận báo cáo" color="yellow">
-                            <Field label="Người nhận" value={tempData.reportReceiverName} onChange={(v) => handleUpdateTopLevel("reportReceiverName", v)} onBlur={handleRefreshPreview} />
-                            <Field label="Địa chỉ" value={tempData.reportReceiverAddress} onChange={(v) => handleUpdateTopLevel("reportReceiverAddress", v)} onBlur={handleRefreshPreview} />
+                        <Section title="Thông tin xuất hóa đơn" color="purple">
+                            <Field label="Tên công ty" value={(tempData as any).taxName} onChange={(v) => handleUpdateTopLevel("taxName", v)} onBlur={handleRefreshPreview} />
+                            <Field label="Địa chỉ" value={(tempData as any).invoiceAddress} onChange={(v) => handleUpdateTopLevel("invoiceAddress", v)} onBlur={handleRefreshPreview} />
+                            <div className="grid grid-cols-2 gap-3">
+                                <Field label="MST/CCCD" value={(tempData as any).taxCode} onChange={(v) => handleUpdateTopLevel("taxCode", v)} onBlur={handleRefreshPreview} />
+                                <Field label="Email" value={(tempData as any).invoiceEmail} onChange={(v) => handleUpdateTopLevel("invoiceEmail", v)} onBlur={handleRefreshPreview} />
+                            </div>
+                        </Section>
+
+                        <Section title="Thông tin chung" color="indigo">
+                            <Field label="Giấy tờ đi kèm" value={(tempData as any).attachedDocuments} onChange={(v) => handleUpdateTopLevel("attachedDocuments", v)} onBlur={handleRefreshPreview} />
                         </Section>
 
                         <div className="space-y-4">
@@ -336,7 +423,7 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                 </div>
 
                 {/* Center: Editor Preview */}
-                <div className="flex-1 overflow-auto bg-muted/30 flex justify-center p-4 md:p-8">
+                <div className="flex-1 overflow-x-auto overflow-y-auto bg-muted/30 flex justify-start lg:justify-center p-4 md:p-8 pt-16 md:pt-20">
                     <div className="w-[794px] min-w-[794px] h-fit bg-white shadow-2xl relative mb-20 border border-border/50">
                         {!editorReady && (
                             <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/90 backdrop-blur-sm">
@@ -398,26 +485,23 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                     </div>
                 </div>
 
-                {/* Right Panel: Guide (Hidden on mobile) */}
-                <div className="hidden xl:flex w-56 flex-col border-l border-border bg-white shrink-0 overflow-y-auto p-6 scroll-smooth shadow-sm">
+                {/* Right Panel: Guide (Desktop Only) */}
+                <div className="hidden xl:flex w-64 flex-col border-l border-border bg-white shrink-0 overflow-y-auto p-6 scroll-smooth shadow-sm">
                     <GuideContent />
                 </div>
 
-                {/* Mobile Guide Button */}
-                <button
-                    onClick={() => setShowGuide(!showGuide)}
-                    className="fixed bottom-6 right-6 xl:hidden z-50 p-3 bg-primary text-primary-foreground rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-transform"
-                >
-                    <HelpCircle className="w-6 h-6" />
-                </button>
-
                 {showGuide && (
-                    <div className="fixed inset-0 z-[110] bg-black/40 backdrop-blur-sm flex items-end justify-center px-4 pb-4 animate-in slide-in-from-bottom duration-300">
-                        <div className="bg-white rounded-2xl w-full max-w-lg p-6 relative overflow-hidden">
-                            <button onClick={() => setShowGuide(false)} className="absolute top-4 right-4 text-muted-foreground">
-                                <X className="w-5 h-5" />
-                            </button>
-                            <GuideContent />
+                    <div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center sm:px-4 sm:pb-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-lg p-6 pb-10 sm:pb-6 relative flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-4 shadow-2xl border border-border/50">
+                            <div className="flex items-center justify-between border-b border-border pb-4 mb-5">
+                                <h3 className="font-bold text-lg text-foreground uppercase tracking-wider">Hướng dẫn thao tác</h3>
+                                <button onClick={() => setShowGuide(false)} className="p-2 -mr-2 text-muted-foreground hover:bg-muted hover:text-foreground rounded-full transition-colors">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div className="overflow-y-auto pr-2 pb-6 custom-scrollbar">
+                                <GuideContent />
+                            </div>
                         </div>
                     </div>
                 )}
@@ -459,20 +543,38 @@ function Field({ label, value, onChange, onBlur }: { label: string; value?: stri
 function GuideContent() {
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-3 text-primary">
-                <HelpCircle className="w-5 h-5" />
-                <h3 className="font-bold text-base">Hướng dẫn gửi mẫu</h3>
+            <div className="hidden xl:flex items-center gap-3 text-primary border-b border-border pb-4">
+                <HelpCircle className="w-6 h-6" />
+                <h3 className="font-bold text-base uppercase tracking-wider">Quy trình gửi mẫu</h3>
             </div>
-            <div className="space-y-5">
-                <Step num={1} title="Kiểm tra & Lưu" text="Xem lại dữ liệu ở cột trái hoặc sửa trực tiếp trên bản in. Nhớ nhấn Lưu để ghi nhận thay đổi." />
-                <Step num={2} title="Link PDF/In" text="Xuất file PDF hoặc nhấn In để nhận bản cứng (A4). Giao diện đã được tối ưu cho máy in văn phòng." />
-                <Step num={3} title="Ký & Đóng dấu" text="Vui lòng ký tên và ĐÓNG DẤU MỘC vào ô Khách hàng trên phiếu sau khi in." />
-                <div className="p-4 bg-muted/40 rounded-xl space-y-3 border border-border/50">
-                    <div className="text-xs font-bold text-foreground">Hỗ sơ gửi IRDOP:</div>
-                    <ul className="text-[11px] text-muted-foreground space-y-2 list-disc pl-3">
-                        <li>Đơn đặt hàng (bản in).</li>
-                        <li>Phiếu gửi mẫu có dấu mộc.</li>
-                        <li>Mẫu thử đóng gói cẩn thận.</li>
+            <div className="space-y-6">
+                <Step 
+                    num={1} 
+                    title="Điền thông tin tự động" 
+                    text="Quý khách chỉ cần nhập dữ liệu ở phần Nhập thông tin. Hệ thống sẽ tự động căn chỉnh và điền chuẩn xác vào Phiếu yêu cầu ở Bản in PDF." 
+                />
+                <Step 
+                    num={2} 
+                    title="Chỉnh sửa bản in (Tùy chọn)" 
+                    text="Trường hợp cần định dạng lại văn bản, Quý khách có thể chuyển sang Bản in PDF, nhấn 'Mở khóa sửa' để điều chỉnh trực tiếp trên văn bản." 
+                />
+                <Step 
+                    num={3} 
+                    title="Lưu & Xuất phiếu PDF" 
+                    text="Nhấn nút 'Lưu & Xuất PDF' màu cam để lưu trữ dữ liệu an toàn vào hệ thống và tải file PDF chính thức về thiết bị của Quý khách." 
+                />
+                <Step 
+                    num={4} 
+                    title="Ký & Đóng mộc đỏ" 
+                    text="Vui lòng in file PDF ra giấy khổ A4, sau đó đại diện tổ chức/doanh nghiệp ký tên và đóng dấu mộc đỏ hợp lệ." 
+                />
+
+                <div className="p-5 bg-muted/40 rounded-xl space-y-4 border border-border/50 shadow-inner mt-6">
+                    <div className="text-sm font-bold text-foreground uppercase tracking-wide">Hồ sơ gửi kèm mẫu:</div>
+                    <ul className="text-sm text-muted-foreground space-y-3 list-disc pl-5 leading-relaxed">
+                        <li><strong>Phiếu yêu cầu:</strong> Bản in A4 đã ký và đóng dấu.</li>
+                        <li><strong>Đơn đặt hàng:</strong> Bản in kèm theo (nếu có).</li>
+                        <li><strong>Mẫu thử:</strong> Được đóng gói cẩn thận, nhãn dán khớp với thông tin trên phiếu.</li>
                     </ul>
                 </div>
             </div>
@@ -483,10 +585,10 @@ function GuideContent() {
 function Step({ num, title, text }: { num: number; title: string; text: string }) {
     return (
         <div className="flex gap-4">
-            <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-sm">{num}</div>
-            <div className="space-y-1">
-                <div className="font-bold text-xs text-foreground">{title}</div>
-                <p className="text-[11px] leading-relaxed text-muted-foreground">{text}</p>
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">{num}</div>
+            <div className="space-y-1.5 pt-1">
+                <div className="font-bold text-sm text-foreground leading-tight">{title}</div>
+                <p className="text-[13px] leading-relaxed text-muted-foreground text-justify">{text}</p>
             </div>
         </div>
     );
@@ -564,6 +666,10 @@ export function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                                   .join(", ")
                             : "";
 
+                    const noteCell = isFirst
+                        ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; width: 10%;">${sample.sampleNote || ""}</td>`
+                        : "";
+
                     return `
           <tr>
             ${sttCell}
@@ -575,7 +681,7 @@ export function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             <td style="padding:5px; border: 1px solid #000 !important; text-align: left; width: 10%;">
                  ${[analysis.protocolSource, accKeys].filter(Boolean).join(" ")}
             </td>
-            <td style="padding:5px; border: 1px solid #000 !important; width: 10%;">${analysis.parameterNote || ""}</td>
+            ${noteCell}
           </tr>
         `;
                 })
@@ -678,7 +784,7 @@ export function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                 <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
                 
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.email").replace(":", "")}<strong>:</strong></td>
-                 <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.reportEmail || ""}</td>
+                 <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: 700;" class="field-dotted">${(data as any).contactEmail || data.reportEmail || ""}</td>
             </tr>
         </table>
 
@@ -695,14 +801,14 @@ export function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             </colgroup>
              <tr>
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.address").replace(":", "")}<strong>:</strong></td>
-                <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;" class="field-dotted">${data.clientAddress || ""}</td>
+                <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;" class="field-dotted">${(data as any).reportReceiverAddress || data.clientAddress || ""}</td>
             </tr>
             <tr>
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.contactPhone").replace(":", "")}<strong>:</strong></td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: 700;" class="field-dotted">${(data as any).reportReceiverPhone || data.contactPhone || data.client?.clientPhone || ""}</td>
                 
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.email").replace(":", "")}<strong>:</strong></td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.reportEmail || ""}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: 700;" class="field-dotted">${(data as any).reportReceiverEmail || data.reportEmail || ""}</td>
             </tr>
         </table>
 
@@ -727,21 +833,17 @@ export function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             </tr>
             <tr>
                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.taxId").replace(":", "")}<strong>:</strong></td>
-               <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;" class="field-dotted">${data.taxCode || data.client?.legalId || ""}</td>
-            </tr>
-            <tr>
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.contactPhone").replace(":", "")}<strong>:</strong></td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
-                
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.email").replace(":", "")}<strong>:</strong></td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.invoiceEmail || data.client?.invoiceInfo?.taxEmail || (data.client as any)?.invoiceEmail || ""}</td>
+               <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.taxCode || data.client?.legalId || ""}</td>
+               
+               <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.email").replace(":", "")}<strong>:</strong></td>
+               <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.invoiceEmail || data.client?.invoiceInfo?.taxEmail || (data.client as any)?.invoiceEmail || ""}</td>
             </tr>
         </table>
 
         <table>
             <tr>
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 120px; font-weight: 700;">${t("sampleRequest.section5.title")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;"></td>
+                <td style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;">${(data as any).attachedDocuments || ""}</td>
             </tr>
         </table>
       </div>

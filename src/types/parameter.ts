@@ -78,6 +78,7 @@ export interface ParameterGroup {
     matrices?: Matrix[]; // Snapshots
     feeBeforeTax?: number;
     feeAfterTax?: number;
+    totalFeeBeforeTaxAndDiscount?: number | string;
     // Audit
     createdAt?: string;
     createdById?: string;

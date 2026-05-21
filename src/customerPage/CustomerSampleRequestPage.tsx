@@ -9,9 +9,9 @@
  * Only difference: no modal overlay, no onClose → use window.close() instead.
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Editor } from "@tinymce/tinymce-react";
-import { X, Save, FileDown, HelpCircle, FileText, Lock, Unlock, ArrowLeft } from "lucide-react";
+import { X, FileDown, HelpCircle, FileText, Lock, Unlock, ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import Cookies from "js-cookie";
 import { customerGetOrderDetail, customerUpdateOrder, customerMe, CUSTOMER_TOKEN_KEY } from "@/api/customer";
@@ -19,8 +19,24 @@ import { convertHtmlToPdfForm1 } from "@/api/index";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import { generateSampleRequestHtml } from "@/customerComponents/order/CustomerSampleRequestPrintPreviewModal";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 
+// ─── Module-level constants (re-used from the modal) ─────────────────────────
+const SAMPLE_INFO_ORDER = ["Tên mẫu thử", "Số lô", "Ngày sản xuất", "Nơi sản xuất", "Hạn sử dụng", "Số công bố", "Số đăng ký", "Thông tin khác"];
+
+const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value: string }[]) => {
+    const infoMap = new Map(rawInfo.map((i) => [i.label, i.value]));
+    infoMap.set("Tên mẫu thử", sampleName || "");
+    const ordered: { label: string; value: string }[] = [];
+    for (const key of SAMPLE_INFO_ORDER) {
+        ordered.push({ label: key, value: infoMap.get(key) ?? "" });
+        infoMap.delete(key);
+    }
+    infoMap.forEach((value, label) => ordered.push({ label, value }));
+    return ordered;
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Labels shown in left-panel form (Tên mẫu thử is handled via sampleName field, so skip here)
 const DEFAULT_SAMPLE_INFO_LABELS = ["Số lô", "Ngày sản xuất", "Nơi sản xuất", "Hạn sử dụng", "Số công bố", "Số đăng ký", "Thông tin khác"];
 
 export function CustomerSampleRequestPage() {
@@ -40,8 +56,7 @@ export function CustomerSampleRequestPage() {
     const [showGuide, setShowGuide] = useState(false);
     const [tempData, setTempData] = useState<OrderPrintData | null>(null);
     const [isDirty, setIsDirty] = useState(false);
-
-    // Customer info from localStorage
+    const [mobileTab, setMobileTab] = useState<"form" | "preview">("form");
 
     // ── Unified init: set session (nếu có) → rồi load order ──
     useEffect(() => {
@@ -106,10 +121,10 @@ export function CustomerSampleRequestPage() {
                     clientPhone: client?.clientPhone ?? "",
                     clientEmail: client?.clientEmail ?? "",
 
-                    reportReceiverName: isRecObj ? receiver.receiverName || "" : "",
-                    reportReceiverPhone: isRecObj ? receiver.receiverPhone || "" : "",
-                    reportReceiverEmail: isRecObj ? receiver.receiverEmail || "" : "",
-                    reportReceiverAddress: isRecObj ? receiver.receiverAddress || "" : "",
+                    reportReceiverName: (isRecObj ? receiver.receiverName : "") || (isCpObj ? cp.contactName : "") || "",
+                    reportReceiverPhone: (isRecObj ? receiver.receiverPhone : "") || (isCpObj ? cp.contactPhone : "") || "",
+                    reportReceiverEmail: (isRecObj ? receiver.receiverEmail : "") || client?.clientEmail || "",
+                    reportReceiverAddress: (isRecObj ? receiver.receiverAddress : "") || client?.clientAddress || "",
 
                     taxName: invoice?.taxName ?? client?.clientName ?? "",
                     taxCode: invoice?.taxCode ?? client?.legalId ?? "",
@@ -136,7 +151,7 @@ export function CustomerSampleRequestPage() {
                         sampleTypeId: s?.sampleTypeId ?? s?.sample_type_id ?? s?.librarySampleType?.sampleTypeId ?? (s as any)?.library_sample_type?.sample_type_id ?? "",
                         sampleNote: s?.sampleNote ?? s?.sample_note ?? "",
                         sampleDesc: s?.sampleDesc ?? "",
-                        sampleInfo: s?.sampleInfo ?? [],
+                        sampleInfo: normalizeSampleInfo(s?.sampleName ?? "", s?.sampleInfo ?? []),
                         analyses: (s?.analyses ?? []).map((a: any) => ({
                             ...a,
                             parameterName: a?.parameterName ?? a?.parameter_name ?? "",
@@ -221,7 +236,12 @@ export function CustomerSampleRequestPage() {
         setTempData((prev) => {
             if (!prev) return prev;
             const newSamples = [...prev.samples];
-            newSamples[idx] = { ...newSamples[idx], [field]: value };
+            const updatedSample = { ...newSamples[idx], [field]: value };
+            // Keep Tên mẫu thử in sampleInfo in sync with sampleName
+            if (field === "sampleName") {
+                updatedSample.sampleInfo = normalizeSampleInfo(value, updatedSample.sampleInfo || []);
+            }
+            newSamples[idx] = updatedSample;
             return { ...prev, samples: newSamples };
         });
         setIsDirty(true);
@@ -256,8 +276,21 @@ export function CustomerSampleRequestPage() {
         setIsDirty(true);
     }, []);
 
-    const handleSave = async () => {
-        if (!editorRef.current || !tempData) return;
+    // ── Auto-refresh TinyMCE preview whenever tempData changes (live update) ──
+    // Only runs in locked mode so we don't overwrite direct TinyMCE edits.
+    // Debounced 300ms so rapid keystrokes don't cause flickering.
+    useEffect(() => {
+        if (!editorReady || !tempData || !isLocked) return;
+        const timer = setTimeout(() => {
+            if (editorRef.current) {
+                editorRef.current.setContent(generateSampleRequestHtml(tempData, t));
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [tempData, editorReady, isLocked, t]);
+
+    const handleSave = async (): Promise<boolean> => {
+        if (!editorRef.current || !tempData) return false;
         setLoading(true);
         const content = editorRef.current.getContent();
         const tid = toast.loading(t("common.saving") || "Đang lưu...");
@@ -278,7 +311,7 @@ export function CustomerSampleRequestPage() {
                         contactName: tempData.contactPerson,
                         contactPhone: tempData.contactPhone,
                         contactId: tempData.contactIdentity,
-                        contactEmail: tempData.contactEmail,
+                        contactEmail: (tempData as any).contactEmail,
                     },
                     reportRecipient: {
                         receiverName: (tempData as any).reportReceiverName,
@@ -286,35 +319,47 @@ export function CustomerSampleRequestPage() {
                         receiverEmail: (tempData as any).reportReceiverEmail,
                         receiverAddress: (tempData as any).reportReceiverAddress,
                     },
-                    samples: tempData.samples.map((s) => ({
-                        sampleName: s.sampleName,
-                        sampleNote: s.sampleNote,
-                        sampleDesc: (s as any).sampleDesc,
-                        sampleInfo: s.sampleInfo,
-                        analyses: s.analyses.map((a: any) => ({
-                            parameterName: a.parameterName,
-                            protocolCode: a.protocolCode,
-                            analysisUnit: a.analysisUnit,
-                        })),
-                    })),
+                    attachedDocuments: (tempData as any).attachedDocuments,
+                    samples: tempData.samples.map((s) => {
+                        const finalInfo = normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []);
+                        const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
+                        return {
+                            ...s,
+                            sampleName: s.sampleName,
+                            sampleNote: s.sampleNote,
+                            sampleDesc: (s as any).sampleDesc,
+                            sampleInfo: apiInfo,
+                            analyses: s.analyses.map((a: any) => ({
+                                ...a,
+                                parameterName: a.parameterName,
+                                protocolCode: a.protocolCode,
+                                analysisUnit: a.analysisUnit,
+                            })),
+                        };
+                    }),
                     orderCustomerFileIds: tempData.orderCustomerFileIds,
                 },
             });
             if (res.success) {
                 toast.success("Đã lưu phiếu gửi mẫu", { id: tid });
                 setIsDirty(false);
+                return true;
             } else {
                 toast.error(res.error?.message || "Lưu thất bại", { id: tid });
+                return false;
             }
         } catch (e: any) {
             toast.error(e?.message || "Lỗi khi lưu", { id: tid });
+            return false;
         } finally {
             setLoading(false);
         }
     };
 
     const handleExportPdf = async () => {
-        if (!editorRef.current || !tempData) return;
+        // Auto save before export
+        const isSaved = await handleSave();
+        if (!isSaved || !editorRef.current || !tempData) return;
         const tid = toast.loading("Đang xuất file PDF...");
         try {
             const html = editorRef.current.getContent() || generateSampleRequestHtml(tempData, t);
@@ -386,37 +431,32 @@ export function CustomerSampleRequestPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => {
-                            const newLock = !isLocked;
-                            setIsLocked(newLock);
-                            if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
-                            toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
-                        }}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border transition-all text-xs font-medium ${isLocked ? "bg-muted" : "bg-primary/10 text-primary border-primary/20"}`}
-                    >
-                        {isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                        <span className="hidden sm:inline">{isLocked ? "Mở khóa sửa" : "Khóa mẫu"}</span>
-                    </button>
+                    {/* Desktop Action Buttons */}
+                    <div className="hidden xl:flex items-center gap-2">
+                        <button
+                            onClick={() => {
+                                const newLock = !isLocked;
+                                setIsLocked(newLock);
+                                if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
+                                toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
+                            }}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border transition-all text-xs font-medium ${isLocked ? "bg-muted" : "bg-primary/10 text-primary border-primary/20"}`}
+                        >
+                            {isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                            <span className="hidden sm:inline">{isLocked ? "Mở khóa sửa" : "Khóa mẫu"}</span>
+                        </button>
 
-                    <button
-                        onClick={handleExportPdf}
-                        className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all text-xs font-medium ${isDirty ? "bg-muted text-muted-foreground opacity-50 cursor-not-allowed" : "bg-orange-600 text-white hover:bg-orange-700 shadow-sm"}`}
-                    >
-                        <FileDown className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">PDF</span>
-                    </button>
+                        <button
+                            onClick={handleExportPdf}
+                            disabled={loading}
+                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all text-xs font-bold shadow-md ${isDirty ? "bg-primary text-primary-foreground hover:bg-primary/90 scale-105 ring-2 ring-primary/20" : "bg-orange-600 text-white hover:bg-orange-700"}`}
+                        >
+                            <FileDown className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Lưu & Xuất PDF</span>
+                        </button>
 
-                    <button
-                        onClick={handleSave}
-                        disabled={loading}
-                        className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all text-xs font-bold shadow-md ${isDirty ? "bg-primary text-primary-foreground hover:bg-primary/90 scale-105 ring-2 ring-primary/20" : "bg-secondary text-secondary-foreground hover:bg-secondary/90"}`}
-                    >
-                        <Save className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">{t("common.save")}</span>
-                    </button>
-
-                    <div className="w-px h-6 bg-border mx-1" />
+                        <div className="w-px h-6 bg-border mx-1" />
+                    </div>
 
                     <button
                         onClick={() => navigate(`/customer/orders/detail?orderId=${tempData.orderId}`)}
@@ -428,10 +468,72 @@ export function CustomerSampleRequestPage() {
                 </div>
             </div>
 
+            {/* Mobile Tab Switcher */}
+            <div className="flex lg:hidden border-b border-border bg-card shrink-0 p-3 gap-3 shadow-sm z-10">
+                <button
+                    onClick={() => setMobileTab("form")}
+                    className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${mobileTab === "form" ? "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/20" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+                >
+                    Nhập thông tin
+                </button>
+                <button
+                    onClick={() => setMobileTab("preview")}
+                    className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${mobileTab === "preview" ? "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/20" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+                >
+                    Bản in PDF
+                </button>
+            </div>
+
             {/* Layout Body — y hệt modal */}
             <div className="flex-1 flex overflow-hidden bg-gray-50/50 relative">
+                
+                {/* Floating Action Bar (Top Right) - Vertical Bubbles (Mobile Only) */}
+                <div className="absolute top-4 right-4 md:right-6 z-50 flex xl:hidden flex-col gap-3">
+                    <div className="relative group flex items-center justify-end">
+                        <span className="absolute right-full mr-3 whitespace-nowrap bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
+                            {isLocked ? "Mở khóa sửa" : "Khóa mẫu"}
+                        </span>
+                        <button
+                            onClick={() => {
+                                const newLock = !isLocked;
+                                setIsLocked(newLock);
+                                if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
+                                toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
+                            }}
+                            className={`p-3 rounded-full border shadow-lg transition-transform hover:scale-110 active:scale-95 backdrop-blur-sm ${isLocked ? "bg-white/90 border-border text-muted-foreground hover:text-foreground" : "bg-primary text-primary-foreground border-primary"}`}
+                        >
+                            {isLocked ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+                        </button>
+                    </div>
+
+                    <div className="relative group flex items-center justify-end">
+                        <span className="absolute right-full mr-3 whitespace-nowrap bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
+                            Lưu & Xuất PDF
+                        </span>
+                        <button
+                            onClick={handleExportPdf}
+                            disabled={loading}
+                            className={`p-3 rounded-full transition-transform shadow-lg hover:scale-110 active:scale-95 text-white ${isDirty ? "bg-orange-500 hover:bg-orange-600 ring-4 ring-orange-500/20" : "bg-orange-600 hover:bg-orange-700"}`}
+                        >
+                            <FileDown className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    <div className="relative group flex items-center justify-end">
+                        <span className="absolute right-full mr-3 whitespace-nowrap bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
+                            Hướng dẫn
+                        </span>
+                        <button
+                            onClick={() => setShowGuide(!showGuide)}
+                            className="p-3 bg-white/90 backdrop-blur-sm border border-border text-primary rounded-full shadow-lg hover:scale-110 active:scale-95 transition-transform"
+                        >
+                            <HelpCircle className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+
                 {/* Left Panel: Form */}
-                <div className="hidden lg:flex w-[550px] flex-col border-r border-border bg-white overflow-hidden shrink-0 shadow-sm">
+                <div className={`${mobileTab === "form" ? "flex" : "hidden"} lg:flex w-full lg:w-[550px] flex-col border-r border-border bg-white overflow-hidden shrink-0 shadow-sm`}>
                     <div className="px-5 py-4 border-b border-border bg-gray-50/50">
                         <h3 className="font-bold text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                             <FileText className="w-4 h-4 text-primary" />
@@ -439,26 +541,42 @@ export function CustomerSampleRequestPage() {
                         </h3>
                     </div>
                     <div className="flex-1 overflow-y-auto p-5 space-y-6 scroll-smooth">
-                        <Section title="Khách hàng" color="blue">
+                        <Section title="Thông tin thể hiện trên kết quả" color="blue">
                             <Field label="Tên khách hàng" value={(tempData as any).clientName} onChange={(v) => handleUpdateTopLevel("clientName", v)} onBlur={handleRefreshPreview} />
                             <Field label="Địa chỉ" value={tempData.clientAddress} onChange={(v) => handleUpdateTopLevel("clientAddress", v)} onBlur={handleRefreshPreview} />
-                            <div className="grid grid-cols-2 gap-3">
-                                <Field label="SĐT" value={(tempData as any).clientPhone} onChange={(v) => handleUpdateTopLevel("clientPhone", v)} onBlur={handleRefreshPreview} />
-                                <Field label="Mã số thuế" value={(tempData as any).taxCode} onChange={(v) => handleUpdateTopLevel("taxCode", v)} onBlur={handleRefreshPreview} />
-                            </div>
                         </Section>
 
-                        <Section title="Liên hệ" color="green">
-                            <Field label="Người liên hệ" value={tempData.contactPerson as string} onChange={(v) => handleUpdateTopLevel("contactPerson", v)} onBlur={handleRefreshPreview} />
+                        <Section title="Thông tin liên hệ" color="green">
                             <div className="grid grid-cols-2 gap-3">
-                                <Field label="Số CCCD" value={tempData.contactIdentity} onChange={(v) => handleUpdateTopLevel("contactIdentity", v)} onBlur={handleRefreshPreview} />
+                                <Field label="Người liên hệ" value={tempData.contactPerson as string} onChange={(v) => handleUpdateTopLevel("contactPerson", v)} onBlur={handleRefreshPreview} />
+                                <Field label="CCCD" value={tempData.contactIdentity} onChange={(v) => handleUpdateTopLevel("contactIdentity", v)} onBlur={handleRefreshPreview} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
                                 <Field label="Điện thoại" value={tempData.contactPhone as string} onChange={(v) => handleUpdateTopLevel("contactPhone", v)} onBlur={handleRefreshPreview} />
+                                <Field label="Email" value={(tempData as any).contactEmail} onChange={(v) => handleUpdateTopLevel("contactEmail", v)} onBlur={handleRefreshPreview} />
                             </div>
                         </Section>
 
-                        <Section title="Nhận báo cáo" color="yellow">
+                        <Section title="Thông tin nhận kết quả" color="yellow">
                             <Field label="Người nhận" value={(tempData as any).reportReceiverName} onChange={(v) => handleUpdateTopLevel("reportReceiverName", v)} onBlur={handleRefreshPreview} />
                             <Field label="Địa chỉ" value={(tempData as any).reportReceiverAddress} onChange={(v) => handleUpdateTopLevel("reportReceiverAddress", v)} onBlur={handleRefreshPreview} />
+                            <div className="grid grid-cols-2 gap-3">
+                                <Field label="Điện thoại" value={(tempData as any).reportReceiverPhone} onChange={(v) => handleUpdateTopLevel("reportReceiverPhone", v)} onBlur={handleRefreshPreview} />
+                                <Field label="Email" value={(tempData as any).reportReceiverEmail} onChange={(v) => handleUpdateTopLevel("reportReceiverEmail", v)} onBlur={handleRefreshPreview} />
+                            </div>
+                        </Section>
+
+                        <Section title="Thông tin xuất hóa đơn" color="purple">
+                            <Field label="Tên công ty" value={(tempData as any).taxName} onChange={(v) => handleUpdateTopLevel("taxName", v)} onBlur={handleRefreshPreview} />
+                            <Field label="Địa chỉ" value={(tempData as any).invoiceAddress} onChange={(v) => handleUpdateTopLevel("invoiceAddress", v)} onBlur={handleRefreshPreview} />
+                            <div className="grid grid-cols-2 gap-3">
+                                <Field label="MST/CCCD" value={(tempData as any).taxCode} onChange={(v) => handleUpdateTopLevel("taxCode", v)} onBlur={handleRefreshPreview} />
+                                <Field label="Email" value={(tempData as any).invoiceEmail} onChange={(v) => handleUpdateTopLevel("invoiceEmail", v)} onBlur={handleRefreshPreview} />
+                            </div>
+                        </Section>
+
+                        <Section title="Thông tin chung" color="indigo">
+                            <Field label="Giấy tờ đi kèm" value={(tempData as any).attachedDocuments} onChange={(v) => handleUpdateTopLevel("attachedDocuments", v)} onBlur={handleRefreshPreview} />
                         </Section>
 
                         <div className="space-y-4">
@@ -545,7 +663,7 @@ export function CustomerSampleRequestPage() {
                 </div>
 
                 {/* Center: Editor Preview */}
-                <div className="flex-1 overflow-auto bg-muted/30 flex justify-center p-4 md:p-8">
+                <div className={`${mobileTab === "preview" ? "flex" : "hidden"} lg:flex flex-1 overflow-x-auto overflow-y-auto bg-muted/30 justify-start lg:justify-center p-4 md:p-8 pt-16 md:pt-20`}>
                     <div className="w-[794px] min-w-[794px] h-fit bg-white shadow-2xl relative mb-20 border border-border/50">
                         {!editorReady && (
                             <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/90 backdrop-blur-sm">
@@ -602,26 +720,23 @@ export function CustomerSampleRequestPage() {
                     </div>
                 </div>
 
-                {/* Right Panel: Guide */}
-                <div className="hidden xl:flex w-56 flex-col border-l border-border bg-white shrink-0 overflow-y-auto p-6 scroll-smooth shadow-sm">
+                {/* Right Panel: Guide (Desktop Only) */}
+                <div className="hidden xl:flex w-64 flex-col border-l border-border bg-white shrink-0 overflow-y-auto p-6 scroll-smooth shadow-sm">
                     <GuideContent />
                 </div>
 
-                {/* Mobile Guide Button */}
-                <button
-                    onClick={() => setShowGuide(!showGuide)}
-                    className="fixed bottom-6 right-6 xl:hidden z-50 p-3 bg-primary text-primary-foreground rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-transform"
-                >
-                    <HelpCircle className="w-6 h-6" />
-                </button>
-
                 {showGuide && (
-                    <div className="fixed inset-0 z-[110] bg-black/40 backdrop-blur-sm flex items-end justify-center px-4 pb-4 animate-in slide-in-from-bottom duration-300">
-                        <div className="bg-white rounded-2xl w-full max-w-lg p-6 relative overflow-hidden">
-                            <button onClick={() => setShowGuide(false)} className="absolute top-4 right-4 text-muted-foreground">
-                                <X className="w-5 h-5" />
-                            </button>
-                            <GuideContent />
+                    <div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center sm:px-4 sm:pb-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-lg p-6 pb-10 sm:pb-6 relative flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-4 shadow-2xl border border-border/50">
+                            <div className="flex items-center justify-between border-b border-border pb-4 mb-5">
+                                <h3 className="font-bold text-lg text-foreground uppercase tracking-wider">Hướng dẫn thao tác</h3>
+                                <button onClick={() => setShowGuide(false)} className="p-2 -mr-2 text-muted-foreground hover:bg-muted hover:text-foreground rounded-full transition-colors">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div className="overflow-y-auto pr-2 pb-6 custom-scrollbar">
+                                <GuideContent />
+                            </div>
                         </div>
                     </div>
                 )}
@@ -665,20 +780,38 @@ function Field({ label, value, onChange, onBlur }: { label: string; value?: stri
 function GuideContent() {
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-3 text-primary">
-                <HelpCircle className="w-5 h-5" />
-                <h3 className="font-bold text-base">Hướng dẫn gửi mẫu</h3>
+            <div className="hidden xl:flex items-center gap-3 text-primary border-b border-border pb-4">
+                <HelpCircle className="w-6 h-6" />
+                <h3 className="font-bold text-base uppercase tracking-wider">Quy trình gửi mẫu</h3>
             </div>
-            <div className="space-y-5">
-                <Step num={1} title="Kiểm tra & Lưu" text="Xem lại dữ liệu ở cột trái hoặc sửa trực tiếp trên bản in. Nhớ nhấn Lưu để ghi nhận thay đổi." />
-                <Step num={2} title="Link PDF/In" text="Xuất file PDF hoặc nhấn In để nhận bản cứng (A4). Giao diện đã được tối ưu cho máy in văn phòng." />
-                <Step num={3} title="Ký & Đóng dấu" text="Vui lòng ký tên và ĐÓNG DẤU MỘC vào ô Khách hàng trên phiếu sau khi in." />
-                <div className="p-4 bg-muted/40 rounded-xl space-y-3 border border-border/50">
-                    <div className="text-xs font-bold text-foreground">Hồ sơ gửi IRDOP:</div>
-                    <ul className="text-[11px] text-muted-foreground space-y-2 list-disc pl-3">
-                        <li>Đơn đặt hàng (bản in).</li>
-                        <li>Phiếu gửi mẫu có dấu mộc.</li>
-                        <li>Mẫu thử đóng gói cẩn thận.</li>
+            <div className="space-y-6">
+                <Step 
+                    num={1} 
+                    title="Điền thông tin tự động" 
+                    text="Quý khách chỉ cần nhập dữ liệu ở phần Nhập thông tin. Hệ thống sẽ tự động căn chỉnh và điền chuẩn xác vào Phiếu yêu cầu ở Bản in PDF." 
+                />
+                <Step 
+                    num={2} 
+                    title="Chỉnh sửa bản in (Tùy chọn)" 
+                    text="Trường hợp cần định dạng lại văn bản, Quý khách có thể chuyển sang Bản in PDF, nhấn 'Mở khóa sửa' để điều chỉnh trực tiếp trên văn bản." 
+                />
+                <Step 
+                    num={3} 
+                    title="Lưu & Xuất phiếu PDF" 
+                    text="Nhấn nút 'Lưu & Xuất PDF' màu cam để lưu trữ dữ liệu an toàn vào hệ thống và tải file PDF chính thức về thiết bị của Quý khách." 
+                />
+                <Step 
+                    num={4} 
+                    title="Ký & Đóng mộc đỏ" 
+                    text="Vui lòng in file PDF ra giấy khổ A4, sau đó đại diện tổ chức/doanh nghiệp ký tên và đóng dấu mộc đỏ hợp lệ." 
+                />
+
+                <div className="p-5 bg-muted/40 rounded-xl space-y-4 border border-border/50 shadow-inner mt-6">
+                    <div className="text-sm font-bold text-foreground uppercase tracking-wide">Hồ sơ gửi kèm mẫu:</div>
+                    <ul className="text-sm text-muted-foreground space-y-3 list-disc pl-5 leading-relaxed">
+                        <li><strong>Phiếu yêu cầu:</strong> Bản in A4 đã ký và đóng dấu.</li>
+                        <li><strong>Đơn đặt hàng:</strong> Bản in kèm theo (nếu có).</li>
+                        <li><strong>Mẫu thử:</strong> Được đóng gói cẩn thận, nhãn dán khớp với thông tin trên phiếu.</li>
                     </ul>
                 </div>
             </div>
@@ -689,10 +822,10 @@ function GuideContent() {
 function Step({ num, title, text }: { num: number; title: string; text: string }) {
     return (
         <div className="flex gap-4">
-            <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-sm">{num}</div>
-            <div className="space-y-1">
-                <div className="font-bold text-xs text-foreground">{title}</div>
-                <p className="text-[11px] leading-relaxed text-muted-foreground">{text}</p>
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">{num}</div>
+            <div className="space-y-1.5 pt-1">
+                <div className="font-bold text-sm text-foreground leading-tight">{title}</div>
+                <p className="text-[13px] leading-relaxed text-muted-foreground text-justify">{text}</p>
             </div>
         </div>
     );

@@ -207,6 +207,26 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                 ))}
             </div>
 
+            <div style={{ marginTop: "10px", marginBottom: "12px", fontSize: "11px", color: "#333", borderTop: "1px solid #ccc", paddingTop: "6px" }}>
+                <span style={{ fontWeight: "bold" }}>Chú thích:</span>
+                <br />
+                <span style={{ marginLeft: "8px" }}>
+                    <b>IRDOP</b>: Chỉ tiêu được thực hiện tại IRDOP.
+                </span>
+                <br />
+                <span style={{ marginLeft: "8px" }}>
+                    <b>EX</b>: Chỉ tiêu được thực hiện bởi nhà thầu phụ.
+                </span>
+                <br />
+                <span style={{ marginLeft: "8px" }}>
+                    <b>VILAS997</b>: Chỉ tiêu được công nhận ISO/IEC 17025:2017.
+                </span>
+                <br />
+                <span style={{ marginLeft: "8px" }}>
+                    <b>TDC</b>: Chỉ tiêu được công nhận đánh giá sự phù hợp theo NĐ 107/2016/NĐ-CP.
+                </span>
+            </div>
+
             <div style={{ marginTop: "10px" }}>
                 <h3 style={{ fontSize: "14px", fontWeight: "bold", paddingBottom: "2px" }}>3. {t("order.print.total")}</h3>
                 <table style={{ width: "100%", marginTop: "5px", borderCollapse: "collapse" }}>
@@ -232,7 +252,7 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                                 <td style={{ textAlign: "right", paddingRight: "20px", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
                                     {t("order.print.discount")} ({data.discountRate}%):
                                 </td>
-                                <td style={{ textAlign: "right", color: "red", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
+                                <td style={{ textAlign: "right", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
                                     -{" "}
                                     {(data.pricing.discountAmount || (data.pricing.subtotal * data.discountRate) / 100).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}{" "}
                                     đ
@@ -255,7 +275,7 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                         </tr>
                         <tr style={{ fontSize: "14px", pageBreakInside: "avoid" }}>
                             <td style={{ textAlign: "right", paddingRight: "20px", fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{t("order.print.grandTotal")}:</td>
-                            <td style={{ textAlign: "right", fontWeight: "bold", color: "#1890FF", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
+                            <td style={{ textAlign: "right", fontWeight: "bold", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>
                                 {data.pricing.total.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} đ
                             </td>
                         </tr>

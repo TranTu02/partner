@@ -20,7 +20,8 @@ export interface AnalysisWithQuantity extends Omit<Matrix, "createdAt" | "create
 }
 
 import { useDrag, useDrop } from "react-dnd";
-import { useRef, useMemo, useState } from "react";
+import { useRef, useMemo, useState, useEffect } from "react";
+import { getSampleTypes } from "@/api/index";
 
 const SortableAnalysisRow = ({ id, index, moveRow, children }: any) => {
     const ref = useRef<HTMLTableRowElement>(null);
@@ -116,6 +117,30 @@ export function SampleCard({
 
     const [duplicateCount, setDuplicateCount] = useState(1);
     const [isDuplicatePopoverOpen, setIsDuplicatePopoverOpen] = useState(false);
+
+    const [sampleTypes, setSampleTypes] = useState<any[]>([]);
+    const [showSampleTypeDropdown, setShowSampleTypeDropdown] = useState(false);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (showSampleTypeDropdown) {
+                getSampleTypes({
+                    query: {
+                        search: sample.sampleTypeName || undefined,
+                        page: 1,
+                        itemsPerPage: 20,
+                        sortColumn: "createdAt",
+                        sortDirection: "DESC",
+                    },
+                }).then((res) => {
+                    if (res.success && res.data) {
+                        setSampleTypes(res.data as any[]);
+                    }
+                });
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [sample.sampleTypeName, showSampleTypeDropdown]);
 
     const handleNumberKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -222,7 +247,7 @@ export function SampleCard({
             totalUnitPrice += feeRaw;
             totalDiscount += combinedDiscountVal;
             totalBeforeTax += feeNetFinal;
-            totalAfterTax += isQuote ? lineAfterTax : (a.feeAfterTax ?? lineAfterTax);
+            totalAfterTax += isQuote ? lineAfterTax : (a.feeAfterTax || lineAfterTax);
         });
 
         const sampleQuantity = sample.quantity || 1;
@@ -250,16 +275,37 @@ export function SampleCard({
                             disabled={isReadOnly}
                         />
                     </div>
-                    <div className="col-span-1">
+                    <div className="col-span-1 relative">
                         <label className="block mb-2 text-sm font-medium text-foreground">{t("order.sampleMatrix")}</label>
                         <input
                             type="text"
                             className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             value={sample.sampleTypeName || ""}
-                            onChange={(e) => onUpdateSample({ sampleTypeName: e.target.value })}
+                            onChange={(e) => onUpdateSample({ sampleTypeName: e.target.value, sampleTypeId: "" })}
+                            onFocus={() => setShowSampleTypeDropdown(true)}
+                            onBlur={() => setTimeout(() => setShowSampleTypeDropdown(false), 200)}
                             placeholder={t("order.sampleMatrixPlaceholder", "Nền mẫu")}
                             disabled={isReadOnly}
                         />
+                        {showSampleTypeDropdown && !isReadOnly && sampleTypes.length > 0 && (
+                            <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                                {sampleTypes.map((st) => (
+                                    <div
+                                        key={st.sampleTypeId}
+                                        className="px-3 py-2 cursor-pointer hover:bg-muted text-sm text-foreground border-b border-border/50 last:border-0"
+                                        onClick={() => {
+                                            onUpdateSample({
+                                                sampleTypeId: st.sampleTypeId,
+                                                sampleTypeName: st.sampleTypeName,
+                                            });
+                                            setShowSampleTypeDropdown(false);
+                                        }}
+                                    >
+                                        {st.sampleTypeName}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                     <div className={showSampleQuantity ? "col-span-2" : "col-span-2"}>
                         <label className="block mb-2 text-sm font-medium text-foreground">{t("sample.note")}</label>
@@ -437,7 +483,11 @@ export function SampleCard({
                                                     <div className="flex flex-col items-end">
                                                         {isReadOnly ? (
                                                             (() => {
-                                                                const originalUP = Number(analysis.unitPrice) || 0;
+                                                                const sampleQty = sample.quantity || 1;
+                                                                const analysisQty = analysis.quantity || 1;
+                                                                const totalQty = isQuote ? (sampleQty * analysisQty) : 1;
+
+                                                                const originalUP = (Number(analysis.unitPrice) || 0) * totalQty;
                                                                 const lineDiscountRate = Number(analysis.discountRate) || 0;
                                                                 const actualUP = originalUP * (1 - lineDiscountRate / 100);
                                                                 const discountedUP = actualUP * (1 - globalDiscountRate / 100);
@@ -457,8 +507,11 @@ export function SampleCard({
                                                             <input
                                                                 type="number"
                                                                 className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent text-right"
-                                                                value={analysis.unitPrice}
-                                                                onChange={(e) => handleAnalysisChange(index, "unitPrice", e.target.value)}
+                                                                value={Math.round((analysis.unitPrice || 0) * (isQuote ? (sample.quantity || 1) * (analysis.quantity || 1) : 1))}
+                                                                onChange={(e) => {
+                                                                    const totalQty = isQuote ? (sample.quantity || 1) * (analysis.quantity || 1) : 1;
+                                                                    handleAnalysisChange(index, "unitPrice", Number(e.target.value) / totalQty);
+                                                                }}
                                                                 onKeyDown={handleNumberKeyDown}
                                                                 onWheel={(e) => e.currentTarget.blur()}
                                                             />
@@ -516,7 +569,7 @@ export function SampleCard({
                                                             <input
                                                                 type="number"
                                                                 className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent text-right"
-                                                                value={analysis.feeAfterTax ?? calculateFeeAfterTax(analysis)} // Display feeAfterTax, calculate if not set
+                                                                value={analysis.feeAfterTax || calculateFeeAfterTax(analysis)} // Display feeAfterTax, calculate if not set
                                                                 onChange={(e) => handleAnalysisChange(index, "feeAfterTax", e.target.value)}
                                                                 onKeyDown={handleNumberKeyDown}
                                                                 onWheel={(e) => e.currentTarget.blur()}

@@ -1,17 +1,20 @@
 import { useTranslation } from "react-i18next";
-import { Plus, Trash2, ChevronDown } from "lucide-react";
+import { Plus, Trash2, ChevronDown, TrendingUp } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { OtherItem } from "@/types/order";
 
 interface OtherItemsSectionProps {
     otherItems: OtherItem[];
     onOtherItemsChange: (items: OtherItem[]) => void;
+    onBulkPriceIncrease?: (percent: number) => void;
     isReadOnly?: boolean;
 }
 
-export function OtherItemsSection({ otherItems, onOtherItemsChange, isReadOnly = false }: OtherItemsSectionProps) {
+export function OtherItemsSection({ otherItems, onOtherItemsChange, onBulkPriceIncrease, isReadOnly = false }: OtherItemsSectionProps) {
     const { t } = useTranslation();
     const [showPresets, setShowPresets] = useState<number | null>(null);
+    const [showBulkModal, setShowBulkModal] = useState(false);
+    const [bulkPercent, setBulkPercent] = useState<string>("");
     const presetsRef = useRef<HTMLDivElement>(null);
 
     const handleNumberKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -89,6 +92,65 @@ export function OtherItemsSection({ otherItems, onOtherItemsChange, isReadOnly =
                             + {preset}
                         </button>
                     ))}
+                    {onBulkPriceIncrease && (
+                        <button
+                            onClick={() => { setBulkPercent(""); setShowBulkModal(true); }}
+                            className="px-3 py-1 text-xs rounded-full border border-amber-500/60 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:border-amber-500 transition-all flex items-center gap-1"
+                        >
+                            <TrendingUp className="w-3 h-3" />
+                            Tăng giá toàn đơn
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* Bulk Price Increase Modal */}
+            {showBulkModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div className="bg-card border border-border rounded-xl shadow-2xl p-6 w-72 flex flex-col gap-4">
+                        <div className="flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-amber-500" />
+                            <span className="font-semibold text-sm">Tăng giá toàn đơn</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                min="0"
+                                max="1000"
+                                step="0.1"
+                                autoFocus
+                                placeholder="Nhập % tăng"
+                                value={bulkPercent}
+                                onChange={(e) => setBulkPercent(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        const p = parseFloat(bulkPercent);
+                                        if (!isNaN(p) && p > 0) { onBulkPriceIncrease?.(p); setShowBulkModal(false); }
+                                    }
+                                    if (e.key === "Escape") setShowBulkModal(false);
+                                }}
+                                className="flex-1 px-3 py-2 border border-border rounded-lg text-sm bg-input text-foreground focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                            />
+                            <span className="text-sm text-muted-foreground">%</span>
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                onClick={() => setShowBulkModal(false)}
+                                className="px-4 py-1.5 text-xs rounded-lg border border-border hover:bg-muted transition-colors"
+                            >
+                                Huỷ
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const p = parseFloat(bulkPercent);
+                                    if (!isNaN(p) && p > 0) { onBulkPriceIncrease?.(p); setShowBulkModal(false); }
+                                }}
+                                className="px-4 py-1.5 text-xs rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium transition-colors"
+                            >
+                                Áp dụng
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 

@@ -46,9 +46,9 @@ export function ParameterGroupModal({ isOpen, onClose, onSuccess, initialData }:
                     groupName: initialData.groupName || "",
                     sampleTypeId: initialData.sampleTypeId || "",
                     matrixIds: initialData.matrixIds || [],
-                    feeBeforeTax: initialData.feeBeforeTax || 0,
-                    taxRate: initialData.taxRate || 5,
-                    discountRate: initialData.discountRate || 0,
+                    feeBeforeTax: Number(initialData.feeBeforeTax) || (Number(initialData.totalFeeBeforeTaxAndDiscount) * (1 - Number(initialData.discountRate || 0) / 100)) || 0,
+                    taxRate: Number(initialData.taxRate) || 5,
+                    discountRate: Number(initialData.discountRate) || 0,
                 });
                 setSampleTypeInput(initialData.sampleTypeName || "");
                 if (initialData.matrices) {
@@ -121,7 +121,7 @@ export function ParameterGroupModal({ isOpen, onClose, onSuccess, initialData }:
             ...prev,
             matrixIds: newMatrices.map((x) => x.matrixId),
             // Auto calculate total if price is 0
-            feeBeforeTax: prev.feeBeforeTax === 0 ? newMatrices.reduce((sum, x) => sum + (x.feeBeforeTax || 0), 0) : prev.feeBeforeTax,
+            feeBeforeTax: prev.feeBeforeTax === 0 ? newMatrices.reduce((sum, x) => sum + (Number(x.feeBeforeTax) || 0), 0) : prev.feeBeforeTax,
         }));
         setMatrixInput("");
         setShowMatrixDropdown(false);
@@ -262,7 +262,7 @@ export function ParameterGroupModal({ isOpen, onClose, onSuccess, initialData }:
                                         >
                                             <div className="font-medium">{m.parameterName}</div>
                                             <div className="text-xs text-muted-foreground">
-                                                {m.protocolCode} - {(m.feeBeforeTax || 0).toLocaleString()} đ
+                                                {m.protocolCode} - {Number(m.feeBeforeTax || 0).toLocaleString()} đ
                                             </div>
                                         </div>
                                     ))}
@@ -292,7 +292,7 @@ export function ParameterGroupModal({ isOpen, onClose, onSuccess, initialData }:
                                             <tr key={m.matrixId} className="border-t border-border">
                                                 <td className="px-3 py-2">{m.parameterName}</td>
                                                 <td className="px-3 py-2 text-xs text-muted-foreground">{m.protocolCode}</td>
-                                                <td className="px-3 py-2 text-right">{(m.feeBeforeTax || 0).toLocaleString()} đ</td>
+                                                <td className="px-3 py-2 text-right">{Number(m.feeBeforeTax || 0).toLocaleString()} đ</td>
                                                 <td className="px-3 py-2 text-center">
                                                     <button type="button" onClick={() => handleRemoveMatrix(m.matrixId)} className="p-1 text-muted-foreground hover:text-destructive">
                                                         <Trash2 className="w-4 h-4" />
@@ -310,7 +310,7 @@ export function ParameterGroupModal({ isOpen, onClose, onSuccess, initialData }:
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-1">Tổng đơn giá gốc</label>
                             <div className="px-3 py-2 bg-muted border border-border rounded-lg text-sm text-muted-foreground">
-                                {selectedMatrices.reduce((sum, x) => sum + (x.feeBeforeTax || 0), 0).toLocaleString()} đ
+                                {selectedMatrices.reduce((sum, x) => sum + (Number(x.feeBeforeTax) || 0), 0).toLocaleString()} đ
                             </div>
                         </div>
                         <div>
@@ -321,7 +321,7 @@ export function ParameterGroupModal({ isOpen, onClose, onSuccess, initialData }:
                                 value={formData.discountRate}
                                 onChange={(e) => {
                                     const disc = Number(e.target.value);
-                                    const base = selectedMatrices.reduce((sum, x) => sum + (x.feeBeforeTax || 0), 0);
+                                    const base = selectedMatrices.reduce((sum, x) => sum + (Number(x.feeBeforeTax) || 0), 0);
                                     setFormData({ ...formData, discountRate: disc, feeBeforeTax: base * (1 - disc / 100) });
                                 }}
                                 min={0}

@@ -388,8 +388,8 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
                                     ))
                                 ) : (
                                     groups.map((group) => {
-                                        const baseSum = (group.matrices || []).reduce((acc: number, m: any) => acc + (Number(m.feeBeforeTax) || 0), 0);
-                                        const discountedSum = Math.round(baseSum * (1 - (group.discountRate || 0) / 100));
+                                        const baseSum = Number(group.totalFeeBeforeTaxAndDiscount) || (group.matrices || []).reduce((acc: number, m: any) => acc + (Number(m.feeBeforeTax) || 0), 0);
+                                        const discountedSum = Math.round(baseSum * (1 - (Number(group.discountRate) || 0) / 100) * (1 + (Number(group.taxRate) || 0) / 100));
 
                                         return (
                                             <tr key={group.groupId} className="border-t border-border hover:bg-muted align-top">
@@ -406,7 +406,7 @@ export function ParametersPage({ activeMenu, onMenuClick }: ParametersPageProps)
                                                         {(group.matrices || []).length === 0 && <span className="italic">Chưa có chỉ tiêu</span>}
                                                     </div>
                                                 </td>
-                                                <td className="px-3 py-4 text-right text-sm font-semibold text-green-600">{group.discountRate || 0}%</td>
+                                                <td className="px-3 py-4 text-right text-sm font-semibold text-green-600">{Number(group.discountRate || 0)}%</td>
                                                 <td className="px-3 py-4 text-right text-sm font-bold text-primary">{discountedSum > 0 ? discountedSum.toLocaleString("vi-VN") + " đ" : "--"}</td>
                                                 <td className="px-3 py-4 text-center">
                                                     <div className="flex items-center justify-center gap-2">

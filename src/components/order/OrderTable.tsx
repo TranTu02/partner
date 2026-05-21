@@ -611,7 +611,7 @@ export function OrderTable({ orders, loading, pagination, onPageChange, onItemsP
                                     </td>
 
                                     {/* Sale Person */}
-                                    <td className="px-3 py-2 text-sm text-foreground align-top line-clamp-1">{order.salePerson || "-"}</td>
+                                    <td className="px-3 py-2 text-sm text-foreground align-top">{order.salePerson || "-"}</td>
 
                                     {/* Status (Merged) */}
                                     <td className="px-3 py-2 text-sm text-foreground align-top">

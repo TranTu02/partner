@@ -3,7 +3,7 @@ import { X, Plus, Trash2, Copy } from "lucide-react";
 import type { Client } from "@/types/client";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { getClientDetail } from "@/api/index";
+import { getClientDetail, getClientTaxInfo } from "@/api/index";
 
 interface EditClientModalProps {
     isOpen: boolean;
@@ -62,6 +62,39 @@ export function EditClientModal({ isOpen, onClose, client, onConfirm }: EditClie
             }
         }
     }, [isOpen, client]);
+
+    const [isLoadingTaxInfo, setIsLoadingTaxInfo] = useState(false);
+
+    const handleFetchTaxInfo = async () => {
+        if (!legalId) {
+            toast.error(t("validation.required") + ": " + t("client.taxCode"));
+            return;
+        }
+        try {
+            setIsLoadingTaxInfo(true);
+            const res = await getClientTaxInfo({ query: { taxId: legalId } });
+            if (res.success && res.data) {
+                const { clientName: fetchedName, clientAddress: fetchedAddress } = res.data;
+                if (fetchedName) {
+                    setClientName(fetchedName);
+                    setInvoiceInfo((prev) => ({ ...prev, taxName: fetchedName }));
+                }
+                if (fetchedAddress) {
+                    setClientAddress(fetchedAddress);
+                    setInvoiceInfo((prev) => ({ ...prev, taxAddress: fetchedAddress }));
+                }
+                setInvoiceInfo((prev) => ({ ...prev, taxCode: legalId }));
+                toast.success(t("client.fetchTaxInfoSuccess", "Lấy thông tin thành công"));
+            } else {
+                toast.error(t("client.fetchTaxInfoFailed", "Không tìm thấy thông tin hoặc có lỗi xảy ra"));
+            }
+        } catch (error) {
+            console.error("Failed to fetch tax info", error);
+            toast.error(t("client.fetchTaxInfoFailed", "Không tìm thấy thông tin hoặc có lỗi xảy ra"));
+        } finally {
+            setIsLoadingTaxInfo(false);
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -161,13 +194,23 @@ export function EditClientModal({ isOpen, onClose, client, onConfirm }: EditClie
                                     <label className="block mb-2 text-sm font-medium text-foreground">
                                         {t("client.taxCode")} <span className="text-destructive">*</span>
                                     </label>
-                                    <input
-                                        type="text"
-                                        className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm"
-                                        value={legalId}
-                                        onChange={(e) => setLegalId(e.target.value)}
-                                        placeholder={t("client.taxCode")}
-                                    />
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm"
+                                            value={legalId}
+                                            onChange={(e) => setLegalId(e.target.value)}
+                                            placeholder={t("client.taxCode")}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleFetchTaxInfo}
+                                            disabled={isLoadingTaxInfo || !legalId}
+                                            className="px-3 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors text-sm font-medium disabled:opacity-50 whitespace-nowrap"
+                                        >
+                                            {isLoadingTaxInfo ? t("common.loading", "Đang lấy...") : t("client.fetchTaxInfo", "Lấy TT")}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="col-span-2">

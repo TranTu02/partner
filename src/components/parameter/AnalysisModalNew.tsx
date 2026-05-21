@@ -48,16 +48,27 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm, isCustomer = fals
         setPage(1);
     }, [searchQuery, selectedField, selectedSampleTypeNames, mode]);
 
-    // Fetch sample types
+    // Fetch sample types with search
     useEffect(() => {
-        const fetchSampleTypes = async () => {
-            const res = await api.getSampleTypes({ query: { itemsPerPage: 100 } });
-            if (res.success && res.data) {
-                setSampleTypes(res.data as SampleType[]);
+        const timer = setTimeout(() => {
+            if (isStDropdownOpen) {
+                api.getSampleTypes({
+                    query: {
+                        search: stSearch || undefined,
+                        page: 1,
+                        itemsPerPage: 50,
+                        sortColumn: "createdAt",
+                        sortDirection: "DESC",
+                    },
+                }).then((res) => {
+                    if (res.success && res.data) {
+                        setSampleTypes(res.data as SampleType[]);
+                    }
+                });
             }
-        };
-        fetchSampleTypes();
-    }, [api.getSampleTypes]);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [stSearch, isStDropdownOpen, api.getSampleTypes]);
 
     // Simulated Server-Side Search
     useEffect(() => {
@@ -373,7 +384,6 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm, isCustomer = fals
                                                 <div className="fixed inset-0 z-40" onClick={() => setIsStDropdownOpen(false)} />
                                                 <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-xl z-50 max-h-60 overflow-auto p-1">
                                                     {sampleTypes
-                                                        .filter((st) => st.sampleTypeName.toLowerCase().includes(stSearch.toLowerCase()))
                                                         .map((st) => (
                                                             <button
                                                                 key={st.sampleTypeId}
@@ -482,8 +492,8 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm, isCustomer = fals
                                             </tr>
                                         ) : (
                                             displayedGroups.map((g) => {
-                                                const subTotal = (g.matrices || []).reduce((acc, m) => acc + (m.feeBeforeTax || 0), 0);
-                                                const feeAfterTax = g.feeAfterTax || Math.round(subTotal * (1 - (g.discountRate || 0) / 100) * (1 + (g.taxRate || 0) / 100));
+                                                const subTotal = Number(g.totalFeeBeforeTaxAndDiscount) || (g.matrices || []).reduce((acc, m) => acc + (Number(m.feeBeforeTax) || 0), 0);
+                                                const feeAfterTax = g.feeAfterTax ? Number(g.feeAfterTax) : Math.round(subTotal * (1 - (Number(g.discountRate) || 0) / 100) * (1 + (Number(g.taxRate) || 0) / 100));
 
                                                 return (
                                                     <tr
@@ -505,7 +515,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm, isCustomer = fals
                                                                 )) || "--"}
                                                             </div>
                                                         </td>
-                                                        <td className="p-3 text-right text-green-600 font-medium align-top">{g.discountRate}%</td>
+                                                        <td className="p-3 text-right text-green-600 font-medium align-top">{Number(g.discountRate || 0)}%</td>
                                                         <td className="p-3 text-right font-semibold text-primary align-top">{Math.round(feeAfterTax || 0).toLocaleString("vi-VN")} đ</td>
                                                     </tr>
                                                 );

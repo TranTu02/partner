@@ -105,18 +105,28 @@ export function CustomerSampleCard({
     const [isStDropdownOpen, setIsStDropdownOpen] = useState(false);
 
     useEffect(() => {
-        const fetchSampleTypes = async () => {
-            try {
-                const res = await customerGetSampleTypes({ query: { itemsPerPage: 200 } });
-                if (res.success && res.data) {
-                    setSampleTypes(res.data as SampleType[]);
-                }
-            } catch (err) {
-                console.error("Failed to fetch sample types", err);
+        const timer = setTimeout(() => {
+            if (isStDropdownOpen) {
+                const searchVal = stSearch || sample.sampleTypeName || undefined;
+                customerGetSampleTypes({
+                    query: {
+                        search: searchVal,
+                        page: 1,
+                        itemsPerPage: 20,
+                        sortColumn: "createdAt",
+                        sortDirection: "DESC",
+                    },
+                }).then((res) => {
+                    if (res.success && res.data) {
+                        setSampleTypes(res.data as SampleType[]);
+                    }
+                }).catch((err) => {
+                    console.error("Failed to fetch sample types", err);
+                });
             }
-        };
-        fetchSampleTypes();
-    }, []);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [stSearch, sample.sampleTypeName, isStDropdownOpen]);
 
     // Local state for immediate feedback
     const [localName, setLocalName] = useState(sample.sampleName || "");
@@ -279,9 +289,13 @@ export function CustomerSampleCard({
                                 onChange={(e) => {
                                     setStSearch(e.target.value);
                                     setIsStDropdownOpen(true);
-                                    onUpdateSample({ sampleTypeName: e.target.value });
+                                    onUpdateSample({ sampleTypeName: e.target.value, sampleTypeId: "" });
                                 }}
                                 onFocus={() => setIsStDropdownOpen(true)}
+                                onBlur={() => setTimeout(() => {
+                                    setIsStDropdownOpen(false);
+                                    setStSearch("");
+                                }, 200)}
                                 placeholder="Ví dụ: Thực phẩm..."
                                 disabled={isReadOnly}
                             />
@@ -291,37 +305,33 @@ export function CustomerSampleCard({
                                         setStSearch("");
                                         onUpdateSample({ sampleTypeName: "", sampleTypeId: "" });
                                     }}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground z-10"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
                             )}
-                            {isStDropdownOpen && !isReadOnly && (
+                            {isStDropdownOpen && !isReadOnly && sampleTypes.length > 0 && (
                                 <>
                                     <div className="fixed inset-0 z-40" onClick={() => setIsStDropdownOpen(false)} />
                                     <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-50 max-h-60 overflow-auto p-1 animate-in fade-in zoom-in-95 duration-200">
-                                        {sampleTypes
-                                            .filter((st) => st.sampleTypeName.toLowerCase().includes(stSearch.toLowerCase()))
-                                            .map((st) => (
-                                                <button
-                                                    key={st.sampleTypeId}
-                                                    onClick={() => {
-                                                        onUpdateSample({
-                                                            sampleTypeName: st.sampleTypeName,
-                                                            sampleTypeId: st.sampleTypeId,
-                                                        });
-                                                        setStSearch("");
-                                                        setIsStDropdownOpen(false);
-                                                    }}
-                                                    className="w-full px-3 py-2 text-left text-sm hover:bg-primary/10 rounded flex items-center justify-between group"
-                                                >
-                                                    <span>{st.sampleTypeName}</span>
-                                                    <span className="text-[10px] text-muted-foreground group-hover:text-primary transition-colors">{st.sampleTypeId}</span>
-                                                </button>
-                                            ))}
-                                        {sampleTypes.filter((st) => st.sampleTypeName.toLowerCase().includes(stSearch.toLowerCase())).length === 0 && (
-                                            <div className="px-3 py-4 text-center text-sm text-muted-foreground italic">{t("common.noResults")}</div>
-                                        )}
+                                        {sampleTypes.map((st) => (
+                                            <button
+                                                key={st.sampleTypeId}
+                                                type="button"
+                                                onClick={() => {
+                                                    onUpdateSample({
+                                                        sampleTypeName: st.sampleTypeName,
+                                                        sampleTypeId: st.sampleTypeId,
+                                                    });
+                                                    setStSearch("");
+                                                    setIsStDropdownOpen(false);
+                                                }}
+                                                className="w-full px-3 py-2 text-left text-sm hover:bg-primary/10 rounded flex items-center justify-between group"
+                                            >
+                                                <span>{st.sampleTypeName}</span>
+                                                <span className="text-[10px] text-muted-foreground group-hover:text-primary transition-colors">{st.sampleTypeId}</span>
+                                            </button>
+                                        ))}
                                     </div>
                                 </>
                             )}

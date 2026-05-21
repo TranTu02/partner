@@ -310,7 +310,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
 
             // Calculate unitPrice from feeAfterTax if available
             // unitPrice = feeAfterTax / (1 + taxRate/100)
-            let unitPrice = matrixItem.feeBeforeTax || 0;
+            let unitPrice = Number(matrixItem.feeBeforeTax) || 0;
             if (feeAfterTax) {
                 unitPrice = feeAfterTax / (1 + taxRate / 100);
             }
@@ -349,6 +349,29 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 }
                 return s;
             }),
+        );
+    };
+
+    const handleBulkPriceIncrease = (percent: number) => {
+        const multiplier = 1 + percent / 100;
+        setSamples((prev) =>
+            prev.map((s) => ({
+                ...s,
+                analyses: s.analyses.map((a) => {
+                    const newUnitPrice = Math.round((Number(a.unitPrice) || 0) * multiplier);
+                    const qty = Number(a.quantity) || 1;
+                    const dr = Number(a.discountRate) || 0;
+                    const tr = Number(a.taxRate) || 0;
+                    const newFeeBeforeTax = Math.round(newUnitPrice * qty * (1 - dr / 100));
+                    const newFeeAfterTax = Math.round(newFeeBeforeTax * (1 + tr / 100));
+                    return {
+                        ...a,
+                        unitPrice: newUnitPrice,
+                        feeBeforeTax: newFeeBeforeTax,
+                        feeAfterTax: newFeeAfterTax,
+                    };
+                }),
+            }))
         );
     };
 
@@ -454,6 +477,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 clientId: selectedClient.clientId,
                 client: clientSnapshot as any,
                 contactPerson: contactData,
+                reportRecipient,
 
                 samples: samples.map((s) => ({
                     ...s,
@@ -636,7 +660,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                             isReadOnly={isReadOnly}
                         />
 
-                        <OtherItemsSection otherItems={otherItems} onOtherItemsChange={setOtherItems} isReadOnly={isReadOnly} />
+                        <OtherItemsSection otherItems={otherItems} onOtherItemsChange={setOtherItems} onBulkPriceIncrease={!isReadOnly ? handleBulkPriceIncrease : undefined} isReadOnly={isReadOnly} />
                     </div>
 
                     <div className="space-y-4">
@@ -680,13 +704,11 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                                     subtotal={pricing.subtotal}
                                     discountRate={discountRate}
                                     discountAmount={pricing.discountAmount}
-                                    lineDiscountAmount={pricing.lineDiscount}
                                     orderDiscountAmount={pricing.orderDiscount}
                                     feeBeforeTax={pricing.feeBeforeTax}
                                     tax={pricing.tax}
                                     total={pricing.total}
                                     commission={commission}
-                                    otherItems={otherItems}
                                     onDiscountRateChange={setDiscountRate}
                                     onCommissionChange={setCommission}
                                     isReadOnly={isReadOnly}

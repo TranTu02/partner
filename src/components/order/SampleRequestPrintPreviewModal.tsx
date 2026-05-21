@@ -17,6 +17,33 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
     const { t } = useTranslation();
     const editorRef = useRef<any>(null);
 
+    const copyToClipboard = async (text: string) => {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return;
+            } catch (err) {
+                console.error("Failed to copy with navigator.clipboard", err);
+            }
+        }
+        
+        // Fallback for non-HTTPS (e.g. LAN IPs)
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.position = "fixed";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand("copy");
+        } catch (err) {
+            console.error("Fallback: Oops, unable to copy", err);
+        }
+        document.body.removeChild(textArea);
+    };
+
     if (!isOpen) return null;
 
     let initialHtml = "";
@@ -48,16 +75,17 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
 
         try {
             const res: any = await generateOrderUri({ body: { orderId: data.orderId } });
-            const uriValue = res?.data?.url || res?.data?.uri;
+            // Extract uri properly regardless of wrapper
+            const uriValue = res?.data?.url || res?.data?.uri || res?.url || res?.uri;
             if (res?.success && uriValue) {
                 const link = `${window.location.origin}${uriValue}`;
-                navigator.clipboard.writeText(link);
+                await copyToClipboard(link);
                 toast.success("Đã tạo và sao chép liên kết mới thành công");
                 if (onUpdateData) {
                     onUpdateData({ orderUri: uriValue, requestForm: "" });
                 }
             } else {
-                toast.error("Không thể tạo liên kết");
+                toast.error("Không thể tạo liên kết: " + (res?.error?.message || "Lỗi không xác định"));
             }
         } catch (error) {
             console.error(error);
@@ -65,10 +93,10 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
         }
     };
 
-    const handleGetCurrentLink = () => {
+    const handleGetCurrentLink = async () => {
         if (!data?.orderUri) return;
         const link = `${window.location.origin}${data.orderUri}`;
-        navigator.clipboard.writeText(link);
+        await copyToClipboard(link);
         toast.success("Đã sao chép liên kết hiện tại");
     };
 
@@ -271,6 +299,10 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                         return accKeys;
                     })();
 
+                    const noteCell = isFirst
+                        ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; width: 10%;">${sample.sampleNote || ""}</td>`
+                        : "";
+
                     return `
           <tr>
             ${sttCell}
@@ -286,7 +318,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                 <div style="font-weight: bold; ${(analysis as any).protocolSource && accKeys ? "margin-top: 2px;" : ""}">${accKeys || ""}</div>
                 ${!(analysis as any).protocolSource && !accKeys ? "--" : ""}
             </td>
-            <td style="padding:5px; border: 1px solid #000 !important; width: 10%;">${analysis.parameterNote || ""}</td>
+            ${noteCell}
           </tr>
         `;
                 })

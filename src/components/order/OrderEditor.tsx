@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Plus, Search as SearchIcon, Paperclip, Eye, X, Loader2, File } from "lucide-react";
 import { ClientSectionNew } from "@/components/client/ClientSectionNew";
 import { SampleCard } from "@/components/order/SampleCard";
@@ -377,6 +377,9 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     });
 
                     setSamples(expandedSamples);
+                    if (foundQuote.otherItems && Array.isArray(foundQuote.otherItems)) {
+                        setOtherItems(foundQuote.otherItems);
+                    }
                     toast.success(t("order.loadQuoteSuccess"));
                 } else {
                     // Should not happen if data is detail, but good check
@@ -651,6 +654,29 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 }
                 return s;
             }),
+        );
+    };
+
+    const handleBulkPriceIncrease = (percent: number) => {
+        const multiplier = 1 + percent / 100;
+        setSamples((prev) =>
+            prev.map((s) => ({
+                ...s,
+                analyses: s.analyses.map((a) => {
+                    const newUnitPrice = Math.round((Number(a.unitPrice) || 0) * multiplier);
+                    const qty = Number(a.quantity) || 1;
+                    const dr = Number(a.discountRate) || 0;
+                    const tr = Number(a.taxRate) || 0;
+                    const newFeeBeforeTax = Math.round(newUnitPrice * qty * (1 - dr / 100));
+                    const newFeeAfterTax = Math.round(newFeeBeforeTax * (1 + tr / 100));
+                    return {
+                        ...a,
+                        unitPrice: newUnitPrice,
+                        feeBeforeTax: newFeeBeforeTax,
+                        feeAfterTax: newFeeAfterTax,
+                    };
+                }),
+            }))
         );
     };
 
@@ -990,7 +1016,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         isReadOnly={isReadOnly}
                     />
 
-                    <OtherItemsSection otherItems={otherItems} onOtherItemsChange={setOtherItems} isReadOnly={isReadOnly} />
+                    <OtherItemsSection otherItems={otherItems} onOtherItemsChange={setOtherItems} onBulkPriceIncrease={!isReadOnly ? handleBulkPriceIncrease : undefined} isReadOnly={isReadOnly} />
 
                     <div className="space-y-4">
                         <h3 className="text-base font-semibold text-foreground">{t("order.samples")}</h3>
@@ -1047,7 +1073,6 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                     tax={pricing.tax}
                                     total={pricing.total}
                                     commission={commission}
-                                    otherItems={otherItems}
                                     onDiscountRateChange={setDiscountRate}
                                     onCommissionChange={setCommission}
                                     isReadOnly={isReadOnly}

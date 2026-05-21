@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, Copy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { getClientTaxInfo } from "@/api/index";
 import type { Client, ClientContact, InvoiceInfo } from "@/types/client";
 
 interface AddClientModalProps {
@@ -34,6 +35,39 @@ export function AddClientModal({ isOpen, onClose, onConfirm, currentIdentityId =
     const [contactPhone, setContactPhone] = useState("");
     const [contactEmail, setContactEmail] = useState("");
     const [contactAddress, setContactAddress] = useState("");
+
+    const [isLoadingTaxInfo, setIsLoadingTaxInfo] = useState(false);
+
+    const handleFetchTaxInfo = async () => {
+        if (!legalId) {
+            toast.error(t("validation.required") + ": " + t("client.taxCode"));
+            return;
+        }
+        try {
+            setIsLoadingTaxInfo(true);
+            const res = await getClientTaxInfo({ query: { taxId: legalId } });
+            if (res.success && res.data) {
+                const { clientName: fetchedName, clientAddress: fetchedAddress } = res.data;
+                if (fetchedName) {
+                    setClientName(fetchedName);
+                    setTaxName(fetchedName);
+                }
+                if (fetchedAddress) {
+                    setClientAddress(fetchedAddress);
+                    setTaxAddress(fetchedAddress);
+                }
+                setTaxCode(legalId);
+                toast.success(t("client.fetchTaxInfoSuccess", "Lấy thông tin thành công"));
+            } else {
+                toast.error(t("client.fetchTaxInfoFailed", "Không tìm thấy thông tin hoặc có lỗi xảy ra"));
+            }
+        } catch (error) {
+            console.error("Failed to fetch tax info", error);
+            toast.error(t("client.fetchTaxInfoFailed", "Không tìm thấy thông tin hoặc có lỗi xảy ra"));
+        } finally {
+            setIsLoadingTaxInfo(false);
+        }
+    };
 
     const handleCopyBasicInfo = () => {
         setTaxName(clientName);
@@ -141,13 +175,23 @@ export function AddClientModal({ isOpen, onClose, onConfirm, currentIdentityId =
                             </div>
                             <div>
                                 <label className="block mb-2 text-sm font-medium text-foreground">{t("client.taxCode")}</label>
-                                <input
-                                    type="text"
-                                    className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground text-sm"
-                                    value={legalId}
-                                    onChange={(e) => setLegalId(e.target.value)}
-                                    placeholder={t("client.taxCode")}
-                                />
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground text-sm"
+                                        value={legalId}
+                                        onChange={(e) => setLegalId(e.target.value)}
+                                        placeholder={t("client.taxCode")}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleFetchTaxInfo}
+                                        disabled={isLoadingTaxInfo || !legalId}
+                                        className="px-3 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors text-sm font-medium disabled:opacity-50 whitespace-nowrap"
+                                    >
+                                        {isLoadingTaxInfo ? t("common.loading", "Đang lấy...") : t("client.fetchTaxInfo", "Lấy TT")}
+                                    </button>
+                                </div>
                             </div>
                             <div>
                                 <label className="block mb-2 text-sm font-medium text-foreground">{t("client.phone")}</label>

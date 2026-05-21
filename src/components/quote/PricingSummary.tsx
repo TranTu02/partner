@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import type { OtherItem } from "@/types/order";
 
 interface PricingSummaryProps {
     subtotal: number;
@@ -9,10 +8,8 @@ interface PricingSummaryProps {
     tax: number;
     total: number;
     commission: number;
-    otherItems: OtherItem[];
     onDiscountRateChange: (discountRate: number) => void;
     onCommissionChange: (commission: number) => void;
-    lineDiscountAmount?: number;
     orderDiscountAmount?: number;
     isReadOnly?: boolean;
 }
@@ -27,10 +24,8 @@ export function PricingSummary({
     tax,
     total,
     commission,
-    otherItems,
     onDiscountRateChange,
     onCommissionChange,
-    lineDiscountAmount = 0,
     orderDiscountAmount = 0,
     isReadOnly = false,
 }: PricingSummaryProps) {
@@ -43,7 +38,6 @@ export function PricingSummary({
     };
 
     // ── Derived totals ─────────────────────────────────────────────────────
-    const otherFeeBeforeTax = otherItems.reduce((s, i) => s + Number(i.feeBeforeTax || 0), 0);
 
     return (
         <div className="bg-card rounded-lg border border-border p-6 space-y-6">

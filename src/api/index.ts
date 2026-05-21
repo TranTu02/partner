@@ -107,6 +107,11 @@ export const deleteClient = async ({ headers, body, query }: ApiInput): Promise<
     return postV2("/v2/clients/delete", { headers, body, query });
 };
 
+/** GET /v2/clients/get/tax-info?taxId={taxId} */
+export const getClientTaxInfo = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return getV2("/v2/clients/get/tax-info", { headers, query: query || body });
+};
+
 // =============================================================================
 // ORDERS  (v2: /v2/orders/...)
 // =============================================================================
@@ -397,7 +402,7 @@ export const fileDelete = async ({ headers, body, query }: ApiInput): Promise<Ap
 
 const apis = {
     auth: { login, logout, checkSessionStatus },
-    clients: { getClients, createClient, getClientDetail, updateClient, deleteClient },
+    clients: { getClients, createClient, getClientDetail, updateClient, deleteClient, getClientTaxInfo },
     orders: { getOrders, createOrder, getOrderDetail, updateOrder, deleteOrder, getOrderStats, generateOrderUri, checkOrderUri },
     quotes: { getQuotes, createQuote, getQuoteDetail, updateQuote, deleteQuote },
     parameters: { getParameters, createParameter, getParameterDetail, getParameterFull, updateParameter, deleteParameter },

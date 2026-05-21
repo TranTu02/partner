@@ -15,6 +15,24 @@ import { toast } from "sonner";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
+// ─── Module-level constants (available before component renders) ─────────────
+const SAMPLE_INFO_ORDER = ["Tên mẫu thử", "Số lô", "Ngày sản xuất", "Nơi sản xuất", "Hạn sử dụng", "Số công bố", "Số đăng ký", "Thông tin khác"];
+
+const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value: string }[]) => {
+    const infoMap = new Map(rawInfo.map((i) => [i.label, i.value]));
+    infoMap.set("Tên mẫu thử", sampleName || "");
+    const ordered: { label: string; value: string }[] = [];
+    for (const key of SAMPLE_INFO_ORDER) {
+        ordered.push({ label: key, value: infoMap.get(key) ?? "" });
+        infoMap.delete(key);
+    }
+    infoMap.forEach((value, label) => ordered.push({ label, value }));
+    return ordered;
+};
+
+const defaultSampleInfo = SAMPLE_INFO_ORDER.map((label) => ({ label, value: "" }));
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface CustomerQuoteEditorProps {
     mode: EditorMode;
     initialData?: any;
@@ -115,23 +133,10 @@ export const CustomerQuoteEditor = forwardRef<CustomerQuoteEditorRef, CustomerQu
             if (initialData.samples?.length > 0) {
                 setSamples(
                     initialData.samples.map((s: any) => {
-                        // Merge existing info with defaults
-                        const existingInfo = s.sampleInfo || [];
-                        const mergedInfo = [...defaultSampleInfo];
-
-                        existingInfo.forEach((item: any) => {
-                            const idx = mergedInfo.findIndex((m) => m.label === item.label);
-                            if (idx !== -1) {
-                                mergedInfo[idx] = { ...mergedInfo[idx], value: item.value };
-                            } else {
-                                mergedInfo.push(item);
-                            }
-                        });
-
                         return {
                             ...s,
                             id: s.id || `rs-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                            sampleInfo: mergedInfo,
+                            sampleInfo: normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []),
                             analyses: (s.analyses || []).map((a: any) => ({
                                 ...a,
                                 id: a.id || `ra-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -208,16 +213,7 @@ export const CustomerQuoteEditor = forwardRef<CustomerQuoteEditorRef, CustomerQu
     };
     const pricing = calculatePricing();
 
-    // Sample handlers
-    const defaultSampleInfo = [
-        { label: "Số lô", value: "" },
-        { label: "Ngày sản xuất", value: "" },
-        { label: "Nơi sản xuất", value: "" },
-        { label: "Hạn sử dụng", value: "" },
-        { label: "Số công bố", value: "" },
-        { label: "Số đăng ký", value: "" },
-        { label: "Thông tin khác", value: "" },
-    ];
+    // defaultSampleInfo / normalizeSampleInfo are defined at module scope above
 
     const handleAddSample = () => {
         if (isReadOnly) return;
@@ -268,7 +264,7 @@ export const CustomerQuoteEditor = forwardRef<CustomerQuoteEditorRef, CustomerQu
         const newAnalyses: AnalysisWithQuantity[] = items.map((m, i) => {
             const feeAfterTax = Number((m as any).feeAfterTax || 0);
             const taxRate = Number(m.taxRate || 0);
-            let unitPrice = m.feeBeforeTax || 0;
+            let unitPrice = Number(m.feeBeforeTax) || 0;
             if (feeAfterTax) unitPrice = feeAfterTax / (1 + taxRate / 100);
             return {
                 ...m,
@@ -314,14 +310,13 @@ export const CustomerQuoteEditor = forwardRef<CustomerQuoteEditorRef, CustomerQu
             contactPerson: contactData,
             reportRecipient,
             samples: samples.map((s) => {
-                // Filter out empty sample info
-                const cleanInfo = (s.sampleInfo || []).filter((info) => info.label && info.value && info.value.trim() !== "");
-                // Ensure "Tên mẫu thử" is always present and matches sampleName
-                const finalInfo = [{ label: "Tên mẫu thử", value: s.sampleName || "" }, ...cleanInfo.filter((info) => info.label !== "Tên mẫu thử")];
+                // Ensure ordered sampleInfo with Tên mẫu thử always first
+                const finalInfo = normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []);
+                const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
 
                 return {
                     ...s,
-                    sampleInfo: finalInfo,
+                    sampleInfo: apiInfo,
                     analyses: s.analyses.map((a) => {
                         const qty = a.quantity || 1;
                         const up = a.unitPrice || 0;
@@ -380,16 +375,15 @@ export const CustomerQuoteEditor = forwardRef<CustomerQuoteEditorRef, CustomerQu
             taxCode,
             taxAddress,
             samples: samples.map((s) => {
-                // Filter out empty sample info
-                const cleanInfo = (s.sampleInfo || []).filter((info) => info.label && info.value && info.value.trim() !== "");
-                // Ensure "Tên mẫu thử" is always present and matches sampleName
-                const finalInfo = [{ label: "Tên mẫu thử", value: s.sampleName || "" }, ...cleanInfo.filter((info) => info.label !== "Tên mẫu thử")];
+                // Ensure ordered sampleInfo with Tên mẫu thử always first
+                const finalInfo = normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []);
+                const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
 
                 return {
                     sampleName: s.sampleName || "",
                     sampleNote: s.sampleNote || "",
                     sampleTypeName: s.sampleTypeName || "",
-                    sampleInfo: finalInfo,
+                    sampleInfo: apiInfo,
                     quantity: s.quantity || 1,
                     analyses: s.analyses.map((a) => {
                         const qty = a.quantity || 1;
@@ -653,13 +647,11 @@ export const CustomerQuoteEditor = forwardRef<CustomerQuoteEditorRef, CustomerQu
                                     subtotal={pricing.subtotal}
                                     discountRate={discountRate}
                                     discountAmount={pricing.totalDiscount}
-                                    lineDiscountAmount={pricing.totalDiscount - pricing.globalDiscountAmount}
                                     orderDiscountAmount={pricing.globalDiscountAmount}
                                     feeBeforeTax={pricing.feeBeforeTax}
                                     tax={pricing.tax}
                                     total={pricing.total}
                                     commission={0}
-                                    otherItems={otherItems}
                                     onDiscountRateChange={setDiscountRate}
                                     onCommissionChange={() => {}}
                                     isReadOnly={isReadOnly}

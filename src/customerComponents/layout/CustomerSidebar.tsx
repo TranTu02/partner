@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, ShoppingCart, FlaskConical, LogOut } from "lucide-react";
+import { LayoutDashboard, FileText, ShoppingCart, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import LogoFull from "@/assets/LOGO-FULL.png";
@@ -16,7 +16,6 @@ export function CustomerSidebar({ activeMenu }: CustomerSidebarProps) {
         { id: "dashboard", label: "Tổng quan", icon: LayoutDashboard, path: "/customer/dashboard" },
         { id: "quotes", label: "Báo giá", icon: FileText, path: "/customer/quotes" },
         { id: "orders", label: "Đơn hàng", icon: ShoppingCart, path: "/customer/orders" },
-        { id: "parameters", label: "Chỉ tiêu", icon: FlaskConical, path: "/customer/parameters" },
     ];
 
     const customerInfo = (() => {
