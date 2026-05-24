@@ -47,16 +47,12 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
     if (!isOpen) return null;
 
     let initialHtml = "";
-    // Priority: 1. data.requestForm (saved content), 2. Generate from data
-    if (data.requestForm && data.requestForm.trim().length > 0) {
-        initialHtml = data.requestForm;
-    } else {
-        try {
-            initialHtml = generateSampleRequestHtml(data, t);
-        } catch (error) {
-            console.error("Error generating HTML:", error);
-            return <div>Error generating preview: {String(error)}</div>;
-        }
+    // Always regenerate from data so default texts are applied.
+    try {
+        initialHtml = generateSampleRequestHtml(data, t);
+    } catch (error) {
+        console.error("Error generating HTML:", error);
+        return <div>Error generating preview: {String(error)}</div>;
     }
 
     const handlePrint = () => {
@@ -78,11 +74,24 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
             // Extract uri properly regardless of wrapper
             const uriValue = res?.data?.url || res?.data?.uri || res?.url || res?.uri;
             if (res?.success && uriValue) {
-                const link = `${window.location.origin}${uriValue}`;
+                let token = uriValue;
+                if (uriValue.includes("uri=")) {
+                    token = uriValue.split("uri=")[1]?.split("&")[0] || uriValue;
+                } else if (uriValue.includes("sessionId=")) {
+                    token = uriValue.split("sessionId=")[1]?.split("&")[0] || uriValue;
+                } else if (uriValue.includes("?")) {
+                    const params = new URLSearchParams(uriValue.split("?")[1]);
+                    token = params.get("uri") || params.get("sessionId") || uriValue;
+                } else if (uriValue.startsWith("/")) {
+                    const parts = uriValue.split("/");
+                    token = parts[parts.length - 1] || uriValue;
+                }
+
+                const link = `${window.location.origin}/customer/orders/sample-request?orderId=${data.orderId}&sessionId=${token}`;
                 await copyToClipboard(link);
                 toast.success("Đã tạo và sao chép liên kết mới thành công");
                 if (onUpdateData) {
-                    onUpdateData({ orderUri: uriValue, requestForm: "" });
+                    onUpdateData({ orderUri: token, requestForm: "" });
                 }
             } else {
                 toast.error("Không thể tạo liên kết: " + (res?.error?.message || "Lỗi không xác định"));
@@ -95,7 +104,27 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
 
     const handleGetCurrentLink = async () => {
         if (!data?.orderUri) return;
-        const link = `${window.location.origin}${data.orderUri}`;
+        let token = data.orderUri;
+        if (token.includes("uri=")) {
+            token = token.split("uri=")[1]?.split("&")[0] || token;
+        } else if (token.includes("sessionId=")) {
+            token = token.split("sessionId=")[1]?.split("&")[0] || token;
+        } else if (token.includes("?")) {
+            const params = new URLSearchParams(token.split("?")[1]);
+            token = params.get("uri") || params.get("sessionId") || token;
+        } else if (token.startsWith("/")) {
+            const parts = token.split("/");
+            token = parts[parts.length - 1] || token;
+        } else if (token.startsWith("http://") || token.startsWith("https://")) {
+            try {
+                const urlObj = new URL(token);
+                token = urlObj.searchParams.get("uri") || urlObj.searchParams.get("sessionId") || urlObj.pathname.split("/").pop() || token;
+            } catch {
+                // fallback
+            }
+        }
+
+        const link = `${window.location.origin}/customer/orders/sample-request?orderId=${data.orderId}&sessionId=${token}`;
         await copyToClipboard(link);
         toast.success("Đã sao chép liên kết hiện tại");
     };
@@ -248,18 +277,29 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                         ? `<td rowspan="${rowCount}" style="text-align:center; padding:5px; border: 1px solid #000 !important; vertical-align: top !important;">${sampleIdx + 1}</td>`
                         : "";
 
+                    // Build all sampleInfo lines, filtering out empty values for preview
+                    const allSampleInfo = sample.sampleInfo && sample.sampleInfo.length > 0 ? sample.sampleInfo.filter((i: any) => i.value && i.value.trim().length > 0) : [];
+
+                    // Always show Tên mẫu thử if it was handled as sampleName and no sampleInfo yet
+                    const hasSampleNameInInfo = allSampleInfo.some((i: any) => i.label === "Tên mẫu thử");
+                    const sampleInfoLines = allSampleInfo
+                        .map((info: any) => `<div><span style="font-weight:300;">${info.label}</span><strong>:</strong> <span style="font-weight:700;">${info.value || ""}</span></div>`)
+                        .join("");
+
+                    const sampleNameLineHtml =
+                        !hasSampleNameInInfo && sample.sampleName
+                            ? `<div><span style="font-weight:300;">Tên mẫu thử</span><strong>:</strong> <span style="font-weight:700;">${sample.sampleName}</span></div>`
+                            : "";
+
                     const sampleCell = isFirst
                         ? `
-              <td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important ; vertical-align:top !important;">
-                <div style="margin-bottom:2px;"><span style="font-weight:300;">${t("sampleRequest.sampleInfo.sampleName")}</span><strong>:</strong> <span style="font-weight:700;">${sample.sampleName || ""}</span></div>
-                <div style="font-size:13px; line-height:1.2;">
-                  <div><span style="font-weight:300;">${t("sampleRequest.sampleInfo.lotNo")}</span><strong>:</strong></div>
-                  <div><span style="font-weight:300;">${t("sampleRequest.sampleInfo.mfgDate")}</span><strong>:</strong></div>
-                  <div><span style="font-weight:300;">${t("sampleRequest.sampleInfo.expDate")}</span><strong>:</strong></div>
-                  <div><span style="font-weight:300;">${t("sampleRequest.sampleInfo.placeOfOrigin")}</span><strong>:</strong></div>
-                </div>
-              </td>
-            `
+               <td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important ; vertical-align:top !important;">
+                 <div style="font-size:13px; line-height:1.4;">
+                   ${sampleNameLineHtml}
+                   ${sampleInfoLines}
+                 </div>
+               </td>
+             `
                         : "";
 
                     const descCell = isFirst
@@ -272,35 +312,35 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
 
                     // Method and Note columns merged per sample (rowspan)
 
-                    const accKeys = (() => {
-                        const s = sample as any;
-                        const a = analysis as any;
-                        let acc = a.protocolAccreditation;
-                        if (typeof acc === "string" && acc.startsWith("{")) {
-                            try {
-                                acc = JSON.parse(acc);
-                            } catch {
-                                acc = null;
-                            }
-                        }
-                        const sFullType = (s.sampleTypeName || s.sampleMatrix || s.librarySampleType?.sampleTypeName || s.matrix?.matrixName || "").toString().normalize("NFC").toLowerCase().trim();
-                        const aFullType = (a.sampleTypeName || a.sampleMatrix || a.librarySampleType?.sampleTypeName || "").toString().normalize("NFC").toLowerCase().trim();
-                        const isMatch = !sFullType || !aFullType || sFullType === aFullType;
-                        let accKeys = "";
-                        if (acc && isMatch) {
-                            accKeys =
-                                typeof acc === "object"
-                                    ? Object.entries(acc)
-                                          .filter(([, v]) => v)
-                                          .map(([k]) => k)
-                                          .join(", ")
-                                    : acc.toString();
-                        }
-                        return accKeys;
-                    })();
+                    // const accKeys = (() => {
+                    //     const s = sample as any;
+                    //     const a = analysis as any;
+                    //     let acc = a.protocolAccreditation;
+                    //     if (typeof acc === "string" && acc.startsWith("{")) {
+                    //         try {
+                    //             acc = JSON.parse(acc);
+                    //         } catch {
+                    //             acc = null;
+                    //         }
+                    //     }
+                    //     const sFullType = (s.sampleTypeName || s.sampleMatrix || s.librarySampleType?.sampleTypeName || s.matrix?.matrixName || "").toString().normalize("NFC").toLowerCase().trim();
+                    //     const aFullType = (a.sampleTypeName || a.sampleMatrix || a.librarySampleType?.sampleTypeName || "").toString().normalize("NFC").toLowerCase().trim();
+                    //     const isMatch = !sFullType || !aFullType || sFullType === aFullType;
+                    //     let accKeys = "";
+                    //     if (acc && isMatch) {
+                    //         accKeys =
+                    //             typeof acc === "object"
+                    //                 ? Object.entries(acc)
+                    //                       .filter(([, v]) => v)
+                    //                       .map(([k]) => k)
+                    //                       .join(", ")
+                    //                 : acc.toString();
+                    //     }
+                    //     return accKeys;
+                    // })();
 
                     const noteCell = isFirst
-                        ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; width: 10%;">${sample.sampleNote || ""}</td>`
+                        ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important; width: 18%;">${sample.sampleNote || ""}</td>`
                         : "";
 
                     return `
@@ -309,14 +349,15 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             ${sampleCell}
             ${descCell}
             <td style="padding:5px; border: 1px solid #000 !important; width: 20%;">${analysis.parameterName || ""}</td>
-            <td style="padding:5px; border: 1px solid #000 !important; text-align: center; width: 7%;">${analysis.analysisUnit || ""}</td>
-            <td style="padding:5px; border: 1px solid #000 !important; text-align: left; width: 16%;">
-                <div style="font-weight: 700;">${analysis.protocolCode || "--"}</div>
-            </td>
-            <td style="padding:5px; border: 1px solid #000 !important; text-align: left; font-size: 11px; width: 8%;">
-                <div>${(analysis as any).protocolSource || ""}</div>
-                <div style="font-weight: bold; ${(analysis as any).protocolSource && accKeys ? "margin-top: 2px;" : ""}">${accKeys || ""}</div>
-                ${!(analysis as any).protocolSource && !accKeys ? "--" : ""}
+            <td style="padding:5px; border: 1px solid #000 !important; text-align: center; width: 6%;">${analysis.analysisUnit || ""}</td>
+            <td style="padding:5px; border: 1px solid #000 !important; text-align: left; width: 20%;">
+                <div style="font-weight: 700;">
+                    ${
+                        (analysis as any).protocolId
+                            ? "Đã thống nhất với IRDOP"
+                            : analysis.protocolCode || "Thống nhất với IRDOP về phương pháp thử"
+                    }
+                </div>
             </td>
             ${noteCell}
           </tr>
@@ -504,32 +545,33 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
               <th style="border: 1px solid #1e293b; padding: 8px 8px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 4%;">
                 ${t("table.stt")}
               </th>
-               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 25%;">
+               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 22%;">
                 ${t("sample.name")}</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 10%;">
                 ${t("sampleRequest.table.sampleDesc")}</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 20%;">
                 ${t("sampleRequest.table.parameters")}</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 7%;">
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 6%;">
                 Đơn vị</th>
-               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 16%;">
+               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 20%;">
                 Phương pháp</th>
-               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 8%;">
-                Công nhận</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 10%;">
-                ${t("sample.note")}</th>
+               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 18%;">
+                Ghi chú</th>
             </tr>
           </thead>
           ${samplesHtml}
         </table>
 
-         <div style="margin-top: 8px; margin-bottom: 12px; font-size: 11px; color: #333; padding-top: 6px;">
-            <span style="font-weight: bold;">Chú thích:</span>
-            <br/><span style="margin-left: 8px;"><b>IRDOP</b>: Chỉ tiêu được thực hiện tại IRDOP.</span>
-            <br/><span style="margin-left: 8px;"><b>EX</b>: Chỉ tiêu được thực hiện bởi nhà thầu phụ.</span>
-            <br/><span style="margin-left: 8px;"><b>VILAS997</b>: Chỉ tiêu được công nhận ISO/IEC 17025:2017.</span>
-            <br/><span style="margin-left: 8px;"><b>TDC</b>: Chỉ tiêu được công nhận đánh giá sự phù hợp theo NĐ 107/2016/NĐ-CP.</span>
+        ${data.otherItems && data.otherItems.length > 0 ? `
+        <div style="margin-top: 10px; margin-bottom: 12px; font-size: 13px; text-align: left;">
+            <strong>Ghi chú khách hàng:</strong>
+            <div style="margin-top: 4px; padding-left: 12px; font-weight: 700;">
+                ${data.otherItems
+                    .map((item) => `<div>- ${item.itemName}</div>`)
+                    .join("")}
+            </div>
         </div>
+        ` : ""}
 
         <div style="font-size: 12px; font-style: italic;">
         ${t("sampleRequest.section4.quote")}</div>

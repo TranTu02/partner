@@ -180,6 +180,19 @@ export function CustomerSampleCard({
         if (e.key === "ArrowUp" || e.key === "ArrowDown") e.preventDefault();
     };
 
+    const initialAnalysesRef = useRef<Record<string, { protocolCode: string | null; protocolId: string | null }>>({});
+
+    useEffect(() => {
+        sample.analyses.forEach((a) => {
+            if (!initialAnalysesRef.current[a.id]) {
+                initialAnalysesRef.current[a.id] = {
+                    protocolCode: (a as any).protocolCode || null,
+                    protocolId: (a as any).protocolId || null,
+                };
+            }
+        });
+    }, [sample.analyses]);
+
     const handleAnalysisChange = (analysisIndex: number, field: keyof AnalysisWithQuantity, value: any) => {
         const newAnalyses = [...sample.analyses];
         const updatedAnalysis = { ...newAnalyses[analysisIndex] };
@@ -203,6 +216,21 @@ export function CustomerSampleCard({
             const feeBeforeTax = up * qty;
             const afterDiscount = feeBeforeTax * (1 - dr / 100);
             updatedAnalysis.feeAfterTax = Math.ceil(afterDiscount * (1 + tr / 100));
+        } else if (field === ("protocolCode" as any)) {
+            const newValue = value;
+            const initial = initialAnalysesRef.current[updatedAnalysis.id];
+            if (newValue) {
+                (updatedAnalysis as any).protocolCode = newValue;
+                (updatedAnalysis as any).protocolId = null;
+            } else {
+                if (initial && initial.protocolId) {
+                    (updatedAnalysis as any).protocolCode = initial.protocolCode;
+                    (updatedAnalysis as any).protocolId = initial.protocolId;
+                } else {
+                    (updatedAnalysis as any).protocolCode = "";
+                    (updatedAnalysis as any).protocolId = null;
+                }
+            }
         }
 
         newAnalyses[analysisIndex] = updatedAnalysis;
@@ -326,10 +354,9 @@ export function CustomerSampleCard({
                                                     setStSearch("");
                                                     setIsStDropdownOpen(false);
                                                 }}
-                                                className="w-full px-3 py-2 text-left text-sm hover:bg-primary/10 rounded flex items-center justify-between group"
+                                                className="w-full px-3 py-2 text-left text-sm hover:bg-primary/10 rounded flex items-center justify-between group font-semibold"
                                             >
                                                 <span>{st.sampleTypeName}</span>
-                                                <span className="text-[10px] text-muted-foreground group-hover:text-primary transition-colors">{st.sampleTypeId}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -431,22 +458,21 @@ export function CustomerSampleCard({
                         <tr>
                             {!tableReadOnly && <th className="px-4 py-3 w-10 text-center"></th>}
                             <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.print.stt")}</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.print.parameter")}</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Nền mẫu</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("parameter.protocol", "Phương pháp")}</th>
-                            <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">{t("parameter.accreditation", "Công nhận")}</th>
-                            <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">Nơi thực hiện</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.print.unit", "Đơn vị")}</th>
-                            <th className="px-2 py-3 text-right text-sm font-semibold text-foreground w-[130px]">{t("order.print.unitPrice")}</th>
-                            <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">{t("parameter.tax")}</th>
-                            <th className="px-2 py-3 text-right text-sm font-semibold text-foreground w-[150px]">{t("order.lineTotal")}</th>
-                            {!tableReadOnly && <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">{t("common.action")}</th>}
+                            <th className="px-2 py-3 text-left text-sm font-semibold text-foreground border-b">{t("order.print.parameter")}</th>
+                            <th className="px-2 py-3 text-left text-sm font-semibold text-foreground border-b">Nền mẫu</th>
+                            <th className="px-2 py-3 text-left text-sm font-semibold text-foreground border-b">{t("parameter.protocol", "Phương pháp")}</th>
+                            <th className="px-2 py-3 text-center text-sm font-semibold text-foreground border-b">Nơi thực hiện</th>
+                            <th className="px-2 py-3 text-left text-sm font-semibold text-foreground border-b">{t("order.print.unit", "Đơn vị")}</th>
+                            <th className="px-2 py-3 text-right text-sm font-semibold text-foreground border-b">{t("order.print.unitPrice")}</th>
+                            <th className="px-2 py-3 text-center text-sm font-semibold text-foreground border-b">{t("parameter.tax")}</th>
+                            <th className="px-2 py-3 text-right text-sm font-semibold text-foreground border-b">{t("order.lineTotal")}</th>
+                            {!isAnalysesReadOnly && <th className="px-2 py-3 text-center text-sm font-semibold text-foreground border-b w-12">{t("common.action")}</th>}
                         </tr>
                     </thead>
                     <tbody>
                         {sample.analyses.length === 0 ? (
                             <tr>
-                                <td colSpan={tableReadOnly ? 10 : 12} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                                <td colSpan={isAnalysesReadOnly ? 9 : 10} className="px-4 py-8 text-center text-muted-foreground text-sm">
                                     {t("order.noAnalyses")}
                                 </td>
                             </tr>
@@ -485,37 +511,18 @@ export function CustomerSampleCard({
                                             <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
                                                 {analysis.sampleTypeName || "--"}
                                             </td>
-                                            <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
-                                                {tableReadOnly ? (
-                                                    (analysis as any).protocolCode
+                                            <td className="px-2 py-3 text-sm text-foreground align-top">
+                                                {isAnalysesReadOnly ? (
+                                                    (analysis as any).protocolCode || "--"
                                                 ) : (
                                                     <input
                                                         type="text"
-                                                        className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent"
-                                                        value={(analysis as any).protocolCode || ""}
+                                                        className="w-full px-2 py-1.5 border border-border rounded focus:border-primary focus:outline-none bg-background text-sm transition-colors"
+                                                        value={(analysis as any).protocolId ? "" : ((analysis as any).protocolCode || "")}
                                                         onChange={(e) => handleAnalysisChange(index, "protocolCode" as any, e.target.value)}
-                                                        placeholder={t("parameter.protocol")}
+                                                        placeholder="Thống nhất với IRDOP"
                                                     />
                                                 )}
-                                            </td>
-                                            <td className={`px-4 py-3 text-sm text-center ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
-                                                <div className="flex flex-wrap gap-1 justify-center">
-                                                    {(() => {
-                                                        if ((analysis as any).protocolAccreditation) {
-                                                            const accs = Object.entries((analysis as any).protocolAccreditation)
-                                                                .filter(([, v]) => v)
-                                                                .map(([k]) => k);
-                                                            if (accs.length > 0) {
-                                                                return accs.map((k) => (
-                                                                    <span key={k} className="px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded text-[10px] font-bold">
-                                                                        {k}
-                                                                    </span>
-                                                                ));
-                                                            }
-                                                        }
-                                                        return "--";
-                                                    })()}
-                                                </div>
                                             </td>
                                             <td className={`px-4 py-3 text-sm text-center text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
                                                 {tableReadOnly ? (

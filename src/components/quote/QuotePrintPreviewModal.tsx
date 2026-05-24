@@ -61,11 +61,10 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                     <thead>
                         <tr style="background-color: #e6e6e6;">
                             <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; width: 5%; vertical-align: top;">${t("order.print.stt")}</th>
-                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: left; width: 28%; vertical-align: top;">${t("order.print.parameter")}</th>
-                            <th colspan="2" style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; width: 30%; vertical-align: top;">Phương pháp / Công nhận</th>
-                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; width: 14%; vertical-align: top;">${t("order.print.amount")}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: left; width: 48%; vertical-align: top;">${t("order.print.parameter")}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; width: 15%; vertical-align: top;">${t("order.print.amount")}</th>
                             <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; width: 8%; vertical-align: top;">${t("order.print.tax", "Thuế")} (%)</th>
-                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; width: 15%; vertical-align: top;">${t("order.print.total")}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; width: 24%; vertical-align: top;">${t("order.print.total")}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -75,34 +74,6 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                             <tr style="page-break-inside: avoid;">
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top;">${i + 1}</td>
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; vertical-align: top;">${analysis.parameterName}</td>
-                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top; font-size: 11px;">
-                                    ${analysis.protocolCode || "--"}
-                                </td>
-                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top; font-size: 11px;">
-                                    ${(() => {
-                                        const sId = (sample as any).sampleTypeId;
-                                        const aId = (analysis as any).sampleTypeId;
-                                        const sType = (sample.sampleTypeName || (sample as any).sampleMatrix || "").toString().normalize("NFC").toLowerCase().trim();
-                                        const aType = (analysis.sampleTypeName || "").toString().normalize("NFC").toLowerCase().trim();
-
-                                        let acc = analysis.protocolAccreditation;
-                                        if (typeof acc === "string" && acc.startsWith("{")) {
-                                            try {
-                                                acc = JSON.parse(acc);
-                                            } catch {
-                                                acc = null;
-                                            }
-                                        }
-                                        const isMatch = sId && aId ? sId === aId : sType === aType || !sType;
-                                        const source = ((analysis as any).protocolSource || "").trim();
-
-                                        let accKeys = "";
-                                        if (isMatch && acc) {
-                                            accKeys = Object.keys(acc).filter((k) => acc[k]).join(", ");
-                                        }
-                                        return [source, accKeys].filter(Boolean).join(" ") || "--";
-                                    })()}
-                                </td>
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">
                                     ${(() => {
                                         const globalDiscountRate = Number(data.discountRate) || 0;
@@ -142,7 +113,7 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
                             .join("")}
                         
                         <tr>
-                            <td colspan="6" style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">${t("parameter.sumAfterTax", "Tổng tiền")}</td>
+                            <td colspan="4" style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">${t("parameter.sumAfterTax", "Tổng tiền")}</td>
                             <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">${fmtMoney(sampleTotalAfterTax)} </td>
                         </tr>
                         ${
@@ -165,16 +136,6 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
         `;
             })
             .join("");
-
-        const legendHtml = `
-            <div style="margin-top: 8px; margin-bottom: 12px; font-size: 11px; color: #333; border-top: 1px solid #ccc; padding-top: 6px;">
-            <span style="font-weight: bold;">Chú thích:</span>
-            <br/><span style="margin-left: 8px;"><b>IRDOP</b>: Chỉ tiêu được thực hiện tại IRDOP.</span>
-            <br/><span style="margin-left: 8px;"><b>EX</b>: Chỉ tiêu được thực hiện bởi nhà thầu phụ.</span>
-            <br/><span style="margin-left: 8px;"><b>VILAS997</b>: Chỉ tiêu được công nhận ISO/IEC 17025:2017.</span>
-            <br/><span style="margin-left: 8px;"><b>TDC</b>: Chỉ tiêu được công nhận đánh giá sự phù hợp theo NĐ 107/2016/NĐ-CP.</span>
-        </div>
-        `;
 
         // Other Items (phụ phí) section
         const otherItemsHtml =
@@ -286,7 +247,6 @@ export function QuotePrintPreviewModal({ isOpen, onClose, data }: QuotePrintPrev
             <div>
                 <h3 style="font-size: 14px; font-weight: bold; padding-bottom: 2px; margin-bottom: 6px;">2. ${t("order.print.samplesAndAnalysis")}</h3>
                 ${samplesHtml}
-                ${legendHtml}
             </div>
 
             ${otherItemsHtml}

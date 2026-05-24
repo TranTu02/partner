@@ -163,7 +163,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                                 let unitPrice = a.unitPrice !== undefined ? Number(a.unitPrice) : Number(a.parameterPrice) || 0;
                                 if (!unitPrice && a.feeAfterTax) unitPrice = Number(a.feeAfterTax) / qty / (1 + taxRate / 100);
                                 if (!unitPrice && a.feeBeforeTax && typeof a.feeBeforeTax === "number") unitPrice = a.feeBeforeTax / qty;
-                                return {
+                                                               return {
                                     ...a,
                                     id: a.id || `ra-${Date.now()}-${Math.random().toString(36).slice(2)}`,
                                     unitPrice,
@@ -171,6 +171,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                                     feeAfterTax: a.feeAfterTax || unitPrice * qty * (1 + taxRate / 100),
                                     taxRate,
                                     quantity: qty,
+                                    protocolId: a?.protocolId ?? a?.protocol_id ?? a?.protocol?.protocolId ?? a?.protocol?.protocol_id ?? a?.libraryParameterProtocol?.protocolId ?? a?.libraryParameterProtocol?.protocol_id ?? null,
                                 };
                             }),
                         };
@@ -594,6 +595,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                                 (a?.libraryParameterProtocol as any)?.protocolCode ??
                                 (a?.libraryParameterProtocol as any)?.protocol_code ??
                                 "",
+                            protocolId: a?.protocolId ?? a?.protocol_id ?? a?.protocol?.protocolId ?? a?.protocol?.protocol_id ?? a?.libraryParameterProtocol?.protocolId ?? a?.libraryParameterProtocol?.protocol_id ?? null,
                             protocolSource:
                                 a?.protocolSource ??
                                 a?.protocol_source ??
@@ -654,6 +656,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                         ...a,
                         unitPrice: Number(a.unitPrice) || 0,
                         discountRate: Number(a.discountRate) || 0,
+                        protocolId: a.protocolId ?? null,
                         feeBeforeTax: (Number(a.unitPrice) || 0) * (Number(a.quantity) || 1) * (1 - (Number(a.discountRate) || 0) / 100),
                         feeBeforeTaxAndDiscount: (Number(a.unitPrice) || 0) * (Number(a.quantity) || 1),
                         taxRate: a.taxRate || 0,

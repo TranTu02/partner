@@ -49,31 +49,36 @@ export function CustomerOrderPrintPreviewModal({ isOpen, onClose, data }: Custom
                     sampleTotalAfterTax += lineAfterTax;
                 });
 
-                const sampleInfoHtml =
-                    sample.sampleInfo && sample.sampleInfo.length > 0
-                        ? `<div style="font-style: italic; font-size: 12px; margin-top: 2px; color: #333;">
-                        ${sample.sampleInfo
-                            .filter((info) => info.label !== "Tên mẫu thử" && info.value)
-                            .map((info) => `${info.label}: ${info.value}`)
-                            .join(" | ")}
-                      </div>`
-                        : "";
+                // const sampleInfoHtml =
+                //     sample.sampleInfo && sample.sampleInfo.length > 0
+                //         ? `<div style="font-style: normal; font-size: 11px; margin-top: 4px; color: #444; line-height: 1.4;">
+                //         ${(sample.sampleInfo || [])
+                //             .filter((info) => info.label !== "Tên mẫu thử" && info.value)
+                //             .map((info) => `<div style="margin-bottom: 2px;"><span style="color: #666;">${info.label}:</span> <b>${info.value}</b></div>`)
+                //             .join("")}
+                //       </div>`
+                //         : "";
 
                 return `
             <div style="margin-bottom: 20px;">
                 <div style="background-color: #f0f0f0; padding: 5px 10px; margin-bottom: 5px;">
                     <div style="font-weight: bold;">${t("order.print.sample")} ${index + 1}: ${sample.sampleName}</div>
-                    <div style="font-size: 11px; margin-bottom: 2px;">Loại mẫu: ${(() => {
-                        const s = sample as any;
-                        const name = s.sampleTypeName || s.sampleMatrix || s.librarySampleType?.sampleTypeName || s.matrix?.matrixName;
-                        if (name) return name;
-                        // Fallback to first analysis info if available
-                        if (s.analyses && s.analyses.length > 0) {
-                            return s.analyses[0].sampleTypeName || s.analyses[0].sampleMatrix || "--";
+                    ${(() => {
+                        const hasSampleInfo = sample.sampleInfo && sample.sampleInfo.some(info => info.label !== "Tên mẫu thử" && info.value && info.value.trim());
+                        if (hasSampleInfo) {
+                            return `<div style="font-style: normal; font-size: 11px; margin-top: 4px; color: #444; line-height: 1.4;">
+                                ${(sample.sampleInfo || [])
+                                    .filter((info) => info.label !== "Tên mẫu thử" && info.value && info.value.trim())
+                                    .map((info) => `<div style="margin-bottom: 2px;"><span style="color: #666;">${info.label}:</span> <b>${info.value}</b></div>`)
+                                    .join("")}
+                            </div>`;
+                        } else {
+                            const s = sample as any;
+                            const name = s.sampleTypeName || s.sampleMatrix || s.librarySampleType?.sampleTypeName || s.matrix?.matrixName;
+                            const displayName = name || (s.analyses && s.analyses.length > 0 ? s.analyses[0].sampleTypeName || s.analyses[0].sampleMatrix || "--" : "--");
+                            return `<div style="font-size: 11px; margin-bottom: 2px;">Loại mẫu: ${displayName}</div>`;
                         }
-                        return "--";
-                    })()}</div>
-                    ${sampleInfoHtml}
+                    })()}
                     ${sample.sampleNote ? `<div style="font-style: italic; margin-top: 2px; color: #555;">${t("sample.note")}: ${sample.sampleNote}</div>` : ""}
                 </div>
                 <table class="data-table" style="width: 100%; border-collapse: collapse;">
@@ -81,7 +86,6 @@ export function CustomerOrderPrintPreviewModal({ isOpen, onClose, data }: Custom
                         <tr style="background-color: #e6e6e6;">
                             <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; width: 30px; vertical-align: top;">${t("order.print.stt")}</th>
                             <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: left; vertical-align: top;">${t("order.print.parameter")}</th>
-                            <th colspan="2" style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top;">Ph&#432;&#417;ng ph&#225;p / C&#244;ng nh&#7853;n</th>
                             <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top; width: 100px;">${fmtMoney(0).includes(",") ? t("order.print.amount") : "S&#7889; ti&#7873;n"}</th>
                             <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; width: 60px; vertical-align: top;">${t("order.print.tax", "Thu&#7871;")} (%)</th>
                             <th style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top; width: 130px;">${t("order.print.total")}</th>
@@ -95,40 +99,6 @@ export function CustomerOrderPrintPreviewModal({ isOpen, onClose, data }: Custom
                             <tr>
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top;">${i + 1}</td>
                                 <td style="border: 1px solid black; padding: 2px 5px 8px 5px; vertical-align: top;">${analysis.parameterName}</td>
-                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top; font-size: 11px;">${(analysis as any).protocolCode || ""}</td>
-                                <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: center; vertical-align: top; font-size: 11px;">
-                                     ${(() => {
-                                         const s = sample as any;
-                                         const a = analysis as any;
-                                         let acc = a.protocolAccreditation;
-                                         if (typeof acc === "string" && acc.startsWith("{")) {
-                                             try {
-                                                 acc = JSON.parse(acc);
-                                             } catch {
-                                                 acc = null;
-                                             }
-                                         }
-                                         const sFullType = (s.sampleTypeName || s.sampleMatrix || s.librarySampleType?.sampleTypeName || s.matrix?.matrixName || "")
-                                             .toString()
-                                             .normalize("NFC")
-                                             .toLowerCase()
-                                             .trim();
-                                         const aFullType = (a.sampleTypeName || a.sampleMatrix || a.librarySampleType?.sampleTypeName || "").toString().normalize("NFC").toLowerCase().trim();
-                                         const isMatch = !sFullType || !aFullType || sFullType === aFullType;
-                                         const source = (a.protocolSource || "").trim();
-                                         let accKeys = "";
-                                         if (acc && isMatch) {
-                                             accKeys =
-                                                 typeof acc === "object"
-                                                     ? Object.entries(acc)
-                                                           .filter(([, v]) => v)
-                                                           .map(([k]) => k)
-                                                           .join(" ")
-                                                     : acc.toString();
-                                         }
-                                         return [source, accKeys].filter(Boolean).join(" ");
-                                     })()}
-                                 </td>
                                  <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; vertical-align: top;">
                                     ${fmtMoney(price)}
                                     ${
@@ -146,7 +116,7 @@ export function CustomerOrderPrintPreviewModal({ isOpen, onClose, data }: Custom
                             })
                             .join("")}
                         <tr>
-                            <td colspan="6" style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">${t("parameter.sumAfterTax", "Tổng tiền")}</td>
+                            <td colspan="4" style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">${t("parameter.sumAfterTax", "Tổng tiền")}</td>
                             <td style="border: 1px solid black; padding: 2px 5px 8px 5px; text-align: right; font-weight: bold; vertical-align: top;">${fmtMoney(sampleTotalAfterTax)} </td>
                         </tr>
                     </tbody>
@@ -155,16 +125,6 @@ export function CustomerOrderPrintPreviewModal({ isOpen, onClose, data }: Custom
         `;
             })
             .join("");
-
-        const legendHtml = `
-            <div style="margin-top: 8px; margin-bottom: 12px; font-size: 11px; color: #333; border-top: 1px solid #ccc; padding-top: 6px;">
-                <span style="font-weight: bold;">Chú thích:</span>
-                <br/><span style="margin-left: 8px;"><b>IRDOP</b>: Chỉ tiêu được thực hiện tại IRDOP.</span>
-                <br/><span style="margin-left: 8px;"><b>EX</b>: Chỉ tiêu được thực hiện bởi nhà thầu phụ.</span>
-                <br/><span style="margin-left: 8px;"><b>VILAS997</b>: Chỉ tiêu được công nhận ISO/IEC 17025:2017.</span>
-                <br/><span style="margin-left: 8px;"><b>TDC</b>: Chỉ tiêu được công nhận đánh giá sự phù hợp theo NĐ 107/2016/NĐ-CP.</span>
-            </div>
-        `;
 
         // Other Items (phụ phí) section
         const otherItemsHtml =
@@ -276,7 +236,6 @@ export function CustomerOrderPrintPreviewModal({ isOpen, onClose, data }: Custom
             <div>
                 <h3 style="font-size: 14px; font-weight: bold; padding-bottom: 2px; margin-bottom: 6px;">2. ${t("order.print.samplesAndAnalysis")}</h3>
                 ${samplesHtml}
-                ${legendHtml}
             </div>
 
              ${otherItemsHtml}
@@ -326,7 +285,11 @@ export function CustomerOrderPrintPreviewModal({ isOpen, onClose, data }: Custom
                  <div style="font-style: italic; margin-top: 5px;">
                     <p style="font-weight: bold; margin-bottom: 2px;">${t("order.print.notePrefix")}</p>
                     <div style="margin-left: 10px;">
-                        <p style="margin-bottom: 2px;">${t("order.print.validityNote")} ${data.createdAt ? `${format(new Date(data.createdAt), "dd/MM/yyyy")}` : ""}</p>
+                        <p style="margin-bottom: 2px;">${t("order.print.validityNote")} ${(() => {
+                            if (!data.createdAt) return "";
+                            const d = new Date(data.createdAt);
+                            return !isNaN(d.getTime()) ? format(d, "dd/MM/yyyy") : "";
+                        })()}</p>
                         <p style="margin-bottom: 2px;">${t("order.print.disclaimer")}</p>
                     </div>
                  </div>

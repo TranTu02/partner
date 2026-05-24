@@ -41,21 +41,46 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
     // Local state to allow editing before saving
     const [tempData, setTempData] = useState<OrderPrintData>(data);
 
+    // Cache original protocolCode/protocolId to allow restoring when user clears input
+    const initialAnalysesRef = useRef<Record<string, { protocolCode: string | null; protocolId: string | null }>>({});
 
     // normalizeSampleInfo is defined at module scope above
 
     useEffect(() => {
         if (isOpen) {
-            setTempData(data);
+            const mappedSamples = data.samples.map(s => ({
+                ...s,
+                analyses: (s.analyses || []).map((a: any) => {
+                    const pId = a.protocolId ?? a.protocol_id ?? a.protocol?.protocolId ?? a.protocol?.protocol_id ?? a.libraryParameterProtocol?.protocolId ?? a.libraryParameterProtocol?.protocol_id ?? null;
+                    return {
+                        ...a,
+                        protocolId: pId
+                    };
+                })
+            }));
+            const mappedData = { ...data, samples: mappedSamples };
+            setTempData(mappedData);
+
+            // Snapshot original protocol values per analysis ID
+            initialAnalysesRef.current = {};
+            mappedSamples.forEach((s) => {
+                s.analyses.forEach((a: any) => {
+                    initialAnalysesRef.current[a.id] = {
+                        protocolCode: a.protocolCode || null,
+                        protocolId: a.protocolId || null,
+                    };
+                });
+            });
         }
     }, [isOpen, data]);
 
+    // Always regenerate HTML from current tempData so default texts (like
+    // "Thống nhất với IRDOP về phương pháp thử") are always visible.
+    // requestForm (saved manual edits) is only used as a fallback if the user
+    // explicitly worked in locked=false mode and we have no data to regenerate from.
     const initialHtml = useMemo(() => {
-        if (tempData.requestForm && tempData.requestForm.trim().length > 0) {
-            return tempData.requestForm;
-        }
         return generateSampleRequestHtml(tempData, t);
-    }, [tempData, t]);
+    }, [tempData.orderId, t]); // Only re-key on orderId so TinyMCE isn't re-mounted on every keystroke
 
     if (!isOpen) return null;
 
@@ -82,7 +107,26 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
         setTempData((prev) => {
             const newSamples = [...prev.samples];
             const newAnalyses = [...newSamples[sIdx].analyses];
-            newAnalyses[aIdx] = { ...newAnalyses[aIdx], [field]: value };
+            const analysis = newAnalyses[aIdx] as any;
+
+            if (field === "protocolCode") {
+                if (value && value.trim()) {
+                    // User typed something → override protocolCode, clear protocolId
+                    newAnalyses[aIdx] = { ...analysis, protocolCode: value, protocolId: null };
+                } else {
+                    // User cleared or whitespace only → restore original if protocolId was set
+                    const original = initialAnalysesRef.current[analysis.id];
+                    if (original && original.protocolId) {
+                        // Only restore if not yet exported (protocolId still in original)
+                        newAnalyses[aIdx] = { ...analysis, protocolCode: original.protocolCode, protocolId: original.protocolId };
+                    } else {
+                        newAnalyses[aIdx] = { ...analysis, protocolCode: "", protocolId: null };
+                    }
+                }
+            } else {
+                newAnalyses[aIdx] = { ...analysis, [field]: value };
+            }
+
             newSamples[sIdx] = { ...newSamples[sIdx], analyses: newAnalyses };
             return { ...prev, samples: newSamples };
         });
@@ -143,6 +187,7 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                                 ...a,
                                 parameterName: a.parameterName,
                                 protocolCode: a.protocolCode,
+                                protocolId: (a as any).protocolId, // include protocolId
                                 analysisUnit: a.analysisUnit,
                             })),
                         };
@@ -347,16 +392,26 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                             <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Danh sách mẫu</h4>
                             {tempData.samples.map((sample, sIdx) => (
                                 <Section key={sIdx} title={`Mẫu ${sIdx + 1}`} color="indigo">
-                                    <div className="grid grid-cols-2 gap-3 mb-4">
+                                    <div className="space-y-3 mb-4">
                                         <Field label="Tên mẫu" value={sample.sampleName} onChange={(v) => handleUpdateSample(sIdx, "sampleName", v)} onBlur={handleRefreshPreview} />
-                                        <Field label="Ghi chú/Ma trận" value={sample.sampleNote || ""} onChange={(v) => handleUpdateSample(sIdx, "sampleNote", v)} onBlur={handleRefreshPreview} />
                                     </div>
-                                    <div className="space-y-1.5">
+                                    <div className="space-y-1.5 mb-4">
                                         <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-0.5">Mô tả mẫu thử</label>
                                         <textarea
-                                            className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[80px]"
+                                            rows={2}
+                                            className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[48px]"
                                             value={sample.sampleDesc || ""}
                                             onChange={(e) => handleUpdateSample(sIdx, "sampleDesc", e.target.value)}
+                                            onBlur={handleRefreshPreview}
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5 mb-4">
+                                        <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-0.5">Ghi chú</label>
+                                        <textarea
+                                            rows={2}
+                                            className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[48px]"
+                                            value={sample.sampleNote || ""}
+                                            onChange={(e) => handleUpdateSample(sIdx, "sampleNote", e.target.value)}
                                             onBlur={handleRefreshPreview}
                                         />
                                     </div>
@@ -401,8 +456,8 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                                                 />
                                                 <input
                                                     className="w-full text-[10px] px-1.5 py-1 border border-border rounded bg-white focus:ring-1 focus:ring-primary outline-none"
-                                                    placeholder="P.pháp"
-                                                    value={ana.protocolCode || ""}
+                                                    placeholder="Thống nhất với IRDOP"
+                                                    value={(ana as any).protocolId ? "" : ((ana as any).protocolCode || "")}
                                                     onChange={(e) => handleUpdateAnalysis(sIdx, aIdx, "protocolCode", e.target.value)}
                                                     onBlur={handleRefreshPreview}
                                                 />
@@ -658,16 +713,16 @@ export function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             `
                         : "";
 
-                    const accKeys =
-                        analysis.sampleTypeName === (sample.sampleTypeName || (sample as any).sampleMatrix) && analysis.protocolAccreditation
-                            ? Object.entries(analysis.protocolAccreditation)
-                                  .filter(([, v]) => v)
-                                  .map(([k]) => k)
-                                  .join(", ")
-                            : "";
+                    // const accKeys =
+                    //     analysis.sampleTypeName === (sample.sampleTypeName || (sample as any).sampleMatrix) && analysis.protocolAccreditation
+                    //         ? Object.entries(analysis.protocolAccreditation)
+                    //               .filter(([, v]) => v)
+                    //               .map(([k]) => k)
+                    //               .join(", ")
+                    //         : "";
 
                     const noteCell = isFirst
-                        ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; width: 10%;">${sample.sampleNote || ""}</td>`
+                        ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important; width: 18%;">${sample.sampleNote || ""}</td>`
                         : "";
 
                     return `
@@ -676,10 +731,15 @@ export function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             ${sampleCell}
             ${descCell}
             <td style="padding:5px; border: 1px solid #000 !important; width: 20%;">${analysis.parameterName || ""}</td>
-            <td style="padding:5px; border: 1px solid #000 !important; text-align: center; width: 7%;">${analysis.analysisUnit || ""}</td>
-            <td style="padding:5px; border: 1px solid #000 !important; text-align: left; width: 14%;">${analysis.protocolCode || ""}</td>
-            <td style="padding:5px; border: 1px solid #000 !important; text-align: left; width: 10%;">
-                 ${[analysis.protocolSource, accKeys].filter(Boolean).join(" ")}
+            <td style="padding:5px; border: 1px solid #000 !important; text-align: center; width: 6%;">${analysis.analysisUnit || ""}</td>
+            <td style="padding:5px; border: 1px solid #000 !important; text-align: left; width: 20%;">
+                <div style="font-weight: 700;">
+                    ${
+                        (analysis as any).protocolId
+                            ? "Đã thống nhất với IRDOP"
+                            : analysis.protocolCode || "Thống nhất với IRDOP về phương pháp thử"
+                    }
+                </div>
             </td>
             ${noteCell}
           </tr>
@@ -859,32 +919,34 @@ export function generateSampleRequestHtml(data: OrderPrintData, t: any) {
               <th style="border: 1px solid #1e293b; padding: 8px 8px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 4%;">
                 ${t("table.stt")}
               </th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 25%;">
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 22%;">
                 ${t("sample.name")}</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 10%;">
                 ${t("sampleRequest.table.sampleDesc")}</th>
               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 20%;">
                 ${t("sampleRequest.table.parameters")}</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 7%;">
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 6%;">
                 Đơn vị</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 14%;">
+              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 20%;">
                 Phương pháp</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 10%;">
-                Công nhận</th>
-              <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 10%;">
-                ${t("sample.note")}</th>
+               <th style="border: 1px solid #1e293b; padding: 8px 5px; font-size: 12.5px; background-color: #f8fafc; font-weight: 700; width: 18%;">
+                Ghi chú</th>
             </tr>
           </thead>
           ${samplesHtml}
         </table>
 
-        <div style="margin-top: 8px; margin-bottom: 12px; font-size: 11px; color: #333; padding-top: 6px;">
-            <span style="font-weight: bold;">Chú thích:</span>
-            <br/><span style="margin-left: 8px;"><b>IRDOP</b>: Chỉ tiêu được thực hiện tại IRDOP.</span>
-            <br/><span style="margin-left: 8px;"><b>EX</b>: Chỉ tiêu được thực hiện bởi nhà thầu phụ.</span>
-            <br/><span style="margin-left: 8px;"><b>VILAS997</b>: Chỉ tiêu được công nhận ISO/IEC 17025:2017.</span>
-            <br/><span style="margin-left: 8px;"><b>TDC</b>: Chỉ tiêu được công nhận đánh giá sự phù hợp theo NĐ 107/2016/NĐ-CP.</span>
+        ${data.otherItems && data.otherItems.length > 0 ? `
+        <div style="margin-top: 10px; margin-bottom: 12px; font-size: 13px; text-align: left;">
+            <strong>Ghi chú khách hàng:</strong>
+            <div style="margin-top: 4px; padding-left: 12px; font-weight: 700;">
+                ${data.otherItems
+                    .map((item) => `<div>- ${item.itemName}</div>`)
+                    .join("")}
+            </div>
         </div>
+        ` : ""}
+
 
         ${
             data.attachedDocuments

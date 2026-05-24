@@ -25,6 +25,8 @@ export function SampleRequestFormPage() {
     const [showGuide, setShowGuide] = useState(false); // For mobile modal
     const [showPrintConfirm, setShowPrintConfirm] = useState(false);
 
+    const initialAnalysesRef = useRef<Record<string, { protocolCode: string | null; protocolId: string | null }>>({});
+
     const DEFAULT_SAMPLE_INFO_LABELS = ["Số lô", "Ngày sản xuất", "Nơi sản xuất", "Hạn sử dụng", "Số công bố", "Số đăng ký", "Thông tin khác"];
 
     // Removed isLocked logic to allow editing at all times
@@ -66,6 +68,19 @@ export function SampleRequestFormPage() {
                 }
 
                 if (printData) {
+                    // Snapshot original protocol values per analysis ID
+                    initialAnalysesRef.current = {};
+                    printData.samples.forEach((s) => {
+                        (s.analyses || []).forEach((a: any) => {
+                            if (a.id) {
+                                initialAnalysesRef.current[a.id] = {
+                                    protocolCode: a.protocolCode || null,
+                                    protocolId: a.protocolId || null,
+                                };
+                            }
+                        });
+                    });
+
                     setData(printData);
                     if (requestFormContent) {
                         setSavedContent(requestFormContent);
@@ -139,6 +154,7 @@ export function SampleRequestFormPage() {
                         analyses: (s.analyses || []).map((a: any, aidx: number) => ({
                             ...(data as any)?.rawSamples?.[idx]?.analyses?.[aidx],
                             protocolCode: a.protocolCode,
+                            protocolId: a.protocolId,
                             analysisUnit: a.analysisUnit,
                         })),
                     })),
@@ -243,7 +259,25 @@ export function SampleRequestFormPage() {
         if (!data) return;
         const newSamples = [...data.samples];
         const newAnalyses = [...newSamples[sampleIndex].analyses];
-        newAnalyses[analysisIndex] = { ...newAnalyses[analysisIndex], [field]: value };
+        const analysis = newAnalyses[analysisIndex] as any;
+
+        if (field === "protocolCode") {
+            if (value && value.trim()) {
+                // User typed something → override protocolCode, clear protocolId
+                newAnalyses[analysisIndex] = { ...analysis, protocolCode: value, protocolId: null };
+            } else {
+                // User cleared or whitespace only → restore original if protocolId was set
+                const original = initialAnalysesRef.current[analysis.id];
+                if (original && original.protocolId) {
+                    newAnalyses[analysisIndex] = { ...analysis, protocolCode: original.protocolCode, protocolId: original.protocolId };
+                } else {
+                    newAnalyses[analysisIndex] = { ...analysis, protocolCode: "", protocolId: null };
+                }
+            }
+        } else {
+            newAnalyses[analysisIndex] = { ...analysis, [field]: value };
+        }
+
         newSamples[sampleIndex] = { ...newSamples[sampleIndex], analyses: newAnalyses };
         const newData = { ...data, samples: newSamples };
         setData(newData);
@@ -567,33 +601,33 @@ export function SampleRequestFormPage() {
                             {data.samples.map((sample, sampleIdx) => (
                                 <div key={sampleIdx} className="bg-card rounded-lg border border-border p-4 shadow-sm relative pt-5">
                                     <div className="absolute top-0 left-0 bg-primary/10 text-primary px-2 py-0.5 rounded-br-lg text-[10px] font-bold uppercase tracking-wider">Mẫu {sampleIdx + 1}</div>
-                                    <div className="grid grid-cols-2 gap-3 mb-4 mt-1">
-                                        <div>
-                                            <label className="block mb-1 text-[11px] font-bold text-muted-foreground uppercase">Tên mẫu</label>
-                                            <input
-                                                type="text"
-                                                className="w-full px-3 py-1.5 border border-border rounded-lg bg-input text-foreground text-xs focus:ring-1 focus:ring-primary outline-none"
-                                                value={sample.sampleName || ""}
-                                                onChange={(e) => updateSampleData(sampleIdx, "sampleName", e.target.value)}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block mb-1 text-[11px] font-bold text-muted-foreground uppercase">Ghi chú/Ma trận</label>
-                                            <input
-                                                type="text"
-                                                className="w-full px-3 py-1.5 border border-border rounded-lg bg-input text-foreground text-xs focus:ring-1 focus:ring-primary outline-none"
-                                                value={sample.sampleNote || ""}
-                                                onChange={(e) => updateSampleData(sampleIdx, "sampleNote", e.target.value)}
-                                            />
-                                        </div>
+                                    <div className="mb-3 mt-1">
+                                        <label className="block mb-1 text-[11px] font-bold text-muted-foreground uppercase">Tên mẫu</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-3 py-1.5 border border-border rounded-lg bg-input text-foreground text-xs focus:ring-1 focus:ring-primary outline-none"
+                                            value={sample.sampleName || ""}
+                                            onChange={(e) => updateSampleData(sampleIdx, "sampleName", e.target.value)}
+                                        />
                                     </div>
-                                    <div className="mb-4">
+                                    <div className="mb-3">
                                         <label className="block mb-1.5 text-xs font-medium text-muted-foreground">{t("sampleRequest.table.sampleDesc", "Mô tả mẫu")}</label>
                                         <textarea
-                                            className="w-full px-3 py-2 border border-border rounded-md focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm transition-shadow min-h-[80px]"
+                                            rows={2}
+                                            className="w-full px-3 py-2 border border-border rounded-md focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm transition-shadow min-h-[48px]"
                                             value={sample.sampleDesc || ""}
                                             onChange={(e) => updateSampleData(sampleIdx, "sampleDesc", e.target.value)}
                                             placeholder="Nhập mô tả mẫu thử..."
+                                        />
+                                    </div>
+                                    <div className="mb-4">
+                                        <label className="block mb-1.5 text-xs font-medium text-muted-foreground">Ghi chú</label>
+                                        <textarea
+                                            rows={2}
+                                            className="w-full px-3 py-2 border border-border rounded-md focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm transition-shadow min-h-[48px]"
+                                            value={sample.sampleNote || ""}
+                                            onChange={(e) => updateSampleData(sampleIdx, "sampleNote", e.target.value)}
+                                            placeholder="Nhập ghi chú..."
                                         />
                                     </div>
 
@@ -641,9 +675,9 @@ export function SampleRequestFormPage() {
                                                         <input
                                                             type="text"
                                                             className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-white text-xs"
-                                                            value={analysis.protocolCode || ""}
+                                                            value={analysis.protocolId ? "" : (analysis.protocolCode || "")}
                                                             onChange={(e) => updateAnalysisData(sampleIdx, analysisIdx, "protocolCode", e.target.value)}
-                                                            placeholder="Theo IRDOP"
+                                                            placeholder="Thống nhất với IRDOP"
                                                         />
                                                     </div>
                                                     <div className="w-[80px]">
@@ -822,7 +856,7 @@ export function SampleRequestFormPage() {
     );
 }
 
-function mapOrderDetailResponseToPrintData(resp: any): OrderPrintData {
+function mapOrderDetailResponseToPrintData(resp: any): any {
     const order = resp?.data ?? resp;
     const client: Client | null = order?.client ?? null;
 
@@ -845,6 +879,9 @@ function mapOrderDetailResponseToPrintData(resp: any): OrderPrintData {
     const reportReceiverAddress = isRecObj ? receiver.receiverAddress || "" : "";
 
     const invoice = client?.invoiceInfo;
+
+    const otherItems = order?.otherItems ?? [];
+    const defaultNote = otherItems.map((item: any) => item.itemName).join(", ");
 
     return {
         orderId: String(order?.orderId ?? order?.id ?? ""),
@@ -876,13 +913,18 @@ function mapOrderDetailResponseToPrintData(resp: any): OrderPrintData {
 
         attachedDocuments: "",
 
+        rawSamples: order?.samples ?? [],
+        rawContactPerson: order?.contactPerson ?? null,
+
         samples: (order?.samples ?? []).map((s: any) => ({
             sampleName: s?.sampleName ?? "",
             sampleMatrix: s?.sampleMatrix ?? "",
-            sampleNote: s?.sampleNote ?? "",
+            sampleNote: s?.sampleNote || defaultNote || "",
             sampleDesc: s?.sampleDesc ?? "",
             sampleInfo: s?.sampleInfo ?? [],
             analyses: (s?.analyses ?? []).map((a: any) => ({
+                id: a?.id ?? a?.analysisId ?? a?.analysis_id ?? undefined,
+                protocolId: a?.protocolId ?? a?.protocol_id ?? a?.protocol?.protocolId ?? a?.protocol?.protocol_id ?? a?.libraryParameterProtocol?.protocolId ?? a?.libraryParameterProtocol?.protocol_id ?? null,
                 parameterName: a?.parameterName ?? "",
                 parameterId: a?.parameterId ?? undefined,
                 feeBeforeTax: Number(a?.feeBeforeTax ?? 0),
@@ -905,6 +947,7 @@ function mapOrderDetailResponseToPrintData(resp: any): OrderPrintData {
         },
 
         discountRate: Number(order?.discountRate ?? 0),
+        otherItems,
     };
 }
 
@@ -973,7 +1016,9 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                         : "";
 
                     // Method and Accreditation cells per sample analysis
-                    const methodHtml = analysis.protocolCode || "Đã thống nhất với Irdop";
+                    const methodHtml = analysis.protocolId
+                        ? "Đã thống nhất với IRDOP"
+                        : analysis.protocolCode || "Thống nhất với IRDOP về phương pháp thử";
 
                     let accHtml = "--";
                     let accObj = analysis.protocolAccreditation;
@@ -1000,7 +1045,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                     `;
                     const accrCell = `<td style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important; text-align:left; font-size:11px;">${accCellContent}</td>`;
 
-                    const noteCell = isFirst ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;"></td>` : "";
+                    const noteCell = isFirst ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;">${sample.sampleNote || ""}</td>` : "";
 
                     return `
           <tr>
@@ -1210,6 +1255,17 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
           </thead>
           ${samplesHtml}
         </table>
+
+        ${data.otherItems && data.otherItems.length > 0 ? `
+        <div style="margin-top: 10px; margin-bottom: 12px; font-size: 13px; text-align: left;">
+            <strong>Ghi chú khách hàng:</strong>
+            <div style="margin-top: 4px; padding-left: 12px; font-weight: 700;">
+                ${data.otherItems
+                    .map((item) => `<div>- ${item.itemName}</div>`)
+                    .join("")}
+            </div>
+        </div>
+        ` : ""}
 
         ${
             data.attachedDocuments

@@ -402,6 +402,8 @@ function mapOrderDetailResponseToPrintData(resp: any): OrderPrintData {
     const contactPosition = isCpObj ? cp.contactPosition || "" : "";
 
     const invoice = client?.invoiceInfo;
+    const otherItems = order?.otherItems ?? [];
+    const defaultNote = otherItems.map((item: any) => item.itemName).join(", ");
 
     return {
         orderId: String(order?.orderId ?? order?.id ?? ""),
@@ -424,7 +426,8 @@ function mapOrderDetailResponseToPrintData(resp: any): OrderPrintData {
         samples: (order?.samples ?? []).map((s: any) => ({
             sampleName: s?.sampleName ?? "",
             sampleMatrix: s?.sampleMatrix ?? "",
-            sampleNote: s?.sampleNote ?? "",
+            sampleNote: s?.sampleNote || defaultNote || "",
+            sampleInfo: s?.sampleInfo ?? [],
             analyses: (s?.analyses ?? []).map((a: any) => ({
                 parameterName: a?.parameterName ?? "",
                 parameterId: a?.parameterId ?? undefined,
@@ -447,6 +450,7 @@ function mapOrderDetailResponseToPrintData(resp: any): OrderPrintData {
         },
 
         discountRate: Number(order?.discountRate ?? 0),
+        otherItems,
     };
 }
 
@@ -531,7 +535,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                     `;
                     const accCell = `<td style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important; text-align:left; font-size:11px;">${accCellContent}</td>`;
 
-                    const noteCell = isFirst ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;"></td>` : "";
+                    const noteCell = isFirst ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important;">${sample.sampleNote || ""}</td>` : "";
 
                     return `
           <tr>
@@ -743,6 +747,17 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
           </thead>
           ${samplesHtml}
         </table>
+
+        ${data.otherItems && data.otherItems.length > 0 ? `
+        <div style="margin-top: 10px; margin-bottom: 12px; font-size: 13px; text-align: left;">
+            <strong>Ghi chú khách hàng:</strong>
+            <div style="margin-top: 4px; padding-left: 12px; font-weight: 700;">
+                ${data.otherItems
+                    .map((item) => `<div>- ${item.itemName}</div>`)
+                    .join("")}
+            </div>
+        </div>
+        ` : ""}
 
         <div style="font-size: 12px; font-style: italic;">
         ${t("sampleRequest.section4.quote")}</div>

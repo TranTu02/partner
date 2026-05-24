@@ -172,7 +172,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 setContactPerson(contact.contactName || (contact as any).name || "");
                 setContactPhone(contact.contactPhone || (contact as any).phone || "");
                 setContactId(contact.contactId || "");
-                setContactIdentity(contact.identityId || "");
+                setContactIdentity(contact.contactId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
                 setContactAddress(contact.contactAddress || "");
             }
@@ -298,7 +298,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 setContactPerson(contact.contactName || (contact as any).name || "");
                 setContactPhone(contact.contactPhone || (contact as any).phone || "");
                 setContactId(contact.contactId || "");
-                setContactIdentity(contact.identityId || "");
+                setContactIdentity(contact.contactId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
                 setContactAddress(contact.contactAddress || "");
             } else {
@@ -346,7 +346,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         setContactPerson(contact.contactName || (contact as any).name || "");
                         setContactPhone(contact.contactPhone || (contact as any).phone || "");
                         setContactId(contact.contactId || "");
-                        setContactIdentity(contact.identityId || "");
+                        setContactIdentity(contact.contactId || "");
                         setContactEmail(contact.contactEmail || (contact as any).email || "");
                         setContactAddress(contact.contactAddress || "");
                     }
@@ -486,6 +486,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 sampleTypeId: s.sampleTypeId,
                 sampleTypeName: s.sampleTypeName || "",
                 sampleNote: s.sampleNote || "",
+                sampleInfo: s.sampleInfo || [],
                 analyses: s.analyses.map((a) => {
                     const unitPrice = Number(a.unitPrice) || 0;
                     const quantity = Number(a.quantity) || 1;
@@ -630,6 +631,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 taxRate: taxRate,
                 feeAfterTax: feeAfterTax || unitPrice * (1 + taxRate / 100),
                 quantity: 1,
+                sampleTypeId: sample.sampleTypeId || matrixItem.sampleTypeId || "",
+                sampleTypeName: sample.sampleTypeName || matrixItem.sampleTypeName || "",
             };
         });
 
@@ -654,6 +657,42 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 }
                 return s;
             }),
+        );
+    };
+
+    const handleAddCustomAnalysis = (sampleIndex: number) => {
+        if (isReadOnly) return;
+        const sample = samples[sampleIndex];
+        if (!sample) return;
+
+        const newId = `temp-custom-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const customAnalysis: AnalysisWithQuantity = {
+            id: newId,
+            isCustom: true,
+            parameterId: "",
+            parameterName: "",
+            sampleTypeId: sample.sampleTypeId || "",
+            sampleTypeName: sample.sampleTypeName || "",
+            unitPrice: 0,
+            quantity: 1,
+            taxRate: 5,
+            feeBeforeTax: 0,
+            feeAfterTax: 0,
+            protocolAccreditation: null,
+            protocolCode: null,
+            protocolId: null,
+        } as any;
+
+        setSamples((prev) =>
+            prev.map((s, idx) => {
+                if (idx === sampleIndex) {
+                    return {
+                        ...s,
+                        analyses: [...s.analyses, customAnalysis],
+                    };
+                }
+                return s;
+            })
         );
     };
 
@@ -762,6 +801,26 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             return;
         }
 
+        // Strict validation check for missing parameterId in all analyses, and missing sampleTypeName on samples
+        for (let sIdx = 0; sIdx < samples.length; sIdx++) {
+            const sample = samples[sIdx];
+            if (!sample.sampleTypeName || !sample.sampleTypeName.trim()) {
+                toast.error(
+                    `Mẫu "${sample.sampleName || `số ${sIdx + 1}`}" chưa được chọn nền mẫu.`
+                );
+                return;
+            }
+            for (let aIdx = 0; aIdx < sample.analyses.length; aIdx++) {
+                const analysis = sample.analyses[aIdx];
+                if (!analysis.parameterId) {
+                    toast.error(
+                        `Mẫu "${sample.sampleName || `số ${sIdx + 1}`}" có chỉ tiêu dòng số ${aIdx + 1} chưa được chọn từ danh sách.`
+                    );
+                    return;
+                }
+            }
+        }
+
         try {
             // Construct client snapshot
             const clientSnapshot = {
@@ -815,8 +874,8 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         analyses: s.analyses.map((a) => ({
                             ...a, // Preserve all original properties from quote/loaded data
                             parameterName: a.parameterName,
-                            sampleTypeId: a.sampleTypeId,
-                            sampleTypeName: a.sampleTypeName,
+                            sampleTypeId: a.sampleTypeId || s.sampleTypeId,
+                            sampleTypeName: a.sampleTypeName || s.sampleTypeName,
                             protocolAccreditation: a.protocolAccreditation,
                             parameterId: a.parameterId,
                             unitPrice: Number(a.unitPrice) || 0,
@@ -1031,6 +1090,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                         onDuplicateSample={(count) => handleDuplicateSample(sample.id, count)}
                                         onUpdateSample={(updates) => handleUpdateSample(sample.id, updates)}
                                         onAddAnalysis={() => handleOpenModal(index)}
+                                        onAddCustomAnalysis={() => handleAddCustomAnalysis(index)}
                                         onRemoveAnalysis={(analysisId) => handleRemoveAnalysis(sample.id, analysisId)}
                                         isReadOnly={isReadOnly}
                                     />
@@ -1125,7 +1185,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                     setContactPerson(contact.contactName || "");
                                     setContactPhone(contact.contactPhone || "");
                                     setContactId(contact.contactId || "");
-                                    setContactIdentity(contact.identityId || "");
+                                    setContactIdentity(contact.contactId || "");
                                     setContactEmail(contact.contactEmail || "");
                                     setContactAddress(contact.contactAddress || "");
                                 }

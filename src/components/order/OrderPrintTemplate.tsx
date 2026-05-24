@@ -147,14 +147,27 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                             <div>
                                 {t("order.print.sample")} {index + 1}: {sample.sampleName}
                             </div>
-                            <div style={{ fontSize: "11px", fontWeight: "normal", color: "#333", marginTop: "2px" }}>Nền mẫu: {sample.sampleTypeName || sample.sampleMatrix || "--"}</div>
+                            <div style={{ fontSize: "11px", fontWeight: "normal", color: "#333", marginTop: "2px" }}>
+                                {sample.sampleInfo && sample.sampleInfo.some(i => i.label !== "Tên mẫu thử" && i.value && i.value.trim().length > 0) ? (
+                                    <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "2px", fontSize: "10.5px", color: "#444", fontWeight: "normal" }}>
+                                        {sample.sampleInfo
+                                            .filter((i) => i.label !== "Tên mẫu thử" && i.value && i.value.trim().length > 0)
+                                            .map((info) => (
+                                                <div key={info.label} style={{ marginBottom: "2px" }}>
+                                                    <span style={{ color: "#666" }}>{info.label}:</span> <b>{info.value}</b>
+                                                </div>
+                                            ))}
+                                    </div>
+                                ) : (
+                                    <>Nền mẫu: {sample.sampleTypeName || sample.sampleMatrix || "--"}</>
+                                )}
+                            </div>
                         </div>
                         <table style={{ width: "100%", borderCollapse: "collapse" }}>
                             <thead>
                                 <tr style={{ backgroundColor: "#e6e6e6" }}>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "left", verticalAlign: "top" }}>{t("order.print.stt")}</th>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "left", verticalAlign: "top" }}>{t("order.print.parameter")}</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "center", verticalAlign: "top" }}>{t("parameter.accreditation", "Công nhận")}</th>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "right", verticalAlign: "top" }}>{t("order.print.amount")}</th>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "center", verticalAlign: "top" }}>{t("order.print.tax")} (%)</th>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "right", verticalAlign: "top" }}>{t("order.print.total")}</th>
@@ -165,33 +178,6 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                                     <tr key={i} style={{ pageBreakInside: "avoid" }}>
                                         <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "center", width: "30px", verticalAlign: "top" }}>{i + 1}</td>
                                         <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", verticalAlign: "top" }}>{analysis.parameterName}</td>
-                                        <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", verticalAlign: "top", textAlign: "center" }}>
-                                            {(() => {
-                                                const sId = (sample as any).sampleTypeId;
-                                                const aId = (analysis as any).sampleTypeId;
-                                                const sType = (sample.sampleTypeName || sample.sampleMatrix || "").toString().normalize("NFC").toLowerCase().trim();
-                                                const aType = (analysis.sampleTypeName || "").toString().normalize("NFC").toLowerCase().trim();
-
-                                                let acc = analysis.protocolAccreditation;
-                                                if (typeof acc === "string" && acc.startsWith("{")) {
-                                                    try {
-                                                        acc = JSON.parse(acc);
-                                                    } catch {
-                                                        acc = null;
-                                                    }
-                                                }
-                                                const isMatch = sId && aId ? sId === aId : sType === aType || !sType;
-
-                                                if (isMatch && acc) {
-                                                    return (
-                                                        Object.keys(acc)
-                                                            .filter((k) => acc[k])
-                                                            .join(", ") || "--"
-                                                    );
-                                                }
-                                                return "--";
-                                            })()}
-                                        </td>
                                         <td style={{ border: "1px solid #ccc", padding: "2px 5px 8px 5px", textAlign: "right", width: "100px", verticalAlign: "top" }}>
                                             {analysis.feeBeforeTax.toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                         </td>
@@ -207,25 +193,6 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                 ))}
             </div>
 
-            <div style={{ marginTop: "10px", marginBottom: "12px", fontSize: "11px", color: "#333", borderTop: "1px solid #ccc", paddingTop: "6px" }}>
-                <span style={{ fontWeight: "bold" }}>Chú thích:</span>
-                <br />
-                <span style={{ marginLeft: "8px" }}>
-                    <b>IRDOP</b>: Chỉ tiêu được thực hiện tại IRDOP.
-                </span>
-                <br />
-                <span style={{ marginLeft: "8px" }}>
-                    <b>EX</b>: Chỉ tiêu được thực hiện bởi nhà thầu phụ.
-                </span>
-                <br />
-                <span style={{ marginLeft: "8px" }}>
-                    <b>VILAS997</b>: Chỉ tiêu được công nhận ISO/IEC 17025:2017.
-                </span>
-                <br />
-                <span style={{ marginLeft: "8px" }}>
-                    <b>TDC</b>: Chỉ tiêu được công nhận đánh giá sự phù hợp theo NĐ 107/2016/NĐ-CP.
-                </span>
-            </div>
 
             <div style={{ marginTop: "10px" }}>
                 <h3 style={{ fontSize: "14px", fontWeight: "bold", paddingBottom: "2px" }}>3. {t("order.print.total")}</h3>

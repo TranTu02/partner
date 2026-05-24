@@ -5,23 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Matrix } from "@/types/parameter";
 
-// ... (interfaces remain same)
-
 export interface AnalysisWithQuantity extends Omit<Matrix, "createdAt" | "createdById" | "modifiedAt" | "modifiedById" | "feeAfterTax" | "taxRate"> {
     id: string;
     unitPrice: number;
     quantity: number;
     userQuantity?: number;
-    feeAfterTax?: number; // Renamed from totalFeeBeforeTax, represents the line total (ThÃ nh tiá»n)
+    feeAfterTax?: number; // Renamed from totalFeeBeforeTax, represents the line total (ThÃ nh tiá» n)
     taxRate?: number; // Ensure taxRate is also consistently typed as number
     groupId?: string;
     groupDiscount?: number;
     discountRate?: number;
+    displayStyle?: any;
+    isCustom?: boolean;
 }
 
 import { useDrag, useDrop } from "react-dnd";
 import { useRef, useMemo, useState, useEffect } from "react";
-import { getSampleTypes } from "@/api/index";
+import { getSampleTypes, getParameters } from "@/api/index";
 
 const SortableAnalysisRow = ({ id, index, moveRow, children }: any) => {
     const ref = useRef<HTMLTableRowElement>(null);
@@ -67,7 +67,10 @@ export interface SampleWithQuantity {
     sampleNote?: string;
     analyses: AnalysisWithQuantity[];
     quantity?: number;
+    sampleInfo?: { label: string; value: string }[];
 }
+
+const DEFAULT_SAMPLE_INFO_LABELS = ["Số lô", "Ngày sản xuất", "Nơi sản xuất", "Hạn sử dụng", "Số công bố", "Số đăng ký", "Thông tin khác"];
 
 interface SampleCardProps {
     sample: SampleWithQuantity;
@@ -76,6 +79,7 @@ interface SampleCardProps {
     onDuplicateSample: (count: number) => void;
     onUpdateSample: (updates: Partial<SampleWithQuantity>) => void;
     onAddAnalysis: () => void;
+    onAddCustomAnalysis?: () => void;
     onRemoveAnalysis: (analysisId: string) => void;
     isReadOnly?: boolean;
     showSampleQuantity?: boolean;
@@ -90,6 +94,7 @@ export function SampleCard({
     onDuplicateSample,
     onUpdateSample,
     onAddAnalysis,
+    onAddCustomAnalysis,
     onRemoveAnalysis,
     isReadOnly = false,
     showSampleQuantity = false,
@@ -97,6 +102,17 @@ export function SampleCard({
     globalDiscountRate = 0,
 }: SampleCardProps) {
     const { t } = useTranslation();
+
+    const handleUpdateSampleInfoByLabel = (label: string, value: string) => {
+        const currentInfo = [...(sample.sampleInfo || [])];
+        const foundIdx = currentInfo.findIndex((i) => i.label === label);
+        if (foundIdx >= 0) {
+            currentInfo[foundIdx] = { ...currentInfo[foundIdx], value };
+        } else {
+            currentInfo.push({ label, value });
+        }
+        onUpdateSample({ sampleInfo: currentInfo });
+    };
 
     // Calculates the fee after tax for a line item.
     // User's formula: feeAfterTax = feeBeforeTax * ( 1 - discountRate/100) * ( 1 + taxRate/100)
@@ -120,6 +136,60 @@ export function SampleCard({
 
     const [sampleTypes, setSampleTypes] = useState<any[]>([]);
     const [showSampleTypeDropdown, setShowSampleTypeDropdown] = useState(false);
+
+    const [searchedParameters, setSearchedParameters] = useState<any[]>([]);
+    const [searchedSampleTypes, setSearchedSampleTypes] = useState<any[]>([]);
+    const [activeParamDropdownIndex, setActiveParamDropdownIndex] = useState<number | null>(null);
+    const [activeSampleTypeDropdownIndex, setActiveSampleTypeDropdownIndex] = useState<number | null>(null);
+
+    const activeParamName = activeParamDropdownIndex !== null ? (sample.analyses[activeParamDropdownIndex]?.parameterName || "") : "";
+    const activeSampleTypeName = activeSampleTypeDropdownIndex !== null ? (sample.analyses[activeSampleTypeDropdownIndex]?.sampleTypeName || "") : "";
+
+    useEffect(() => {
+        if (activeParamDropdownIndex === null) {
+            setSearchedParameters([]);
+            return;
+        }
+        const timer = setTimeout(() => {
+            getParameters({
+                query: {
+                    search: activeParamName || undefined,
+                    page: 1,
+                    itemsPerPage: 50,
+                    sortColumn: "createdAt",
+                    sortDirection: "DESC",
+                },
+            }).then((res) => {
+                if (res.success && res.data) {
+                    setSearchedParameters(res.data as any[]);
+                }
+            });
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [activeParamName, activeParamDropdownIndex]);
+
+    useEffect(() => {
+        if (activeSampleTypeDropdownIndex === null) {
+            setSearchedSampleTypes([]);
+            return;
+        }
+        const timer = setTimeout(() => {
+            getSampleTypes({
+                query: {
+                    search: activeSampleTypeName || undefined,
+                    page: 1,
+                    itemsPerPage: 50,
+                    sortColumn: "createdAt",
+                    sortDirection: "DESC",
+                },
+            }).then((res) => {
+                if (res.success && res.data) {
+                    setSearchedSampleTypes(res.data as any[]);
+                }
+            });
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [activeSampleTypeName, activeSampleTypeDropdownIndex]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -148,49 +218,88 @@ export function SampleCard({
         }
     };
 
-    const handleAnalysisChange = (analysisIndex: number, field: keyof AnalysisWithQuantity, value: any) => {
+    const initialAnalysesRef = useRef<Record<string, { protocolCode: string | null; protocolId: string | null }>>({});
+
+    useEffect(() => {
+        sample.analyses.forEach((a) => {
+            if (!initialAnalysesRef.current[a.id]) {
+                initialAnalysesRef.current[a.id] = {
+                    protocolCode: (a as any).protocolCode || null,
+                    protocolId: (a as any).protocolId || null,
+                };
+            }
+        });
+    }, [sample.analyses]);
+
+    const handleAnalysisChange = (
+        analysisIndex: number, 
+        fieldOrUpdates: keyof AnalysisWithQuantity | Partial<AnalysisWithQuantity>, 
+        value?: any
+    ) => {
         const newAnalyses = [...sample.analyses];
         const updatedAnalysis = { ...newAnalyses[analysisIndex] };
 
-        if (field === "parameterName") {
-            updatedAnalysis.parameterName = value;
-        } else if (field === "feeAfterTax") {
-            // Reverse calculation is hard with discount.
-            // Formula: feeAfterTax = unitPrice * quantity * (1-d%) * (1+t%)
-            // So: unitPrice = feeAfterTax / (quantity * (1-d%) * (1+t%))
-            const newFeeAfterTax = Number(value);
-            updatedAnalysis.feeAfterTax = newFeeAfterTax;
+        if (typeof fieldOrUpdates === "object" && fieldOrUpdates !== null) {
+            Object.assign(updatedAnalysis, fieldOrUpdates);
+        } else {
+            const field = fieldOrUpdates as keyof AnalysisWithQuantity;
+            if (field === "parameterName") {
+                updatedAnalysis.parameterName = value;
+            } else if (field === "feeAfterTax") {
+                // Reverse calculation is hard with discount.
+                // Formula: feeAfterTax = unitPrice * quantity * (1-d%) * (1+t%)
+                // So: unitPrice = feeAfterTax / (quantity * (1-d%) * (1+t%))
+                const newFeeAfterTax = Number(value);
+                updatedAnalysis.feeAfterTax = newFeeAfterTax;
 
-            const quantity = updatedAnalysis.quantity || 1;
-            const taxRate = updatedAnalysis.taxRate || 0;
-            const discountRate = updatedAnalysis.discountRate || 0;
+                const quantity = updatedAnalysis.quantity || 1;
+                const taxRate = updatedAnalysis.taxRate || 0;
+                const discountRate = updatedAnalysis.discountRate || 0;
 
-            const denominator = quantity * (1 - discountRate / 100) * (1 + taxRate / 100);
-            if (denominator !== 0) {
-                updatedAnalysis.unitPrice = newFeeAfterTax / denominator;
+                const denominator = quantity * (1 - discountRate / 100) * (1 + taxRate / 100);
+                if (denominator !== 0) {
+                    updatedAnalysis.unitPrice = newFeeAfterTax / denominator;
+                }
+            } else if (field === "unitPrice") {
+                const newUnitPrice = Number(value);
+                updatedAnalysis.unitPrice = newUnitPrice;
+                const quantity = updatedAnalysis.quantity || 1;
+                const taxRate = updatedAnalysis.taxRate || 0;
+                const discountRate = updatedAnalysis.discountRate || 0;
+
+                // Recalculate forward
+                const feeBeforeTax = newUnitPrice * quantity;
+                const afterDiscount = feeBeforeTax * (1 - discountRate / 100);
+                updatedAnalysis.feeAfterTax = afterDiscount * (1 + taxRate / 100);
+            } else if (field === "taxRate") {
+                const newTaxRate = Number(value);
+                updatedAnalysis.taxRate = newTaxRate;
+
+                const quantity = updatedAnalysis.quantity || 1;
+                const discountRate = updatedAnalysis.discountRate || 0;
+                const currentUnitPrice = updatedAnalysis.unitPrice || 0;
+
+                const feeBeforeTax = currentUnitPrice * quantity;
+                const afterDiscount = feeBeforeTax * (1 - discountRate / 100);
+                updatedAnalysis.feeAfterTax = afterDiscount * (1 + newTaxRate / 100);
+            } else if (field === ("protocolCode" as any)) {
+                const newValue = value;
+                const initial = initialAnalysesRef.current[updatedAnalysis.id];
+                if (newValue) {
+                    (updatedAnalysis as any).protocolCode = newValue;
+                    (updatedAnalysis as any).protocolId = null;
+                } else {
+                    if (initial && initial.protocolId) {
+                        (updatedAnalysis as any).protocolCode = initial.protocolCode;
+                        (updatedAnalysis as any).protocolId = initial.protocolId;
+                    } else {
+                        (updatedAnalysis as any).protocolCode = "";
+                        (updatedAnalysis as any).protocolId = null;
+                    }
+                }
+            } else {
+                (updatedAnalysis as any)[field] = value;
             }
-        } else if (field === "unitPrice") {
-            const newUnitPrice = Number(value);
-            updatedAnalysis.unitPrice = newUnitPrice;
-            const quantity = updatedAnalysis.quantity || 1;
-            const taxRate = updatedAnalysis.taxRate || 0;
-            const discountRate = updatedAnalysis.discountRate || 0;
-
-            // Recalculate forward
-            const feeBeforeTax = newUnitPrice * quantity;
-            const afterDiscount = feeBeforeTax * (1 - discountRate / 100);
-            updatedAnalysis.feeAfterTax = afterDiscount * (1 + taxRate / 100);
-        } else if (field === "taxRate") {
-            const newTaxRate = Number(value);
-            updatedAnalysis.taxRate = newTaxRate;
-
-            const quantity = updatedAnalysis.quantity || 1;
-            const discountRate = updatedAnalysis.discountRate || 0;
-            const currentUnitPrice = updatedAnalysis.unitPrice || 0;
-
-            const feeBeforeTax = currentUnitPrice * quantity;
-            const afterDiscount = feeBeforeTax * (1 - discountRate / 100);
-            updatedAnalysis.feeAfterTax = afterDiscount * (1 + newTaxRate / 100);
         }
         // Discount rate change? Not exposed in UI per row yet, but if we did:
 
@@ -387,6 +496,37 @@ export function SampleCard({
                 )}
             </div>
 
+            {/* Detailed Sample Info */}
+            <div className="mb-6 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 p-4 bg-muted/20 rounded-xl border border-border/50 shadow-inner">
+                {DEFAULT_SAMPLE_INFO_LABELS.map((label) => {
+                    const info = (sample.sampleInfo || []).find((i) => i.label === label);
+                    const isTextArea = label === "Thông tin khác";
+                    return (
+                        <div key={label} className={isTextArea ? "col-span-2 sm:col-span-2 lg:col-span-2" : "col-span-1"}>
+                            <label className="block mb-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</label>
+                            {isTextArea ? (
+                                <textarea
+                                    className="w-full px-3 py-1.5 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[38px] disabled:opacity-50 disabled:cursor-not-allowed"
+                                    value={info?.value || ""}
+                                    onChange={(e) => handleUpdateSampleInfoByLabel(label, e.target.value)}
+                                    placeholder={label}
+                                    disabled={isReadOnly}
+                                />
+                            ) : (
+                                <input
+                                    type="text"
+                                    className="w-full px-3 py-1.5 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                                    value={info?.value || ""}
+                                    onChange={(e) => handleUpdateSampleInfoByLabel(label, e.target.value)}
+                                    placeholder={label}
+                                    disabled={isReadOnly}
+                                />
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
             <div className="border border-border rounded-lg overflow-hidden">
                 <table className="w-full">
                     <thead className="bg-muted/50">
@@ -396,7 +536,7 @@ export function SampleCard({
                             <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.print.parameter")}</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.sampleMatrix")}</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("parameter.protocol", "Phương pháp")}</th>
-                            <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">{t("parameter.accreditation", "Công nhận")}</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("parameter.accreditation", "Chỉ định")}</th>
                             <th className="px-2 py-3 text-right text-sm font-semibold text-foreground w-[130px]">{t("order.print.unitPrice")}</th>
                             <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">{t("parameter.tax")}</th>
                             <th className="px-2 py-3 text-right text-sm font-semibold text-foreground w-[150px]">{t("order.lineTotal")}</th>
@@ -431,6 +571,63 @@ export function SampleCard({
                                                             <div>{analysis.parameterName}</div>
                                                             {analysis.parameterId && <div className="text-xs text-muted-foreground">{analysis.parameterId}</div>}
                                                         </div>
+                                                    ) : analysis.isCustom ? (
+                                                        <div className="relative">
+                                                            <input
+                                                                type="text"
+                                                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-background text-sm font-semibold mb-1"
+                                                                value={analysis.parameterName || ""}
+                                                                onChange={(e) => {
+                                                                    handleAnalysisChange(index, {
+                                                                        parameterName: e.target.value,
+                                                                        parameterId: ""
+                                                                    });
+                                                                    setActiveParamDropdownIndex(index);
+                                                                }}
+                                                                onFocus={() => {
+                                                                    setActiveParamDropdownIndex(index);
+                                                                    setActiveSampleTypeDropdownIndex(null);
+                                                                }}
+                                                                onBlur={() => {
+                                                                    setTimeout(() => {
+                                                                        setActiveParamDropdownIndex(prev => prev === index ? null : prev);
+                                                                    }, 200);
+                                                                }}
+                                                                placeholder={t("order.print.parameter") || "Nhập tên chỉ tiêu..."}
+                                                            />
+                                                            {!analysis.parameterId && (
+                                                                <div className="text-[10px] text-destructive font-medium mt-0.5 animate-pulse">
+                                                                    * Yêu cầu chọn từ danh sách
+                                                                </div>
+                                                            )}
+                                                            {activeParamDropdownIndex === index && (
+                                                                <div className="absolute z-50 w-72 mt-1 bg-popover border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto left-0 top-full">
+                                                                    {searchedParameters.length === 0 ? (
+                                                                        <div className="px-3 py-2 text-xs text-muted-foreground text-center">
+                                                                            Không tìm thấy chỉ tiêu
+                                                                        </div>
+                                                                    ) : (
+                                                                        searchedParameters.map((p) => (
+                                                                            <div
+                                                                                key={p.parameterId}
+                                                                                className="px-3 py-2 cursor-pointer hover:bg-muted text-xs text-foreground border-b border-border/50 last:border-0 font-semibold"
+                                                                                onMouseDown={(e) => {
+                                                                                    e.preventDefault();
+                                                                                    handleAnalysisChange(index, {
+                                                                                        parameterId: p.parameterId,
+                                                                                        parameterName: p.parameterName,
+                                                                                        displayStyle: p.displayStyle
+                                                                                    });
+                                                                                    setActiveParamDropdownIndex(null);
+                                                                                }}
+                                                                            >
+                                                                                {p.parameterName}
+                                                                            </div>
+                                                                        ))
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     ) : (
                                                         <div>
                                                             <input
@@ -445,7 +642,62 @@ export function SampleCard({
                                                     )}
                                                 </td>
                                                 <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
-                                                    {analysis.sampleTypeName}
+                                                    {isReadOnly ? (
+                                                        analysis.sampleTypeName
+                                                    ) : analysis.isCustom ? (
+                                                        <div className="relative">
+                                                            <input
+                                                                type="text"
+                                                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-background text-sm font-semibold"
+                                                                value={analysis.sampleTypeName || sample.sampleTypeName || ""}
+                                                                onChange={(e) => {
+                                                                    handleAnalysisChange(index, {
+                                                                        sampleTypeName: e.target.value,
+                                                                        sampleTypeId: ""
+                                                                    });
+                                                                    setActiveSampleTypeDropdownIndex(index);
+                                                                }}
+                                                                onFocus={() => {
+                                                                    setActiveSampleTypeDropdownIndex(index);
+                                                                    setActiveParamDropdownIndex(null);
+                                                                }}
+                                                                onBlur={() => {
+                                                                    setTimeout(() => {
+                                                                        setActiveSampleTypeDropdownIndex(prev => prev === index ? null : prev);
+                                                                    }, 200);
+                                                                }}
+                                                                placeholder={t("order.sampleMatrixPlaceholder", "Chọn nền mẫu...")}
+                                                            />
+                                                            {activeSampleTypeDropdownIndex === index && (
+                                                                <div className="absolute z-50 w-64 mt-1 bg-popover border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto left-0 top-full">
+                                                                    {searchedSampleTypes.length === 0 ? (
+                                                                        <div className="px-3 py-2 text-xs text-muted-foreground text-center">
+                                                                            Không tìm thấy nền mẫu
+                                                                        </div>
+                                                                    ) : (
+                                                                        searchedSampleTypes.map((st) => (
+                                                                            <div
+                                                                                key={st.sampleTypeId}
+                                                                                className="px-3 py-2 cursor-pointer hover:bg-muted text-xs text-foreground border-b border-border/50 last:border-0 font-semibold"
+                                                                                onMouseDown={(e) => {
+                                                                                    e.preventDefault();
+                                                                                    handleAnalysisChange(index, {
+                                                                                        sampleTypeId: st.sampleTypeId,
+                                                                                        sampleTypeName: st.sampleTypeName
+                                                                                    });
+                                                                                    setActiveSampleTypeDropdownIndex(null);
+                                                                                }}
+                                                                            >
+                                                                                {st.sampleTypeName}
+                                                                            </div>
+                                                                        ))
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        analysis.sampleTypeName || sample.sampleTypeName
+                                                    )}
                                                 </td>
                                                 <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
                                                     {isReadOnly ? (
@@ -454,30 +706,31 @@ export function SampleCard({
                                                         <input
                                                             type="text"
                                                             className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent"
-                                                            value={(analysis as any).protocolCode || ""}
+                                                            value={(analysis as any).protocolId ? "" : ((analysis as any).protocolCode || "")}
                                                             onChange={(e) => handleAnalysisChange(index, "protocolCode" as any, e.target.value)}
-                                                            placeholder={t("parameter.protocol")}
+                                                            placeholder="Thống nhất với IRDOP"
                                                         />
                                                     )}
                                                 </td>
-                                                <td className={`px-4 py-3 text-sm text-center ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
-                                                    <div className="flex flex-wrap gap-1 justify-center">
-                                                        {(() => {
-                                                            if ((analysis as any).protocolAccreditation) {
-                                                                const accs = Object.entries((analysis as any).protocolAccreditation)
-                                                                    .filter(([, v]) => v)
-                                                                    .map(([k]) => k);
-                                                                if (accs.length > 0) {
-                                                                    return accs.map((k) => (
-                                                                        <span key={k} className="px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded text-[10px] font-bold">
-                                                                            {k}
-                                                                        </span>
-                                                                    ));
-                                                                }
+                                                <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
+                                                    {(() => {
+                                                        let accHtml = "--";
+                                                        let accObj = analysis.protocolAccreditation;
+                                                        if (typeof accObj === "string" && accObj.startsWith("{")) {
+                                                            try {
+                                                                accObj = JSON.parse(accObj);
+                                                            } catch {
+                                                                accObj = null;
                                                             }
-                                                            return "--";
-                                                        })()}
-                                                    </div>
+                                                        }
+                                                        if (accObj && typeof accObj === "object") {
+                                                            const accs = Object.entries(accObj)
+                                                                .filter(([, v]) => v)
+                                                                .map(([k]) => k);
+                                                            if (accs.length > 0) accHtml = accs.join(", ");
+                                                        }
+                                                        return accHtml;
+                                                    })()}
                                                 </td>
                                                 <td className={`px-2 py-3 text-right text-sm text-foreground w-[130px] ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
                                                     <div className="flex flex-col items-end">
@@ -665,10 +918,19 @@ export function SampleCard({
 
             {/* Add Analysis Button */}
             {!isReadOnly && (
-                <div className="mt-4">
+                <div className="mt-4 flex flex-wrap gap-2">
                     <button onClick={onAddAnalysis} className="px-4 py-2 text-primary border border-primary rounded-lg hover:bg-primary/10 transition-colors text-sm font-medium">
                         + {t("order.addAnalysis")}
                     </button>
+                    {onAddCustomAnalysis && (
+                        <button 
+                            type="button"
+                            onClick={onAddCustomAnalysis} 
+                            className="px-4 py-2 text-amber-600 border border-amber-600 bg-amber-50/50 hover:bg-amber-100/60 rounded-lg transition-colors text-sm font-medium"
+                        >
+                            + Thêm chỉ tiêu ngoài danh sách
+                        </button>
+                    )}
                 </div>
             )}
         </div>

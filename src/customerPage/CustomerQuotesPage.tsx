@@ -326,7 +326,7 @@ export function CustomerQuotesPage() {
                                         </td>
                                         <td className="px-3 py-2 text-sm font-medium text-foreground">{Math.ceil(Number(quote.totalAmount || 0)).toLocaleString("vi-VN")} đ</td>
                                         <td className="px-3 py-2 text-sm text-muted-foreground hidden sm:table-cell">
-                                            {quote.createdAt ? new Date(quote.createdAt).toLocaleDateString("vi-VN") : "—"}
+                                            {quote.createdAt ? new Date(String(quote.createdAt).replace(/^"+|"+$/g, '').trim()).toLocaleDateString("vi-VN") : "—"}
                                         </td>
                                         <td className="px-3 py-2">
                                             <span className="px-2 py-0.5 rounded-full text-[10px] uppercase font-bold bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">

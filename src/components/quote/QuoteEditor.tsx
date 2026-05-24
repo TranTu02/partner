@@ -118,7 +118,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             if (contact) {
                 setContactPerson(contact.contactName || (contact as any).name || "");
                 setContactPhone(contact.contactPhone || (contact as any).phone || "");
-                setContactIdentity(contact.identityId || "");
+                setContactIdentity(contact.contactId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
                 setContactAddress(contact.contactAddress || "");
             }
@@ -198,7 +198,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 const contact = selectedClient.clientContacts[0];
                 setContactPerson(contact.contactName || (contact as any).name || "");
                 setContactPhone(contact.contactPhone || (contact as any).phone || "");
-                setContactIdentity(contact.identityId || "");
+                setContactIdentity(contact.contactId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
                 setContactAddress(contact.contactAddress || "");
             } else {
@@ -223,7 +223,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 const contact = selectedClient.clientContacts[0];
                 setContactPerson(contact.contactName || (contact as any).name || "");
                 setContactPhone(contact.contactPhone || (contact as any).phone || "");
-                setContactIdentity(contact.identityId || "");
+                setContactIdentity(contact.contactId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
                 setContactAddress(contact.contactAddress || "");
             }
@@ -754,7 +754,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                                     const contact = updated.clientContacts[0];
                                     setContactPerson(contact.contactName || "");
                                     setContactPhone(contact.contactPhone || "");
-                                    setContactIdentity(contact.identityId || "");
+                                    setContactIdentity(contact.contactId || "");
                                     setContactEmail(contact.contactEmail || "");
                                     setContactAddress(contact.contactAddress || "");
                                 }

@@ -70,11 +70,10 @@ export function CustomerQuotePrintPreviewModal({ isOpen, onClose, data }: Custom
                     <thead>
                         <tr style="background-color: #e6e6e6;">
                             <th style="border: 1px solid black; padding: 2px 5px; text-align: center; width: 4%; vertical-align: top; font-size: 11px;">${t("order.print.stt")}</th>
-                            <th style="border: 1px solid black; padding: 2px 5px; text-align: left; vertical-align: top; width: 32%; font-size: 11px;">${t("order.print.parameter")}</th>
-                            <th style="border: 1px solid black; padding: 2px 5px; text-align: left; vertical-align: top; width: 24%; font-size: 11px;">Phương pháp</th>
-                            <th style="border: 1px solid black; padding: 2px 5px; text-align: right; vertical-align: top; width: 15%; font-size: 11px;">${fmtMoney(0).includes(",") ? t("order.print.amount") : "Số tiền"}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px; text-align: left; vertical-align: top; width: 50%; font-size: 11px;">${t("order.print.parameter")}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px; text-align: right; vertical-align: top; width: 17%; font-size: 11px;">${fmtMoney(0).includes(",") ? t("order.print.amount") : "Số tiền"}</th>
                             <th style="border: 1px solid black; padding: 2px 5px; text-align: center; width: 10%; vertical-align: top; font-size: 11px;">${t("order.print.tax", "Thuế")} (%)</th>
-                            <th style="border: 1px solid black; padding: 2px 5px; text-align: right; vertical-align: top; width: 15%; font-size: 11px;">${t("order.print.total")}</th>
+                            <th style="border: 1px solid black; padding: 2px 5px; text-align: right; vertical-align: top; width: 19%; font-size: 11px;">${t("order.print.total")}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -84,44 +83,6 @@ export function CustomerQuotePrintPreviewModal({ isOpen, onClose, data }: Custom
                             <tr style="page-break-inside: avoid;">
                                 <td style="border: 1px solid black; padding: 2px 5px; text-align: center; vertical-align: top; font-size: 10px;">${i + 1}</td>
                                 <td style="border: 1px solid black; padding: 2px 5px; vertical-align: top; font-size: 10px;">${analysis.parameterName}</td>
-                                <td style="border: 1px solid black; padding: 2px 5px; vertical-align: top; font-size: 10px;">
-                                    <div style="font-weight: bold;">${analysis.protocolCode || "--"}</div>
-                                    ${(() => {
-                                        const s = sample as any;
-                                        const a = analysis as any;
-                                        let acc = a.protocolAccreditation;
-                                        if (typeof acc === "string" && acc.startsWith("{")) {
-                                            try {
-                                                acc = JSON.parse(acc);
-                                            } catch {
-                                                acc = null;
-                                            }
-                                        }
-
-                                        const sFullType = (s.sampleTypeName || "").toString().normalize("NFC").toLowerCase().trim();
-                                        const aFullType = (a.sampleTypeName || "").toString().normalize("NFC").toLowerCase().trim();
-                                        const isMatch = !sFullType || !aFullType || sFullType === aFullType;
-
-                                        let accKeys = "";
-                                        if (acc && isMatch) {
-                                            accKeys =
-                                                typeof acc === "object"
-                                                    ? Object.entries(acc)
-                                                          .filter(([, v]) => v)
-                                                          .map(([k]) => k)
-                                                          .join(", ")
-                                                    : acc.toString();
-                                        }
-
-                                        if (!a.protocolSource && !accKeys) return "";
-
-                                        return `
-                                            <div style="font-size: 9px; margin-top: 4px; font-style: italic; color: #475569; line-height: 1.2;">
-                                                ${[a.protocolSource, accKeys].filter(Boolean).join(" ")}
-                                            </div>
-                                        `;
-                                    })()}
-                                </td>
                                 <td style="border: 1px solid black; padding: 2px 5px; text-align: right; vertical-align: top; font-size: 10px;">
                                     <div>${fmtMoney(analysis.feeBeforeTaxAndDiscount ?? analysis.feeBeforeTax ?? 0)}</div>
                                     ${
@@ -140,7 +101,7 @@ export function CustomerQuotePrintPreviewModal({ isOpen, onClose, data }: Custom
                             .join("")}
                         
                         <tr style="background-color: #f8fafc;">
-                            <td colspan="5" style="border: 1px solid black; padding: 4px 8px; text-align: right; font-weight: bold; vertical-align: middle; font-size: 11px;">${t("parameter.sumUnitPrice", "Tổng đơn giá")}</td>
+                            <td colspan="4" style="border: 1px solid black; padding: 4px 8px; text-align: right; font-weight: bold; vertical-align: middle; font-size: 11px;">${t("parameter.sumUnitPrice", "Tổng đơn giá")}</td>
                             <td style="border: 1px solid black; padding: 4px 8px; text-align: right; font-weight: bold; vertical-align: middle; font-size: 11px;">${fmtMoney(sampleTotalAfterTax)} </td>
                         </tr>
                         ${
@@ -274,13 +235,6 @@ export function CustomerQuotePrintPreviewModal({ isOpen, onClose, data }: Custom
             <div>
                 <h3 style="font-size: 14px; font-weight: bold; padding-bottom: 2px; margin-bottom: 6px;">2. ${t("order.print.samplesAndAnalysis")}</h3>
                 ${samplesHtml}
-                <div style="margin-top: 8px; margin-bottom: 12px; font-size: 11px; color: #333; border-top: 1px solid #ccc; padding-top: 6px;">
-                    <span style="font-weight: bold;">Chú thích:</span>
-                    <br/><span style="margin-left: 8px;"><b>IRDOP</b>: Chỉ tiêu được thực hiện tại IRDOP.</span>
-                    <br/><span style="margin-left: 8px;"><b>EX</b>: Chỉ tiêu được thực hiện bởi nhà thầu phụ.</span>
-                    <br/><span style="margin-left: 8px;"><b>VILAS997</b>: Chỉ tiêu được công nhận ISO/IEC 17025:2017.</span>
-                    <br/><span style="margin-left: 8px;"><b>TDC</b>: Chỉ tiêu được công nhận đánh giá sự phù hợp theo NĐ 107/2016/NĐ-CP.</span>
-                </div>
             </div>
 
             ${otherItemsHtml}

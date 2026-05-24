@@ -148,11 +148,10 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                             <thead>
                                 <tr style={{ backgroundColor: "#e6e6e6" }}>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "11px", width: "4%" }}>{t("order.print.stt")}</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "left", fontSize: "11px", width: "27%" }}>{t("order.print.parameter")}</th>
-                                    <th colSpan={2} style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "11px", width: "32%" }}>Phương pháp / Công nhận</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "11px", width: "13%" }}>{t("order.print.amount")}</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "left", fontSize: "11px", width: "47%" }}>{t("order.print.parameter")}</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "11px", width: "17%" }}>{t("order.print.amount")}</th>
                                     <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "11px", width: "8%" }}>{t("order.print.tax")} (%)</th>
-                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "11px", width: "16%" }}>{t("order.print.total")}</th>
+                                    <th style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "11px", width: "24%" }}>{t("order.print.total")}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -177,34 +176,6 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                                         <tr key={i} style={{ pageBreakInside: "avoid" }}>
                                             <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "10px" }}>{i + 1}</td>
                                             <td style={{ border: "1px solid #ccc", padding: "2px 5px", fontSize: "10px" }}>{analysis.parameterName}</td>
-                                            <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "10px" }}>
-                                                {analysis.protocolCode || "--"}
-                                            </td>
-                                            <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "center", fontSize: "10px" }}>
-                                                {(() => {
-                                                    const sId = (sample as any).sampleTypeId;
-                                                    const aId = (analysis as any).sampleTypeId;
-                                                    const sType = (sample.sampleTypeName || (sample as any).sampleMatrix || "").toString().normalize("NFC").toLowerCase().trim();
-                                                    const aType = (analysis.sampleTypeName || "").toString().normalize("NFC").toLowerCase().trim();
-
-                                                    let acc = analysis.protocolAccreditation;
-                                                    if (typeof acc === "string" && acc.startsWith("{")) {
-                                                        try {
-                                                            acc = JSON.parse(acc);
-                                                        } catch {
-                                                            acc = null;
-                                                        }
-                                                    }
-                                                    const isMatch = sId && aId ? sId === aId : sType === aType || !sType;
-                                                    const source = ((analysis as any).protocolSource || "").trim();
-
-                                                    let accKeys = "";
-                                                    if (isMatch && acc) {
-                                                        accKeys = Object.keys(acc).filter((k) => acc[k]).join(", ");
-                                                    }
-                                                    return [source, accKeys].filter(Boolean).join(" ") || "--";
-                                                })()}
-                                            </td>
                                             <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontSize: "10px" }}>
                                                 {hasDiscount ? (
                                                     <>
@@ -230,7 +201,7 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                                     );
                                 })}
                                 <tr>
-                                    <td colSpan={6} style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontWeight: "bold", verticalAlign: "top", fontSize: "11px" }}>
+                                    <td colSpan={4} style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontWeight: "bold", verticalAlign: "top", fontSize: "11px" }}>
                                         {t("parameter.sumAfterTax", "Tổng cộng mẫu")}
                                     </td>
                                     <td style={{ border: "1px solid #ccc", padding: "2px 5px", textAlign: "right", fontWeight: "bold", verticalAlign: "top", fontSize: "11px" }}>
@@ -255,25 +226,6 @@ export const QuotePrintTemplate = ({ data }: { data: QuotePrintData }) => {
                 ))}
             </div>
 
-            <div style={{ marginTop: "10px", marginBottom: "12px", fontSize: "11px", color: "#333", borderTop: "1px solid #ccc", paddingTop: "6px" }}>
-                <span style={{ fontWeight: "bold" }}>Chú thích:</span>
-                <br />
-                <span style={{ marginLeft: "8px" }}>
-                    <b>IRDOP</b>: Chỉ tiêu được thực hiện tại IRDOP.
-                </span>
-                <br />
-                <span style={{ marginLeft: "8px" }}>
-                    <b>EX</b>: Chỉ tiêu được thực hiện bởi nhà thầu phụ.
-                </span>
-                <br />
-                <span style={{ marginLeft: "8px" }}>
-                    <b>VILAS997</b>: Chỉ tiêu được công nhận ISO/IEC 17025:2017.
-                </span>
-                <br />
-                <span style={{ marginLeft: "8px" }}>
-                    <b>TDC</b>: Chỉ tiêu được công nhận đánh giá sự phù hợp theo NĐ 107/2016/NĐ-CP.
-                </span>
-            </div>
 
             <div style={{ marginTop: "10px" }}>
                 <h3 style={{ fontSize: "14px", fontWeight: "bold", paddingBottom: "2px" }}>3. {t("order.print.total")}</h3>

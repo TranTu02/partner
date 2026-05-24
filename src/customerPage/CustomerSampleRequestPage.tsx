@@ -58,6 +58,8 @@ export function CustomerSampleRequestPage() {
     const [isDirty, setIsDirty] = useState(false);
     const [mobileTab, setMobileTab] = useState<"form" | "preview">("form");
 
+    const initialAnalysesRef = useRef<Record<string, { protocolCode: string | null; protocolId: string | null }>>({});
+
     // ── Unified init: set session (nếu có) → rồi load order ──
     useEffect(() => {
         const run = async () => {
@@ -102,34 +104,47 @@ export function CustomerSampleRequestPage() {
                 const client = order?.client ?? null;
                 const invoice = client?.invoiceInfo;
 
-                const data: OrderPrintData = {
-                    orderId: String(order.orderId || ""),
+                const contactPerson = isCpObj ? cp.contactName || "" : typeof cp === "string" ? cp : "";
+                const contactPhone = isCpObj ? cp.contactPhone || "" : "";
+                const contactEmail = isCpObj ? cp.contactEmail || "" : "";
+                const contactAddress = isCpObj ? cp.contactAddress || "" : "";
+                const contactPosition = isCpObj ? cp.contactPosition || "" : "";
+                const reportReceiverName = (isRecObj ? receiver.receiverName : "") || (isCpObj ? cp.contactName : "") || "";
+                const reportReceiverPhone = (isRecObj ? receiver.receiverPhone : "") || (isCpObj ? cp.contactPhone : "") || "";
+                const reportReceiverEmail = (isRecObj ? receiver.receiverEmail : "") || client?.clientEmail || "";
+                const reportReceiverAddress = (isRecObj ? receiver.receiverAddress : "") || client?.clientAddress || "";
+
+                const otherItems = order.otherItems ?? [];
+                const defaultNote = otherItems.map((item: any) => item.itemName).join(", ");
+
+                const data: any = {
+                    orderId: String(order.orderId ?? order.id ?? ""),
                     createdAt: order.createdAt,
                     client,
                     requestForm: order.requestForm || "",
 
-                    contactPerson: isCpObj ? cp.contactName || "" : typeof cp === "string" ? cp : "",
-                    contactPhone: isCpObj ? cp.contactPhone || "" : "",
+                    contactPerson,
+                    contactPhone,
                     contactIdentity: isCpObj ? cp.contactId || cp.identityId || "" : "",
-                    contactEmail: isCpObj ? cp.contactEmail || "" : "",
-                    contactAddress: isCpObj ? cp.contactAddress || "" : "",
-                    contactPosition: isCpObj ? cp.contactPosition || "" : "",
-                    reportEmail: isCpObj ? cp.contactEmail || "" : "",
+                    contactEmail,
+                    contactAddress,
+                    contactPosition,
+                    reportEmail: contactEmail,
 
                     clientName: client?.clientName ?? "",
                     clientAddress: client?.clientAddress ?? "",
                     clientPhone: client?.clientPhone ?? "",
                     clientEmail: client?.clientEmail ?? "",
 
-                    reportReceiverName: (isRecObj ? receiver.receiverName : "") || (isCpObj ? cp.contactName : "") || "",
-                    reportReceiverPhone: (isRecObj ? receiver.receiverPhone : "") || (isCpObj ? cp.contactPhone : "") || "",
-                    reportReceiverEmail: (isRecObj ? receiver.receiverEmail : "") || client?.clientEmail || "",
-                    reportReceiverAddress: (isRecObj ? receiver.receiverAddress : "") || client?.clientAddress || "",
+                    reportReceiverName,
+                    reportReceiverPhone,
+                    reportReceiverEmail,
+                    reportReceiverAddress,
 
                     taxName: invoice?.taxName ?? client?.clientName ?? "",
                     taxCode: invoice?.taxCode ?? client?.legalId ?? "",
                     invoiceAddress: invoice?.taxAddress ?? client?.clientAddress ?? "",
-                    invoiceEmail: invoice?.taxEmail ?? "",
+                    invoiceEmail: invoice?.taxEmail ?? client?.clientEmail ?? "",
 
                     attachedDocuments: "",
 
@@ -149,11 +164,13 @@ export function CustomerSampleRequestPage() {
                             (s as any)?.matrix?.matrix_name ??
                             "",
                         sampleTypeId: s?.sampleTypeId ?? s?.sample_type_id ?? s?.librarySampleType?.sampleTypeId ?? (s as any)?.library_sample_type?.sample_type_id ?? "",
-                        sampleNote: s?.sampleNote ?? s?.sample_note ?? "",
+                        sampleNote: (s?.sampleNote ?? s?.sample_note) || defaultNote || "",
                         sampleDesc: s?.sampleDesc ?? "",
                         sampleInfo: normalizeSampleInfo(s?.sampleName ?? "", s?.sampleInfo ?? []),
                         analyses: (s?.analyses ?? []).map((a: any) => ({
                             ...a,
+                            id: a?.id ?? a?.analysisId ?? a?.analysis_id ?? undefined,
+                            protocolId: a?.protocolId ?? a?.protocol_id ?? a?.protocol?.protocolId ?? a?.protocol?.protocol_id ?? a?.libraryParameterProtocol?.protocolId ?? a?.libraryParameterProtocol?.protocol_id ?? null,
                             parameterName: a?.parameterName ?? a?.parameter_name ?? "",
                             parameterId: a?.parameterId ?? a?.parameter_id,
                             sampleTypeName:
@@ -198,7 +215,24 @@ export function CustomerSampleRequestPage() {
                     discountRate: order.discountRate || 0,
                     orderUri: order.orderUri || "",
                     orderCustomerFileIds: order.orderCustomerFileIds || [],
+
+                    rawSamples: order.samples ?? [],
+                    rawContactPerson: order.contactPerson ?? null,
+                    otherItems,
                 };
+
+                // Snapshot original protocol values per analysis ID
+                initialAnalysesRef.current = {};
+                data.samples.forEach((s: any) => {
+                    (s.analyses || []).forEach((a: any) => {
+                        if (a.id) {
+                            initialAnalysesRef.current[a.id] = {
+                                protocolCode: a.protocolCode || null,
+                                protocolId: a.protocolId || null,
+                            };
+                        }
+                    });
+                });
 
                 setTempData(data);
             } catch (e: any) {
@@ -252,7 +286,25 @@ export function CustomerSampleRequestPage() {
             if (!prev) return prev;
             const newSamples = [...prev.samples];
             const newAnalyses = [...newSamples[sIdx].analyses];
-            newAnalyses[aIdx] = { ...newAnalyses[aIdx], [field]: value };
+            const analysis = newAnalyses[aIdx] as any;
+
+            if (field === "protocolCode") {
+                if (value && value.trim()) {
+                    // User typed something → override protocolCode, clear protocolId
+                    newAnalyses[aIdx] = { ...analysis, protocolCode: value, protocolId: null };
+                } else {
+                    // User cleared or whitespace only → restore original if protocolId was set
+                    const original = initialAnalysesRef.current[analysis.id];
+                    if (original && original.protocolId) {
+                        newAnalyses[aIdx] = { ...analysis, protocolCode: original.protocolCode, protocolId: original.protocolId };
+                    } else {
+                        newAnalyses[aIdx] = { ...analysis, protocolCode: "", protocolId: null };
+                    }
+                }
+            } else {
+                newAnalyses[aIdx] = { ...analysis, [field]: value };
+            }
+
             newSamples[sIdx] = { ...newSamples[sIdx], analyses: newAnalyses };
             return { ...prev, samples: newSamples };
         });
@@ -308,6 +360,7 @@ export function CustomerSampleRequestPage() {
                     invoiceAddress: (tempData as any).invoiceAddress,
                     invoiceEmail: (tempData as any).invoiceEmail,
                     contactPerson: {
+                        ...(tempData as any)?.rawContactPerson,
                         contactName: tempData.contactPerson,
                         contactPhone: tempData.contactPhone,
                         contactId: tempData.contactIdentity,
@@ -320,19 +373,22 @@ export function CustomerSampleRequestPage() {
                         receiverAddress: (tempData as any).reportReceiverAddress,
                     },
                     attachedDocuments: (tempData as any).attachedDocuments,
-                    samples: tempData.samples.map((s) => {
+                    samples: tempData.samples.map((s, sIdx) => {
                         const finalInfo = normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []);
                         const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
                         return {
                             ...s,
+                            ...(tempData as any)?.rawSamples?.[sIdx],
                             sampleName: s.sampleName,
                             sampleNote: s.sampleNote,
                             sampleDesc: (s as any).sampleDesc,
                             sampleInfo: apiInfo,
-                            analyses: s.analyses.map((a: any) => ({
+                            analyses: s.analyses.map((a: any, aidx: number) => ({
                                 ...a,
+                                ...(tempData as any)?.rawSamples?.[sIdx]?.analyses?.[aidx],
                                 parameterName: a.parameterName,
                                 protocolCode: a.protocolCode,
+                                protocolId: a.protocolId,
                                 analysisUnit: a.analysisUnit,
                             })),
                         };
@@ -583,17 +639,28 @@ export function CustomerSampleRequestPage() {
                             <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Danh sách mẫu</h4>
                             {tempData.samples.map((sample, sIdx) => (
                                 <Section key={sIdx} title={`Mẫu ${sIdx + 1}`} color="indigo">
-                                    <div className="grid grid-cols-2 gap-3 mb-4">
+                                    <div className="space-y-3 mb-4">
                                         <Field label="Tên mẫu" value={sample.sampleName} onChange={(v) => handleUpdateSample(sIdx, "sampleName", v)} onBlur={handleRefreshPreview} />
-                                        <Field label="Ghi chú" value={sample.sampleNote} onChange={(v) => handleUpdateSample(sIdx, "sampleNote", v)} onBlur={handleRefreshPreview} />
                                     </div>
-                                    <div className="space-y-2">
+                                    <div className="space-y-1.5 mb-4">
                                         <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mô tả mẫu thử</label>
                                         <textarea
-                                            className="w-full px-3 py-2 border border-border rounded-lg bg-white text-xs focus:ring-1 focus:ring-primary outline-none transition-all resize-none min-h-[100px]"
+                                            rows={2}
+                                            className="w-full px-3 py-2 border border-border rounded-lg bg-white text-xs focus:ring-1 focus:ring-primary outline-none transition-all resize-none min-h-[48px]"
                                             placeholder="Nhập mô tả mẫu thử..."
                                             value={(sample as any).sampleDesc || ""}
                                             onChange={(e) => handleUpdateSample(sIdx, "sampleDesc", e.target.value)}
+                                            onBlur={handleRefreshPreview}
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5 mb-4">
+                                        <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Ghi chú</label>
+                                        <textarea
+                                            rows={2}
+                                            className="w-full px-3 py-2 border border-border rounded-lg bg-white text-xs focus:ring-1 focus:ring-primary outline-none transition-all resize-none min-h-[48px]"
+                                            placeholder="Nhập ghi chú..."
+                                            value={sample.sampleNote || ""}
+                                            onChange={(e) => handleUpdateSample(sIdx, "sampleNote", e.target.value)}
                                             onBlur={handleRefreshPreview}
                                         />
                                     </div>
@@ -639,13 +706,13 @@ export function CustomerSampleRequestPage() {
                                                     value={ana.parameterName || ""}
                                                     readOnly
                                                 />
-                                                <input
-                                                    className="w-full text-[10px] px-1.5 py-1 border border-border rounded bg-white focus:ring-1 focus:ring-primary outline-none"
-                                                    placeholder="P.pháp"
-                                                    value={ana.protocolCode || ""}
-                                                    onChange={(e) => handleUpdateAnalysis(sIdx, aIdx, "protocolCode", e.target.value)}
-                                                    onBlur={handleRefreshPreview}
-                                                />
+                                                    <input
+                                                        className="w-full text-[10px] px-1.5 py-1 border border-border rounded bg-white focus:ring-1 focus:ring-primary outline-none"
+                                                        placeholder="Thống nhất với IRDOP"
+                                                        value={(ana as any).protocolId ? "" : ((ana as any).protocolCode || "")}
+                                                        onChange={(e) => handleUpdateAnalysis(sIdx, aIdx, "protocolCode", e.target.value)}
+                                                        onBlur={handleRefreshPreview}
+                                                    />
                                                 <input
                                                     className="w-full text-[10px] px-1.5 py-1 border border-border rounded bg-white focus:ring-1 focus:ring-primary outline-none"
                                                     placeholder="Đơn vị"

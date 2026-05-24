@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Plus, Trash2, ChevronDown, TrendingUp } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import type { OtherItem } from "@/types/order";
+import { getEnumList } from "@/api/index";
 
 interface OtherItemsSectionProps {
     otherItems: OtherItem[];
@@ -63,7 +64,26 @@ export function OtherItemsSection({ otherItems, onOtherItemsChange, onBulkPriceI
         onOtherItemsChange(updated);
     };
 
-    const PRESETS = [t("order.otherItems.presets.fast"), t("order.otherItems.presets.standard"), t("order.otherItems.presets.hardcopy")];
+    const [presets, setPresets] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (isReadOnly) return;
+        getEnumList({
+            query: { enumType: "orderOtherItems" }
+        }).then((res) => {
+            if (res.success && Array.isArray(res.data)) {
+                setPresets(res.data);
+            }
+        }).catch((err) => {
+            console.error("Failed to load other items enum list", err);
+        });
+    }, [isReadOnly]);
+
+    const activePresets = presets.length > 0 ? presets : [
+        t("order.otherItems.presets.fast"),
+        t("order.otherItems.presets.standard"),
+        t("order.otherItems.presets.hardcopy")
+    ];
 
     return (
         <div className="bg-card rounded-lg border border-border p-6 mt-6">
@@ -83,7 +103,7 @@ export function OtherItemsSection({ otherItems, onOtherItemsChange, onBulkPriceI
             {/* Preset quick-add buttons */}
             {!isReadOnly && (
                 <div className="flex flex-wrap gap-2 mb-4">
-                    {PRESETS.map((preset) => (
+                    {activePresets.map((preset) => (
                         <button
                             key={preset}
                             onClick={() => addOtherItem(preset)}
@@ -192,7 +212,7 @@ export function OtherItemsSection({ otherItems, onOtherItemsChange, onBulkPriceI
                                 </div>
                                 {showPresets === idx && (
                                     <div className="absolute top-full left-0 mt-1 z-50 bg-card border border-border rounded-lg shadow-lg min-w-[200px]">
-                                        {PRESETS.map((p) => (
+                                        {activePresets.map((p) => (
                                             <button
                                                 key={p}
                                                 className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 first:rounded-t-lg last:rounded-b-lg"

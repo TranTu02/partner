@@ -247,7 +247,7 @@ export function ClientSectionNew({
         // Update other fields
         onContactPhoneChange(contact.contactPhone || contact.phone || "");
         onContactEmailChange?.(contact.contactEmail || contact.email || "");
-        onContactIdentityChange?.(contact.identityId || contact.contactId || "");
+        onContactIdentityChange?.(contact.contactId || "");
         onContactIdChange?.(contact.contactId || "");
         onContactAddressChange?.(contact.contactAddress || "");
 
