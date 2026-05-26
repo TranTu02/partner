@@ -5,6 +5,24 @@ import { useTranslation } from "react-i18next";
 import { getMatrices, getParameterGroups, getMatrixDetail, getSampleTypes, getParameterGroupFull } from "@/api/index";
 import { customerGetMatrices, customerGetParameterGroups, customerGetMatrixDetail, customerGetSampleTypes, customerGetParameterGroupFull } from "@/api/customer";
 
+export const cleanSampleTypeName = (name?: string, id?: string): string => {
+    if (!name) return "";
+    let cleaned = name;
+    if (id) {
+        const prefix1 = `${id} - `;
+        if (cleaned.startsWith(prefix1)) {
+            return cleaned.substring(prefix1.length);
+        }
+        const prefix2 = `${id}-`;
+        if (cleaned.startsWith(prefix2)) {
+            return cleaned.substring(prefix2.length);
+        }
+    }
+    // General fallback: strip "ST-XXX - " pattern
+    return cleaned.replace(/^[A-Z0-9-_]+\s*-\s*/i, "");
+};
+
+
 interface AnalysisModalNewProps {
     isOpen: boolean;
     onClose: () => void;
@@ -325,7 +343,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm, isCustomer = fals
                                                                 ) : (
                                                                     row.results.map((m) => (
                                                                         <option key={m.matrixId} value={m.matrixId}>
-                                                                            {m.parameterName} - {m.sampleTypeName}
+                                                                            {m.parameterName} - {cleanSampleTypeName(m.sampleTypeName, m.sampleTypeId)}
                                                                         </option>
                                                                     ))
                                                                 )}
@@ -383,21 +401,23 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm, isCustomer = fals
                                             <>
                                                 <div className="fixed inset-0 z-40" onClick={() => setIsStDropdownOpen(false)} />
                                                 <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-xl z-50 max-h-60 overflow-auto p-1">
-                                                    {sampleTypes
-                                                        .map((st) => (
+                                                    {sampleTypes.map((st) => {
+                                                        const cleanName = cleanSampleTypeName(st.sampleTypeName, st.sampleTypeId);
+                                                        return (
                                                             <button
                                                                 key={st.sampleTypeId}
                                                                 onClick={() => {
-                                                                    if (!selectedSampleTypeNames.includes(st.sampleTypeName)) setSelectedSampleTypeNames((p) => [...p, st.sampleTypeName]);
+                                                                    if (!selectedSampleTypeNames.includes(cleanName)) setSelectedSampleTypeNames((p) => [...p, cleanName]);
                                                                     setStSearch("");
                                                                     setIsStDropdownOpen(false);
                                                                 }}
                                                                 className="w-full px-3 py-2 text-left text-sm hover:bg-primary/10 rounded flex items-center justify-between"
                                                             >
-                                                                <span>{st.sampleTypeName}</span>
-                                                                {selectedSampleTypeNames.includes(st.sampleTypeName) && <X className="w-3 h-3 text-primary" />}
+                                                                <span>{cleanName}</span>
+                                                                {selectedSampleTypeNames.includes(cleanName) && <X className="w-3 h-3 text-primary" />}
                                                             </button>
-                                                        ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             </>
                                         )}
@@ -470,7 +490,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm, isCustomer = fals
                                                             <input type="checkbox" checked={selectedMatrixIds.has(m.matrixId)} readOnly />
                                                         </td>
                                                         <td className="p-3 font-medium">{m.parameterName}</td>
-                                                        <td className="p-3">{m.sampleTypeName}</td>
+                                                        <td className="p-3">{cleanSampleTypeName(m.sampleTypeName, m.sampleTypeId)}</td>
                                                         <td className="p-3">{m.protocolCode || "--"}</td>
                                                         <td className="p-3">
                                                             {m.protocolAccreditation
@@ -505,7 +525,7 @@ export function AnalysisModalNew({ isOpen, onClose, onConfirm, isCustomer = fals
                                                             <input type="radio" checked={selectedGroupId === g.groupId} readOnly className="mt-1" />
                                                         </td>
                                                         <td className="p-3 font-medium align-top">{g.groupName}</td>
-                                                        <td className="p-3 align-top">{g.sampleTypeName}</td>
+                                                        <td className="p-3 align-top">{cleanSampleTypeName(g.sampleTypeName, g.sampleTypeId)}</td>
                                                         <td className="p-3 text-sm text-muted-foreground align-top">
                                                             <div className="flex flex-col gap-1">
                                                                 {g.matrices?.map((m) => (

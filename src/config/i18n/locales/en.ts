@@ -220,6 +220,10 @@ export default {
         },
         roles: {
             Collaborator: "Collaborator",
+            collaborator: "Collaborator",
+            salesManager: "Sales Manager",
+            salesExec: "Sales Executive",
+            cs: "Customer Service",
             CustomerService: "Customer Service/Sales",
             Accountant: "Accountant",
             Client: "Client",

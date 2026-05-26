@@ -19,6 +19,24 @@ export interface AnalysisWithQuantity extends Omit<Matrix, "createdAt" | "create
     isCustom?: boolean;
 }
 
+export const cleanSampleTypeName = (name?: string, id?: string): string => {
+    if (!name) return "";
+    let cleaned = name;
+    if (id) {
+        const prefix1 = `${id} - `;
+        if (cleaned.startsWith(prefix1)) {
+            return cleaned.substring(prefix1.length);
+        }
+        const prefix2 = `${id}-`;
+        if (cleaned.startsWith(prefix2)) {
+            return cleaned.substring(prefix2.length);
+        }
+    }
+    // General fallback: strip "ST-XXX - " pattern
+    return cleaned.replace(/^[A-Z0-9-_]+\s*-\s*/i, "");
+};
+
+
 import { useDrag, useDrop } from "react-dnd";
 import { useRef, useMemo, useState, useEffect } from "react";
 import { getSampleTypes, getParameters } from "@/api/index";
@@ -70,7 +88,7 @@ export interface SampleWithQuantity {
     sampleInfo?: { label: string; value: string }[];
 }
 
-const DEFAULT_SAMPLE_INFO_LABELS = ["Số lô", "Ngày sản xuất", "Nơi sản xuất", "Hạn sử dụng", "Số công bố", "Số đăng ký", "Thông tin khác"];
+const DEFAULT_SAMPLE_INFO_LABELS = ["Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
 
 interface SampleCardProps {
     sample: SampleWithQuantity;
@@ -389,7 +407,7 @@ export function SampleCard({
                         <input
                             type="text"
                             className="w-full px-3 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            value={sample.sampleTypeName || ""}
+                            value={cleanSampleTypeName(sample.sampleTypeName || "", sample.sampleTypeId)}
                             onChange={(e) => onUpdateSample({ sampleTypeName: e.target.value, sampleTypeId: "" })}
                             onFocus={() => setShowSampleTypeDropdown(true)}
                             onBlur={() => setTimeout(() => setShowSampleTypeDropdown(false), 200)}
@@ -405,12 +423,12 @@ export function SampleCard({
                                         onClick={() => {
                                             onUpdateSample({
                                                 sampleTypeId: st.sampleTypeId,
-                                                sampleTypeName: st.sampleTypeName,
+                                                sampleTypeName: cleanSampleTypeName(st.sampleTypeName, st.sampleTypeId),
                                             });
                                             setShowSampleTypeDropdown(false);
                                         }}
                                     >
-                                        {st.sampleTypeName}
+                                        {cleanSampleTypeName(st.sampleTypeName, st.sampleTypeId)}
                                     </div>
                                 ))}
                             </div>
@@ -643,13 +661,13 @@ export function SampleCard({
                                                 </td>
                                                 <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
                                                     {isReadOnly ? (
-                                                        analysis.sampleTypeName
+                                                        cleanSampleTypeName(analysis.sampleTypeName, analysis.sampleTypeId)
                                                     ) : analysis.isCustom ? (
                                                         <div className="relative">
                                                             <input
                                                                 type="text"
                                                                 className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-background text-sm font-semibold"
-                                                                value={analysis.sampleTypeName || sample.sampleTypeName || ""}
+                                                                value={cleanSampleTypeName(analysis.sampleTypeName || sample.sampleTypeName || "", analysis.sampleTypeId || sample.sampleTypeId)}
                                                                 onChange={(e) => {
                                                                     handleAnalysisChange(index, {
                                                                         sampleTypeName: e.target.value,
@@ -683,12 +701,12 @@ export function SampleCard({
                                                                                     e.preventDefault();
                                                                                     handleAnalysisChange(index, {
                                                                                         sampleTypeId: st.sampleTypeId,
-                                                                                        sampleTypeName: st.sampleTypeName
+                                                                                        sampleTypeName: cleanSampleTypeName(st.sampleTypeName, st.sampleTypeId)
                                                                                     });
                                                                                     setActiveSampleTypeDropdownIndex(null);
                                                                                 }}
                                                                             >
-                                                                                {st.sampleTypeName}
+                                                                                {cleanSampleTypeName(st.sampleTypeName, st.sampleTypeId)}
                                                                             </div>
                                                                         ))
                                                                     )}
@@ -696,7 +714,7 @@ export function SampleCard({
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        analysis.sampleTypeName || sample.sampleTypeName
+                                                        cleanSampleTypeName(analysis.sampleTypeName || sample.sampleTypeName, analysis.sampleTypeId || sample.sampleTypeId)
                                                     )}
                                                 </td>
                                                 <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>

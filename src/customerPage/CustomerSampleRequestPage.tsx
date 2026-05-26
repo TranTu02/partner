@@ -21,7 +21,7 @@ import { generateSampleRequestHtml } from "@/customerComponents/order/CustomerSa
 import { toast } from "sonner";
 
 // ─── Module-level constants (re-used from the modal) ─────────────────────────
-const SAMPLE_INFO_ORDER = ["Tên mẫu thử", "Số lô", "Ngày sản xuất", "Nơi sản xuất", "Hạn sử dụng", "Số công bố", "Số đăng ký", "Thông tin khác"];
+const SAMPLE_INFO_ORDER = ["Tên mẫu thử", "Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
 
 const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value: string }[]) => {
     const infoMap = new Map(rawInfo.map((i) => [i.label, i.value]));
@@ -37,7 +37,7 @@ const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Labels shown in left-panel form (Tên mẫu thử is handled via sampleName field, so skip here)
-const DEFAULT_SAMPLE_INFO_LABELS = ["Số lô", "Ngày sản xuất", "Nơi sản xuất", "Hạn sử dụng", "Số công bố", "Số đăng ký", "Thông tin khác"];
+const DEFAULT_SAMPLE_INFO_LABELS = ["Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
 
 export function CustomerSampleRequestPage() {
     const { t } = useTranslation();

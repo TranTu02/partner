@@ -352,6 +352,42 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
         );
     };
 
+    const handleAddCustomAnalysis = (sampleIndex: number) => {
+        if (isReadOnly) return;
+        const sample = samples[sampleIndex];
+        if (!sample) return;
+
+        const newId = `temp-custom-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const customAnalysis: AnalysisWithQuantity = {
+            id: newId,
+            isCustom: true,
+            parameterId: "",
+            parameterName: "",
+            sampleTypeId: sample.sampleTypeId || "",
+            sampleTypeName: sample.sampleTypeName || "",
+            unitPrice: 0,
+            quantity: 1,
+            taxRate: 5,
+            feeBeforeTax: 0,
+            feeAfterTax: 0,
+            protocolAccreditation: null,
+            protocolCode: null,
+            protocolId: null,
+        } as any;
+
+        setSamples((prev) =>
+            prev.map((s, idx) => {
+                if (idx === sampleIndex) {
+                    return {
+                        ...s,
+                        analyses: [...s.analyses, customAnalysis],
+                    };
+                }
+                return s;
+            })
+        );
+    };
+
     const handleBulkPriceIncrease = (percent: number) => {
         const multiplier = 1 + percent / 100;
         setSamples((prev) =>
@@ -676,6 +712,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                                         onDuplicateSample={(count) => handleDuplicateSample(sample.id, count)}
                                         onUpdateSample={(updates) => handleUpdateSample(sample.id, updates)}
                                         onAddAnalysis={() => handleOpenModal(index)}
+                                        onAddCustomAnalysis={() => handleAddCustomAnalysis(index)}
                                         onRemoveAnalysis={(analysisId) => handleRemoveAnalysis(sample.id, analysisId)}
                                         isReadOnly={isReadOnly}
                                         showSampleQuantity={true}

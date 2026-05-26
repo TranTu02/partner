@@ -44,6 +44,10 @@ const parseRoles = (rolesArr: any): UserRoleLegacy => {
 
             if (r === "ROLE_SALES_MANAGER") map.salesManager = true;
             if (r === "ROLE_SALES_EXEC") map.salesExec = true;
+            if (r === "ROLE_COLLABORATOR" || r === "ROLE_CTV" || r === "ROLE_ASSOCIATE") {
+                map.salesExec = true;
+                map.collaborator = true;
+            }
             if (r === "ROLE_CS") map.cs = true;
             if (r === "ROLE_ACCOUNTANT") map.accountant = true;
             if (r === "ROLE_REPORT_OFFICER") map.reportOfficer = true;
@@ -91,9 +95,10 @@ const accessMatrix: Record<string, string[]> = {
     inventoryMgr: ["dashboard", "settings"],
 
     // 4. Commercial & Admin
-    salesManager: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create"],
-    salesExec: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create"],
-    cs: ["dashboard", "clients", "quotes", "orders"],
+    salesManager: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters"],
+    salesExec: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters"],
+    collaborator: ["dashboard", "clients", "quotes", "quotes-create", "orders", "orders-create", "parameters"],
+    cs: ["dashboard", "clients", "quotes", "orders", "parameters"],
     accountant: ["dashboard", "accounting", "orders"],
     reportOfficer: ["dashboard", "orders"],
 
@@ -103,8 +108,8 @@ const accessMatrix: Record<string, string[]> = {
     hseOfficer: ["dashboard", "settings"],
 
     // Legacy/External
-    client: ["parameters", "quotes", "quotes-create", "orders", "orders-create", "settings"],
-    guest: ["parameters", "quotes"],
+    client: ["quotes", "quotes-create", "orders", "orders-create", "settings"],
+    guest: ["quotes"],
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {

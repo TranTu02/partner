@@ -256,6 +256,8 @@ export default {
             reportOfficer: "Admin báo cáo",
             docController: "Kiểm soát tài liệu",
             hseOfficer: "An toàn & Môi trường",
+            collaborator: "Cộng tác viên",
+            Collaborator: "Cộng tác viên",
             qualityControl: "Kiểm soát chất lượng",
             administrative: "Hành chính",
         },

@@ -8,6 +8,24 @@ import { useDrag, useDrop } from "react-dnd";
 import { useRef, useMemo, useState, useEffect, memo, useCallback } from "react";
 import { customerGetSampleTypes } from "@/api/customer";
 
+export const cleanSampleTypeName = (name?: string, id?: string): string => {
+    if (!name) return "";
+    let cleaned = name;
+    if (id) {
+        const prefix1 = `${id} - `;
+        if (cleaned.startsWith(prefix1)) {
+            return cleaned.substring(prefix1.length);
+        }
+        const prefix2 = `${id}-`;
+        if (cleaned.startsWith(prefix2)) {
+            return cleaned.substring(prefix2.length);
+        }
+    }
+    // General fallback: strip "ST-XXX - " pattern
+    return cleaned.replace(/^[A-Z0-9-_]+\s*-\s*/i, "");
+};
+
+
 const SortableAnalysisRow = memo(({ id, index, moveRow, children }: any) => {
     const ref = useRef<HTMLTableRowElement>(null);
     const [{ handlerId }, drop] = useDrop<any, void, { handlerId: string | symbol | null }>({
@@ -313,7 +331,7 @@ export function CustomerSampleCard({
                             <input
                                 type="text"
                                 className="w-full pl-10 pr-10 py-2 border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm h-10 disabled:opacity-50"
-                                value={stSearch || sample.sampleTypeName || ""}
+                                value={stSearch || cleanSampleTypeName(sample.sampleTypeName || "", sample.sampleTypeId)}
                                 onChange={(e) => {
                                     setStSearch(e.target.value);
                                     setIsStDropdownOpen(true);
@@ -348,7 +366,7 @@ export function CustomerSampleCard({
                                                 type="button"
                                                 onClick={() => {
                                                     onUpdateSample({
-                                                        sampleTypeName: st.sampleTypeName,
+                                                        sampleTypeName: cleanSampleTypeName(st.sampleTypeName, st.sampleTypeId),
                                                         sampleTypeId: st.sampleTypeId,
                                                     });
                                                     setStSearch("");
@@ -356,7 +374,7 @@ export function CustomerSampleCard({
                                                 }}
                                                 className="w-full px-3 py-2 text-left text-sm hover:bg-primary/10 rounded flex items-center justify-between group font-semibold"
                                             >
-                                                <span>{st.sampleTypeName}</span>
+                                                <span>{cleanSampleTypeName(st.sampleTypeName, st.sampleTypeId)}</span>
                                             </button>
                                         ))}
                                     </div>
