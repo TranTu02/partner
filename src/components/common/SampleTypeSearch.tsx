@@ -9,24 +9,6 @@ interface SampleType {
     [key: string]: any;
 }
 
-export const cleanSampleTypeName = (name?: string, id?: string): string => {
-    if (!name) return "";
-    let cleaned = name;
-    if (id) {
-        const prefix1 = `${id} - `;
-        if (cleaned.startsWith(prefix1)) {
-            return cleaned.substring(prefix1.length);
-        }
-        const prefix2 = `${id}-`;
-        if (cleaned.startsWith(prefix2)) {
-            return cleaned.substring(prefix2.length);
-        }
-    }
-    // General fallback: strip "ST-XXX - " pattern
-    return cleaned.replace(/^[A-Z0-9-_]+\s*-\s*/i, "");
-};
-
-
 interface SampleTypeSearchProps {
     value: string;
     onChange: (value: string) => void;
@@ -44,7 +26,7 @@ export function SampleTypeSearch({ value, onChange, placeholder, disabled, class
 
     // Sync input value with prop value (e.g. initial load or external update)
     useEffect(() => {
-        setInputValue(cleanSampleTypeName(value));
+        setInputValue(value);
     }, [value]);
 
     useEffect(() => {
@@ -99,7 +81,7 @@ export function SampleTypeSearch({ value, onChange, placeholder, disabled, class
 
     const handleSelect = (item: SampleType) => {
         // "gán giá trị sampleTypeName vào ô input nếu select giá trị trả về"
-        const name = cleanSampleTypeName(item.sampleTypeName, item.sampleTypeId);
+        const name = item.sampleTypeName;
         setInputValue(name);
         onChange(name);
         setShowSuggestions(false);
@@ -130,7 +112,7 @@ export function SampleTypeSearch({ value, onChange, placeholder, disabled, class
                 <div className="absolute z-50 w-full mt-1 bg-white dark:bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
                     {suggestions.map((item) => (
                         <button key={item.sampleTypeId} className="w-full text-left px-4 py-2 text-sm hover:bg-muted focus:bg-muted transition-colors flex flex-col" onClick={() => handleSelect(item)}>
-                            <span className="font-medium text-foreground">{cleanSampleTypeName(item.sampleTypeName, item.sampleTypeId)}</span>
+                            <span className="font-medium text-foreground">{item.sampleTypeName}</span>
                             {/* Optional: Show displayTypeStyle info? User didn't explicitly ask to show it in dropdown, just use it for selection logic if needed. */}
                         </button>
                     ))}

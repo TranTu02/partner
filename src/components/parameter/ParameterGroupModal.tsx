@@ -5,24 +5,6 @@ import { toast } from "sonner";
 import { getSampleTypes, getMatrices, createParameterGroup, updateParameterGroup } from "@/api/index";
 import type { ParameterGroup, SampleType, Matrix } from "@/types/parameter";
 
-export const cleanSampleTypeName = (name?: string, id?: string): string => {
-    if (!name) return "";
-    let cleaned = name;
-    if (id) {
-        const prefix1 = `${id} - `;
-        if (cleaned.startsWith(prefix1)) {
-            return cleaned.substring(prefix1.length);
-        }
-        const prefix2 = `${id}-`;
-        if (cleaned.startsWith(prefix2)) {
-            return cleaned.substring(prefix2.length);
-        }
-    }
-    // General fallback: strip "ST-XXX - " pattern
-    return cleaned.replace(/^[A-Z0-9-_]+\s*-\s*/i, "");
-};
-
-
 interface ParameterGroupModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -68,7 +50,7 @@ export function ParameterGroupModal({ isOpen, onClose, onSuccess, initialData }:
                     taxRate: Number(initialData.taxRate) || 5,
                     discountRate: Number(initialData.discountRate) || 0,
                 });
-                setSampleTypeInput(cleanSampleTypeName(initialData.sampleTypeName || "", initialData.sampleTypeId));
+                setSampleTypeInput(initialData.sampleTypeName || "");
                 if (initialData.matrices) {
                     setSelectedMatrices(initialData.matrices);
                 }
@@ -122,7 +104,7 @@ export function ParameterGroupModal({ isOpen, onClose, onSuccess, initialData }:
     };
 
     const handleSelectSampleType = (st: SampleType) => {
-        setSampleTypeInput(cleanSampleTypeName(st.sampleTypeName, st.sampleTypeId));
+        setSampleTypeInput(st.sampleTypeName);
         setFormData((prev) => ({ ...prev, sampleTypeId: st.sampleTypeId, matrixIds: [] }));
         setSelectedMatrices([]);
         setShowSampleDropdown(false);
@@ -242,11 +224,11 @@ export function ParameterGroupModal({ isOpen, onClose, onSuccess, initialData }:
                             />
                             {showSampleDropdown && filteredSampleTypes.length > 0 && (
                                 <div className="absolute z-20 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                     {filteredSampleTypes.map((st) => (
-                                         <div key={st.sampleTypeId} className="px-3 py-2 cursor-pointer hover:bg-muted text-sm text-foreground" onClick={() => handleSelectSampleType(st)}>
-                                             {cleanSampleTypeName(st.sampleTypeName, st.sampleTypeId)}
-                                         </div>
-                                     ))}
+                                    {filteredSampleTypes.map((st) => (
+                                        <div key={st.sampleTypeId} className="px-3 py-2 cursor-pointer hover:bg-muted text-sm text-foreground" onClick={() => handleSelectSampleType(st)}>
+                                            {st.sampleTypeName}
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>

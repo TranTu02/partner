@@ -5,24 +5,6 @@ import { toast } from "sonner";
 import { getSampleTypes, createMatrix, updateMatrix, getParameters } from "@/api/index";
 import type { Matrix, SampleType, Parameter } from "@/types/parameter";
 
-export const cleanSampleTypeName = (name?: string, id?: string): string => {
-    if (!name) return "";
-    let cleaned = name;
-    if (id) {
-        const prefix1 = `${id} - `;
-        if (cleaned.startsWith(prefix1)) {
-            return cleaned.substring(prefix1.length);
-        }
-        const prefix2 = `${id}-`;
-        if (cleaned.startsWith(prefix2)) {
-            return cleaned.substring(prefix2.length);
-        }
-    }
-    // General fallback: strip "ST-XXX - " pattern
-    return cleaned.replace(/^[A-Z0-9-_]+\s*-\s*/i, "");
-};
-
-
 interface MatrixModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -70,7 +52,7 @@ export function MatrixModal({ isOpen, onClose, onSuccess, initialData }: MatrixM
                     accVilas: initialData.protocolAccreditation?.VILAS997 || false,
                     acc107: initialData.protocolAccreditation?.["107"] || false,
                 });
-                setSampleTypeInput(cleanSampleTypeName(initialData.sampleTypeName || "", initialData.sampleTypeId));
+                setSampleTypeInput(initialData.sampleTypeName || "");
                 setParameterInput(initialData.parameterName || "");
             } else {
                 setFormData({
@@ -104,7 +86,7 @@ export function MatrixModal({ isOpen, onClose, onSuccess, initialData }: MatrixM
                 setSampleTypes(sampleTypesRes.data as SampleType[]);
                 if (initialData?.sampleTypeId && !initialData.sampleTypeName) {
                     const found = (sampleTypesRes.data as SampleType[]).find((st) => st.sampleTypeId === initialData.sampleTypeId);
-                    if (found) setSampleTypeInput(cleanSampleTypeName(found.sampleTypeName, found.sampleTypeId));
+                    if (found) setSampleTypeInput(found.sampleTypeName);
                 }
             }
 
@@ -145,7 +127,7 @@ export function MatrixModal({ isOpen, onClose, onSuccess, initialData }: MatrixM
     };
 
     const handleSelectSampleType = (st: SampleType) => {
-        setSampleTypeInput(cleanSampleTypeName(st.sampleTypeName, st.sampleTypeId));
+        setSampleTypeInput(st.sampleTypeName);
         setFormData((prev) => ({ ...prev, sampleTypeId: st.sampleTypeId }));
         setShowSampleDropdown(false);
     };
@@ -298,7 +280,7 @@ export function MatrixModal({ isOpen, onClose, onSuccess, initialData }: MatrixM
                             <div className="absolute z-20 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
                                 {filteredSampleTypes.map((st) => (
                                     <div key={st.sampleTypeId} className="px-3 py-2 cursor-pointer hover:bg-muted text-sm text-foreground" onClick={() => handleSelectSampleType(st)}>
-                                        {cleanSampleTypeName(st.sampleTypeName, st.sampleTypeId)}
+                                        {st.sampleTypeName}
                                     </div>
                                 ))}
                             </div>
