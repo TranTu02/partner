@@ -402,6 +402,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                             sampleId: undefined,
                             sampleName: s.sampleName || s.name || "Mẫu",
                             sampleNote: s.sampleNote || "",
+                            sampleInfo: s.sampleInfo || [],
                             analyses: (s.analyses || []).map((a: any) => ({
                                 ...a,
                                 id: `temp-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}-${i}`,

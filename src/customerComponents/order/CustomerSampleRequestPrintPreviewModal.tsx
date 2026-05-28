@@ -419,6 +419,7 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                                     {sample.sampleInfo && sample.sampleInfo.length > 0 && (
                                         <div className="mt-3 grid grid-cols-2 gap-2 p-2 bg-muted/20 rounded-md border border-border/50">
                                             {sample.sampleInfo.map((info, iIdx) => {
+                                                if (info.label === "Tên mẫu thử") return null;
                                                 const isTextArea = info.label === "Thông tin khác";
                                                 return (
                                                     <div key={iIdx} className={isTextArea ? "col-span-2" : "col-span-1"}>

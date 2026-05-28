@@ -26,6 +26,20 @@ export type EditorMode = "view" | "edit" | "create";
 
 import type { SampleWithQuantity, AnalysisWithQuantity } from "@/components/order/SampleCard";
 
+const SAMPLE_INFO_ORDER = ["Tên mẫu thử", "Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
+
+const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value: string }[]) => {
+    const infoMap = new Map((rawInfo || []).map((i) => [i.label, i.value]));
+    infoMap.set("Tên mẫu thử", sampleName || "");
+    const ordered: { label: string; value: string }[] = [];
+    for (const key of SAMPLE_INFO_ORDER) {
+        ordered.push({ label: key, value: infoMap.get(key) ?? "" });
+        infoMap.delete(key);
+    }
+    infoMap.forEach((value, label) => ordered.push({ label, value }));
+    return ordered;
+};
+
 interface OrderEditorProps {
     mode: EditorMode;
     initialData?: any; // Order
@@ -364,6 +378,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                 sampleTypeId: s.sampleTypeId,
                                 sampleTypeName: s.sampleTypeName || s.sampleMatrix || s.matrix || s.librarySampleType?.sampleTypeName || "",
                                 sampleNote: s.sampleNote || "",
+                                sampleInfo: s.sampleInfo || [],
                                 analyses: (s.analyses || []).map((a: any) => ({
                                     ...a,
                                     id: `temp-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}-${i}`,
@@ -481,41 +496,45 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             taxCode,
             taxAddress,
 
-            samples: samples.map((s) => ({
-                sampleName: s.sampleName || "",
-                sampleTypeId: s.sampleTypeId,
-                sampleTypeName: s.sampleTypeName || "",
-                sampleNote: s.sampleNote || "",
-                sampleInfo: s.sampleInfo || [],
-                analyses: s.analyses.map((a) => {
-                    const unitPrice = Number(a.unitPrice) || 0;
-                    const quantity = Number(a.quantity) || 1;
-                    const taxRate = Number(a.taxRate) || 0;
-                    const discountRate = Number(a.discountRate) || 0;
+            samples: samples.map((s) => {
+                const finalInfo = normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []);
+                const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
+                return {
+                    sampleName: s.sampleName || "",
+                    sampleTypeId: s.sampleTypeId,
+                    sampleTypeName: s.sampleTypeName || "",
+                    sampleNote: s.sampleNote || "",
+                    sampleInfo: apiInfo,
+                    analyses: s.analyses.map((a) => {
+                        const unitPrice = Number(a.unitPrice) || 0;
+                        const quantity = Number(a.quantity) || 1;
+                        const taxRate = Number(a.taxRate) || 0;
+                        const discountRate = Number(a.discountRate) || 0;
 
-                    const feeBeforeTaxAndDiscount = unitPrice * quantity;
-                    const feeBeforeTax = feeBeforeTaxAndDiscount * (1 - discountRate / 100);
-                    const feeAfterTax = feeBeforeTax * (1 + taxRate / 100);
+                        const feeBeforeTaxAndDiscount = unitPrice * quantity;
+                        const feeBeforeTax = feeBeforeTaxAndDiscount * (1 - discountRate / 100);
+                        const feeAfterTax = feeBeforeTax * (1 + taxRate / 100);
 
-                    return {
-                        ...a,
-                        parameterName: a.parameterName,
-                        sampleTypeId: a.sampleTypeId,
-                        sampleTypeName: a.sampleTypeName,
-                        protocolAccreditation: a.protocolAccreditation,
-                        protocolCode: (a as any).protocolCode,
-                        protocolSource: (a as any).protocolSource,
-                        parameterId: a.parameterId,
-                        feeBeforeTax: feeBeforeTax,
-                        feeBeforeTaxAndDiscount: feeBeforeTaxAndDiscount,
-                        taxRate: taxRate,
-                        feeAfterTax: a.feeAfterTax || feeAfterTax,
-                        discountRate: discountRate,
-                        quantity: quantity,
-                        unitPrice: unitPrice,
-                    };
-                }),
-            })),
+                        return {
+                            ...a,
+                            parameterName: a.parameterName,
+                            sampleTypeId: a.sampleTypeId,
+                            sampleTypeName: a.sampleTypeName,
+                            protocolAccreditation: a.protocolAccreditation,
+                            protocolCode: (a as any).protocolCode,
+                            protocolSource: (a as any).protocolSource,
+                            parameterId: a.parameterId,
+                            feeBeforeTax: feeBeforeTax,
+                            feeBeforeTaxAndDiscount: feeBeforeTaxAndDiscount,
+                            taxRate: taxRate,
+                            feeAfterTax: a.feeAfterTax || feeAfterTax,
+                            discountRate: discountRate,
+                            quantity: quantity,
+                            unitPrice: unitPrice,
+                        };
+                    }),
+                };
+            }),
 
             pricing,
             discountRate,
@@ -867,10 +886,14 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 orderNote: orderNote?.trim() || null,
 
                 samples: samples.map((s) => {
+                    const finalInfo = normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []);
+                    const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
+
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     const { id, ...rest } = s;
                     return {
                         ...rest,
+                        sampleInfo: apiInfo,
                         analyses: s.analyses.map((a) => ({
                             ...a, // Preserve all original properties from quote/loaded data
                             parameterName: a.parameterName,

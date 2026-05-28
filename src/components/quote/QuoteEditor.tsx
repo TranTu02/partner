@@ -21,6 +21,20 @@ import { toast } from "sonner";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
+const SAMPLE_INFO_ORDER = ["Tên mẫu thử", "Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
+
+const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value: string }[]) => {
+    const infoMap = new Map((rawInfo || []).map((i) => [i.label, i.value]));
+    infoMap.set("Tên mẫu thử", sampleName || "");
+    const ordered: { label: string; value: string }[] = [];
+    for (const key of SAMPLE_INFO_ORDER) {
+        ordered.push({ label: key, value: infoMap.get(key) ?? "" });
+        infoMap.delete(key);
+    }
+    infoMap.forEach((value, label) => ordered.push({ label, value }));
+    return ordered;
+};
+
 interface QuoteEditorProps {
     mode: EditorMode;
     initialData?: any; // Quote
@@ -515,29 +529,34 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 contactPerson: contactData,
                 reportRecipient,
 
-                samples: samples.map((s) => ({
-                    ...s,
-                    analyses: s.analyses.map((a) => {
-                        const quantity = a.quantity || 1;
-                        const unitPrice = a.unitPrice || 0;
-                        const lineList = unitPrice * quantity;
-                        const discountRate = a.discountRate || 0;
-                        const discountValue = lineList * (discountRate / 100);
-                        const feeNet = lineList - discountValue;
-                        const taxRate = a.taxRate || 0;
-                        const feeAfterTax = feeNet * (1 + taxRate / 100);
+                samples: samples.map((s) => {
+                    const finalInfo = normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []);
+                    const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
+                    return {
+                        ...s,
+                        sampleInfo: apiInfo,
+                        analyses: s.analyses.map((a) => {
+                            const quantity = a.quantity || 1;
+                            const unitPrice = a.unitPrice || 0;
+                            const lineList = unitPrice * quantity;
+                            const discountRate = a.discountRate || 0;
+                            const discountValue = lineList * (discountRate / 100);
+                            const feeNet = lineList - discountValue;
+                            const taxRate = a.taxRate || 0;
+                            const feeAfterTax = feeNet * (1 + taxRate / 100);
 
-                        return {
-                            ...a,
-                            parameterPrice: a.unitPrice,
-                            feeBeforeTax: feeNet,
-                            discountRate: a.discountRate,
-                            parameterTaxRate: a.taxRate,
-                            tax: (feeNet * taxRate) / 100, // Tax on net
-                            feeAfterTax: Math.round(feeAfterTax),
-                        };
-                    }),
-                })),
+                            return {
+                                ...a,
+                                parameterPrice: a.unitPrice,
+                                feeBeforeTax: feeNet,
+                                discountRate: a.discountRate,
+                                parameterTaxRate: a.taxRate,
+                                tax: (feeNet * taxRate) / 100, // Tax on net
+                                feeAfterTax: Math.round(feeAfterTax),
+                            };
+                        }),
+                    };
+                }),
 
                 discountRate,
                 // commission, // Quote might not have commission in backend schema? Adding just in case.
@@ -608,39 +627,44 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             taxCode,
             taxAddress,
 
-            samples: samples.map((s) => ({
-                sampleName: s.sampleName || "",
-                sampleTypeId: s.sampleTypeId,
-                sampleTypeName: s.sampleTypeName || "",
-                sampleNote: s.sampleNote || "",
-                quantity: s.quantity || 1,
-                analyses: s.analyses.map((a) => {
-                    const quantity = a.quantity || 1;
-                    const unitPrice = a.unitPrice || 0;
-                    const lineList = unitPrice * quantity;
-                    const discountRate = a.discountRate || 0;
-                    const lineNet = lineList * (1 - discountRate / 100);
-                    const taxRate = a.taxRate || 0;
-                    const feeAfterTax = lineNet * (1 + taxRate / 100);
+            samples: samples.map((s) => {
+                const finalInfo = normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []);
+                const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
+                return {
+                    sampleName: s.sampleName || "",
+                    sampleTypeId: s.sampleTypeId,
+                    sampleTypeName: s.sampleTypeName || "",
+                    sampleNote: s.sampleNote || "",
+                    sampleInfo: apiInfo,
+                    quantity: s.quantity || 1,
+                    analyses: s.analyses.map((a) => {
+                        const quantity = a.quantity || 1;
+                        const unitPrice = a.unitPrice || 0;
+                        const lineList = unitPrice * quantity;
+                        const discountRate = a.discountRate || 0;
+                        const lineNet = lineList * (1 - discountRate / 100);
+                        const taxRate = a.taxRate || 0;
+                        const feeAfterTax = lineNet * (1 + taxRate / 100);
 
-                    return {
-                        ...a,
-                        parameterName: a.parameterName,
-                        parameterId: a.parameterId,
-                        sampleTypeName: a.sampleTypeName || s.sampleTypeName || "",
-                        protocolCode: (a as any).protocolCode || "",
-                        protocolSource: (a as any).protocolSource || "",
-                        protocolAccreditation: a.protocolAccreditation || (a as any).protocolAccreditation || "",
-                        feeBeforeTax: lineNet,
-                        feeBeforeTaxAndDiscount: lineList,
-                        taxRate: taxRate,
-                        feeAfterTax: feeAfterTax,
-                        discountRate: discountRate,
-                        quantity: quantity,
-                        unitPrice: unitPrice,
-                    };
-                }),
-            })),
+                        return {
+                            ...a,
+                            parameterName: a.parameterName,
+                            parameterId: a.parameterId,
+                            sampleTypeName: a.sampleTypeName || s.sampleTypeName || "",
+                            protocolCode: (a as any).protocolCode || "",
+                            protocolSource: (a as any).protocolSource || "",
+                            protocolAccreditation: a.protocolAccreditation || (a as any).protocolAccreditation || "",
+                            feeBeforeTax: lineNet,
+                            feeBeforeTaxAndDiscount: lineList,
+                            taxRate: taxRate,
+                            feeAfterTax: feeAfterTax,
+                            discountRate: discountRate,
+                            quantity: quantity,
+                            unitPrice: unitPrice,
+                        };
+                    }),
+                };
+            }),
             pricing,
             discountRate,
             commission: 0,
