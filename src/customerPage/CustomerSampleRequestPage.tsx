@@ -24,7 +24,7 @@ import { toast } from "sonner";
 const SAMPLE_INFO_ORDER = ["Tên mẫu thử", "Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
 
 const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value: string }[]) => {
-    const infoMap = new Map(rawInfo.map((i) => [i.label, i.value]));
+    const infoMap = new Map((rawInfo || []).map((i) => [i.label, i.value]));
     infoMap.set("Tên mẫu thử", sampleName || "");
     const ordered: { label: string; value: string }[] = [];
     for (const key of SAMPLE_INFO_ORDER) {
@@ -33,6 +33,41 @@ const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value
     }
     infoMap.forEach((value, label) => ordered.push({ label, value }));
     return ordered;
+};
+
+const parseSampleInfo = (rawInfo: any): { label: string; value: string }[] => {
+    if (!rawInfo) return [];
+    if (Array.isArray(rawInfo)) {
+        return rawInfo.map((item) => {
+            if (typeof item === "string") {
+                try {
+                    const parsed = JSON.parse(item);
+                    if (parsed && typeof parsed === "object" && "label" in parsed) {
+                        return parsed;
+                    }
+                } catch (e) {
+                    // ignore
+                }
+                return { label: item, value: "" };
+            }
+            if (item && typeof item === "object") {
+                return {
+                    label: item.label || "",
+                    value: item.value || "",
+                };
+            }
+            return { label: String(item), value: "" };
+        });
+    }
+    if (typeof rawInfo === "string") {
+        try {
+            const parsed = JSON.parse(rawInfo);
+            return parseSampleInfo(parsed);
+        } catch (e) {
+            // ignore
+        }
+    }
+    return [];
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -166,7 +201,7 @@ export function CustomerSampleRequestPage() {
                         sampleTypeId: s?.sampleTypeId ?? s?.sample_type_id ?? s?.librarySampleType?.sampleTypeId ?? (s as any)?.library_sample_type?.sample_type_id ?? "",
                         sampleNote: (s?.sampleNote ?? s?.sample_note) || defaultNote || "",
                         sampleDesc: s?.sampleDesc ?? "",
-                        sampleInfo: normalizeSampleInfo(s?.sampleName ?? "", s?.sampleInfo ?? []),
+                        sampleInfo: normalizeSampleInfo(s?.sampleName ?? "", parseSampleInfo(s?.sampleInfo)),
                         analyses: (s?.analyses ?? []).map((a: any) => ({
                             ...a,
                             id: a?.id ?? a?.analysisId ?? a?.analysis_id ?? undefined,
@@ -273,7 +308,7 @@ export function CustomerSampleRequestPage() {
             const updatedSample = { ...newSamples[idx], [field]: value };
             // Keep Tên mẫu thử in sampleInfo in sync with sampleName
             if (field === "sampleName") {
-                updatedSample.sampleInfo = normalizeSampleInfo(value, updatedSample.sampleInfo || []);
+                updatedSample.sampleInfo = normalizeSampleInfo(value, parseSampleInfo(updatedSample.sampleInfo));
             }
             newSamples[idx] = updatedSample;
             return { ...prev, samples: newSamples };
@@ -374,7 +409,7 @@ export function CustomerSampleRequestPage() {
                     },
                     attachedDocuments: (tempData as any).attachedDocuments,
                     samples: tempData.samples.map((s, sIdx) => {
-                        const finalInfo = normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []);
+                        const finalInfo = normalizeSampleInfo(s.sampleName || "", parseSampleInfo(s.sampleInfo));
                         const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
                         return {
                             ...s,

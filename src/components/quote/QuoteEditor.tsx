@@ -35,6 +35,41 @@ const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value
     return ordered;
 };
 
+const parseSampleInfo = (rawInfo: any): { label: string; value: string }[] => {
+    if (!rawInfo) return [];
+    if (Array.isArray(rawInfo)) {
+        return rawInfo.map((item) => {
+            if (typeof item === "string") {
+                try {
+                    const parsed = JSON.parse(item);
+                    if (parsed && typeof parsed === "object" && "label" in parsed) {
+                        return parsed;
+                    }
+                } catch (e) {
+                    // ignore
+                }
+                return { label: item, value: "" };
+            }
+            if (item && typeof item === "object") {
+                return {
+                    label: item.label || "",
+                    value: item.value || "",
+                };
+            }
+            return { label: String(item), value: "" };
+        });
+    }
+    if (typeof rawInfo === "string") {
+        try {
+            const parsed = JSON.parse(rawInfo);
+            return parseSampleInfo(parsed);
+        } catch (e) {
+            // ignore
+        }
+    }
+    return [];
+};
+
 interface QuoteEditorProps {
     mode: EditorMode;
     initialData?: any; // Quote
@@ -140,6 +175,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 const mappedSamples = initialData.samples.map((s: any) => ({
                     ...s,
                     id: s.id || `restored-sample-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                    sampleInfo: normalizeSampleInfo(s.sampleName || "", parseSampleInfo(s.sampleInfo)),
                     analyses: (s.analyses || []).map((a: any) => {
                         const quantity = Number(a.quantity) || 1;
                         const unitPrice = Number(a.unitPrice) || Number(a.parameterPrice) || 0;
@@ -530,7 +566,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 reportRecipient,
 
                 samples: samples.map((s) => {
-                    const finalInfo = normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []);
+                    const finalInfo = normalizeSampleInfo(s.sampleName || "", parseSampleInfo(s.sampleInfo));
                     const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
                     return {
                         ...s,
@@ -628,7 +664,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             taxAddress,
 
             samples: samples.map((s) => {
-                const finalInfo = normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []);
+                const finalInfo = normalizeSampleInfo(s.sampleName || "", parseSampleInfo(s.sampleInfo));
                 const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
                 return {
                     sampleName: s.sampleName || "",

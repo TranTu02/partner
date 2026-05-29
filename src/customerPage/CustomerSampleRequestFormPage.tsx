@@ -856,6 +856,41 @@ export function SampleRequestFormPage() {
     );
 }
 
+const parseSampleInfo = (rawInfo: any): { label: string; value: string }[] => {
+    if (!rawInfo) return [];
+    if (Array.isArray(rawInfo)) {
+        return rawInfo.map((item) => {
+            if (typeof item === "string") {
+                try {
+                    const parsed = JSON.parse(item);
+                    if (parsed && typeof parsed === "object" && "label" in parsed) {
+                        return parsed;
+                    }
+                } catch (e) {
+                    // ignore
+                }
+                return { label: item, value: "" };
+            }
+            if (item && typeof item === "object") {
+                return {
+                    label: item.label || "",
+                    value: item.value || "",
+                };
+            }
+            return { label: String(item), value: "" };
+        });
+    }
+    if (typeof rawInfo === "string") {
+        try {
+            const parsed = JSON.parse(rawInfo);
+            return parseSampleInfo(parsed);
+        } catch (e) {
+            // ignore
+        }
+    }
+    return [];
+};
+
 function mapOrderDetailResponseToPrintData(resp: any): any {
     const order = resp?.data ?? resp;
     const client: Client | null = order?.client ?? null;
@@ -921,7 +956,7 @@ function mapOrderDetailResponseToPrintData(resp: any): any {
             sampleMatrix: s?.sampleMatrix ?? "",
             sampleNote: s?.sampleNote || defaultNote || "",
             sampleDesc: s?.sampleDesc ?? "",
-            sampleInfo: s?.sampleInfo ?? [],
+            sampleInfo: parseSampleInfo(s?.sampleInfo),
             analyses: (s?.analyses ?? []).map((a: any) => ({
                 id: a?.id ?? a?.analysisId ?? a?.analysis_id ?? undefined,
                 protocolId: a?.protocolId ?? a?.protocol_id ?? a?.protocol?.protocolId ?? a?.protocol?.protocol_id ?? a?.libraryParameterProtocol?.protocolId ?? a?.libraryParameterProtocol?.protocol_id ?? null,

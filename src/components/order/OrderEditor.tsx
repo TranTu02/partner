@@ -40,6 +40,42 @@ const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value
     return ordered;
 };
 
+const parseSampleInfo = (rawInfo: any): { label: string; value: string }[] => {
+    if (!rawInfo) return [];
+    if (Array.isArray(rawInfo)) {
+        return rawInfo.map((item) => {
+            if (typeof item === "string") {
+                try {
+                    const parsed = JSON.parse(item);
+                    if (parsed && typeof parsed === "object" && "label" in parsed) {
+                        return parsed;
+                    }
+                } catch (e) {
+                    // ignore
+                }
+                return { label: item, value: "" };
+            }
+            if (item && typeof item === "object") {
+                return {
+                    label: item.label || "",
+                    value: item.value || "",
+                };
+            }
+            return { label: String(item), value: "" };
+        });
+    }
+    if (typeof rawInfo === "string") {
+        try {
+            const parsed = JSON.parse(rawInfo);
+            return parseSampleInfo(parsed);
+        } catch (e) {
+            // ignore
+        }
+    }
+    return [];
+};
+
+
 interface OrderEditorProps {
     mode: EditorMode;
     initialData?: any; // Order
@@ -205,6 +241,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 const mappedSamples = initialData.samples.map((s: any) => ({
                     ...s,
                     id: s.id || `restored-sample-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                    sampleInfo: normalizeSampleInfo(s.sampleName || "", parseSampleInfo(s.sampleInfo)),
                     analyses: (s.analyses || []).map((a: any) => {
                         const quantity = a.quantity || 1;
                         const taxRate = a.taxRate !== undefined ? a.taxRate : parseFloat(a.parameterTaxRate || "0");
@@ -378,7 +415,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                 sampleTypeId: s.sampleTypeId,
                                 sampleTypeName: s.sampleTypeName || s.sampleMatrix || s.matrix || s.librarySampleType?.sampleTypeName || "",
                                 sampleNote: s.sampleNote || "",
-                                sampleInfo: s.sampleInfo || [],
+                                sampleInfo: normalizeSampleInfo(s.sampleName || s.name || "Sample", parseSampleInfo(s.sampleInfo)),
                                 analyses: (s.analyses || []).map((a: any) => ({
                                     ...a,
                                     id: `temp-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}-${i}`,
@@ -497,7 +534,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             taxAddress,
 
             samples: samples.map((s) => {
-                const finalInfo = normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []);
+                const finalInfo = normalizeSampleInfo(s.sampleName || "", parseSampleInfo(s.sampleInfo));
                 const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
                 return {
                     sampleName: s.sampleName || "",

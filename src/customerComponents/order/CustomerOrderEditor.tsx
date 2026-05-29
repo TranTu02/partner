@@ -21,7 +21,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 const SAMPLE_INFO_ORDER = ["Tên mẫu thử", "Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
 
 const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value: string }[]) => {
-    const infoMap = new Map(rawInfo.map((i) => [i.label, i.value]));
+    const infoMap = new Map((rawInfo || []).map((i) => [i.label, i.value]));
     infoMap.set("Tên mẫu thử", sampleName || "");
     const ordered: { label: string; value: string }[] = [];
     for (const key of SAMPLE_INFO_ORDER) {
@@ -30,6 +30,41 @@ const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value
     }
     infoMap.forEach((value, label) => ordered.push({ label, value }));
     return ordered;
+};
+
+const parseSampleInfo = (rawInfo: any): { label: string; value: string }[] => {
+    if (!rawInfo) return [];
+    if (Array.isArray(rawInfo)) {
+        return rawInfo.map((item) => {
+            if (typeof item === "string") {
+                try {
+                    const parsed = JSON.parse(item);
+                    if (parsed && typeof parsed === "object" && "label" in parsed) {
+                        return parsed;
+                    }
+                } catch (e) {
+                    // ignore
+                }
+                return { label: item, value: "" };
+            }
+            if (item && typeof item === "object") {
+                return {
+                    label: item.label || "",
+                    value: item.value || "",
+                };
+            }
+            return { label: String(item), value: "" };
+        });
+    }
+    if (typeof rawInfo === "string") {
+        try {
+            const parsed = JSON.parse(rawInfo);
+            return parseSampleInfo(parsed);
+        } catch (e) {
+            // ignore
+        }
+    }
+    return [];
 };
 
 const defaultSampleInfo = SAMPLE_INFO_ORDER.map((label) => ({ label, value: "" }));
@@ -156,7 +191,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                         return {
                             ...s,
                             id: s.id || `rs-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                            sampleInfo: normalizeSampleInfo(s.sampleName || "", s.sampleInfo || []),
+                            sampleInfo: normalizeSampleInfo(s.sampleName || "", parseSampleInfo(s.sampleInfo)),
                             analyses: (s.analyses || []).map((a: any) => {
                                 const qty = a.quantity || 1;
                                 const taxRate = a.taxRate !== undefined ? a.taxRate : parseFloat(a.parameterTaxRate || "0");
@@ -402,7 +437,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                             sampleId: undefined,
                             sampleName: s.sampleName || s.name || "Mẫu",
                             sampleNote: s.sampleNote || "",
-                            sampleInfo: s.sampleInfo || [],
+                            sampleInfo: normalizeSampleInfo(s.sampleName || s.name || "Mẫu", parseSampleInfo(s.sampleInfo)),
                             analyses: (s.analyses || []).map((a: any) => ({
                                 ...a,
                                 id: `temp-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}-${i}`,
