@@ -499,10 +499,11 @@ export function CustomerSampleCard({
                                                     <div>
                                                         <input
                                                             type="text"
-                                                            className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent mb-1"
+                                                            className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent mb-1 disabled:opacity-75 disabled:cursor-not-allowed"
                                                             value={analysis.parameterName}
                                                             onChange={(e) => handleAnalysisChange(index, "parameterName", e.target.value)}
                                                             placeholder={t("order.print.parameter")}
+                                                            disabled={tableReadOnly || !!analysis.matrixId}
                                                         />
                                                         {analysis.parameterId && <div className="text-xs text-muted-foreground px-2">{analysis.parameterId}</div>}
                                                     </div>

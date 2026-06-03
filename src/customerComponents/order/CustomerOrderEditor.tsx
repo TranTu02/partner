@@ -116,7 +116,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
     const [contactPerson, setContactPerson] = useState(defaultContact.contactName || "");
     const [contactPhone, setContactPhone] = useState(defaultContact.contactPhone || "");
     const [contactEmail, setContactEmail] = useState(defaultContact.contactEmail || "");
-    const [contactAddress, setContactAddress] = useState(defaultContact.contactAddress || "");
+    const [contactAddress, setContactAddress] = useState(defaultContact.contactAddress || customerInfo?.clientAddress || "");
     const [contactId, setContactId] = useState(defaultContact.contactId || "");
 
     // Report Recipient
@@ -172,7 +172,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                 setContactPerson(contact.contactName || "");
                 setContactPhone(contact.contactPhone || "");
                 setContactEmail(contact.contactEmail || "");
-                setContactAddress(contact.contactAddress || "");
+                setContactAddress(contact.contactAddress || initialData.client?.clientAddress || customerInfo?.clientAddress || "");
                 setContactId(contact.contactId || "");
             }
             const rec = initialData.reportRecipient;
@@ -419,7 +419,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                     setContactPerson(contact.contactName || "");
                     setContactPhone(contact.contactPhone || "");
                     setContactEmail(contact.contactEmail || "");
-                    setContactAddress(contact.contactAddress || "");
+                    setContactAddress(contact.contactAddress || q.client?.clientAddress || "");
                 }
                 setReportRecipient({
                     receiverName: q.reportRecipient?.receiverName || contact?.contactName || "",

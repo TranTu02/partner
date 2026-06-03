@@ -17,6 +17,7 @@ export interface AnalysisWithQuantity extends Omit<Matrix, "createdAt" | "create
     discountRate?: number;
     displayStyle?: any;
     isCustom?: boolean;
+    analysisUnit?: string;
 }
 
 import { useDrag, useDrop } from "react-dnd";
@@ -537,6 +538,7 @@ export function SampleCard({
                             <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.sampleMatrix")}</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("parameter.protocol", "Phương pháp")}</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("parameter.accreditation", "Chỉ định")}</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.print.unit", "Đơn vị")}</th>
                             <th className="px-2 py-3 text-right text-sm font-semibold text-foreground w-[130px]">{t("order.print.unitPrice")}</th>
                             <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">{t("parameter.tax")}</th>
                             <th className="px-2 py-3 text-right text-sm font-semibold text-foreground w-[150px]">{t("order.lineTotal")}</th>
@@ -546,7 +548,7 @@ export function SampleCard({
                     <tbody>
                         {sample.analyses.length === 0 ? (
                             <tr>
-                                <td colSpan={isReadOnly ? 8 : 10} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                                <td colSpan={isReadOnly ? 9 : 11} className="px-4 py-8 text-center text-muted-foreground text-sm">
                                     {t("order.noAnalyses")}
                                 </td>
                             </tr>
@@ -632,10 +634,11 @@ export function SampleCard({
                                                         <div>
                                                             <input
                                                                 type="text"
-                                                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent mb-1"
+                                                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent mb-1 disabled:opacity-75 disabled:cursor-not-allowed"
                                                                 value={analysis.parameterName}
                                                                 onChange={(e) => handleAnalysisChange(index, "parameterName", e.target.value)}
                                                                 placeholder={t("order.print.parameter")}
+                                                                disabled={isReadOnly || !!analysis.matrixId}
                                                             />
                                                             {analysis.parameterId && <div className="text-xs text-muted-foreground px-2">{analysis.parameterId}</div>}
                                                         </div>
@@ -731,6 +734,19 @@ export function SampleCard({
                                                         }
                                                         return accHtml;
                                                     })()}
+                                                </td>
+                                                <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
+                                                    {isReadOnly ? (
+                                                        analysis.analysisUnit || "--"
+                                                    ) : (
+                                                        <input
+                                                            type="text"
+                                                            className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent"
+                                                            value={analysis.analysisUnit || ""}
+                                                            onChange={(e) => handleAnalysisChange(index, "analysisUnit" as any, e.target.value)}
+                                                            placeholder={t("order.print.unit", "Đơn vị")}
+                                                        />
+                                                    )}
                                                 </td>
                                                 <td className={`px-2 py-3 text-right text-sm text-foreground w-[130px] ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
                                                     <div className="flex flex-col items-end">
@@ -874,28 +890,28 @@ export function SampleCard({
                     </tbody>
                     <tfoot className="bg-muted/20 font-medium">
                         <tr>
-                            <td colSpan={isReadOnly ? 7 : 8} className="px-4 py-2 text-right border-t border-border">
+                            <td colSpan={isReadOnly ? 8 : 9} className="px-4 py-2 text-right border-t border-border">
                                 {t("parameter.sumUnitPrice", "Tổng đơn giá")}:
                             </td>
                             <td className="px-4 py-2 text-right border-t border-border">{summary.totalUnitPrice.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ</td>
                             {!isReadOnly && <td className="border-t border-border"></td>}
                         </tr>
                         <tr>
-                            <td colSpan={isReadOnly ? 7 : 8} className="px-4 py-2 text-right border-t border-border">
+                            <td colSpan={isReadOnly ? 8 : 9} className="px-4 py-2 text-right border-t border-border">
                                 {t("parameter.totalDiscount", "Chiết khấu")}:
                             </td>
                             <td className="px-4 py-2 text-right border-t border-border">{summary.totalDiscount.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ</td>
                             {!isReadOnly && <td className="border-t border-border"></td>}
                         </tr>
                         <tr>
-                            <td colSpan={isReadOnly ? 7 : 8} className="px-4 py-2 text-right border-t border-border">
+                            <td colSpan={isReadOnly ? 8 : 9} className="px-4 py-2 text-right border-t border-border">
                                 {t("parameter.sumBeforeTax", "Tiền trước thuế")}:
                             </td>
                             <td className="px-4 py-2 text-right border-t border-border">{summary.totalBeforeTax.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ</td>
                             {!isReadOnly && <td className="border-t border-border"></td>}
                         </tr>
                         <tr>
-                            <td colSpan={isReadOnly ? 7 : 8} className="px-4 py-2 text-right border-t border-border font-bold">
+                            <td colSpan={isReadOnly ? 8 : 9} className="px-4 py-2 text-right border-t border-border font-bold">
                                 {t("parameter.sumAfterTax", "Tổng tiền")}:
                             </td>
                             <td className="px-4 py-2 text-right border-t border-border font-bold">{summary.totalAfterTax.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ</td>
@@ -903,7 +919,7 @@ export function SampleCard({
                         </tr>
                         {showSampleQuantity && (
                             <tr>
-                                <td colSpan={isReadOnly ? 7 : 8} className="px-4 py-2 text-right border-t border-border font-bold">
+                                <td colSpan={isReadOnly ? 8 : 9} className="px-4 py-2 text-right border-t border-border font-bold">
                                     {t("sample.grandTotal", "Tổng cộng (x{{qty}} mẫu)", { qty: summary.sampleQuantity })}:
                                 </td>
                                 <td className="px-4 py-2 text-right border-t border-border font-bold">

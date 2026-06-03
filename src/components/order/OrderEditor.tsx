@@ -224,7 +224,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 setContactId(contact.contactId || "");
                 setContactIdentity(contact.contactId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
-                setContactAddress(contact.contactAddress || "");
+                setContactAddress(contact.contactAddress || initialData.client?.clientAddress || "");
             }
 
             // reportRecipient
@@ -351,7 +351,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 setContactId(contact.contactId || "");
                 setContactIdentity(contact.contactId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
-                setContactAddress(contact.contactAddress || "");
+                setContactAddress(contact.contactAddress || client.clientAddress || "");
             } else {
                 // Clear contact fields if no contact
                 setContactPerson("");
@@ -399,7 +399,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                         setContactId(contact.contactId || "");
                         setContactIdentity(contact.contactId || "");
                         setContactEmail(contact.contactEmail || (contact as any).email || "");
-                        setContactAddress(contact.contactAddress || "");
+                        setContactAddress(contact.contactAddress || qClient.clientAddress || "");
                     }
 
                     setDiscountRate(foundQuote.discountRate || 0);
@@ -852,6 +852,29 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             return;
         }
 
+        const isReportRecipientEmpty = !reportRecipient || (
+            !reportRecipient.receiverName?.trim() &&
+            !reportRecipient.receiverPhone?.trim() &&
+            !reportRecipient.receiverAddress?.trim() &&
+            !reportRecipient.receiverEmail?.trim()
+        );
+
+        let finalReportRecipient = { ...reportRecipient };
+        if (isReportRecipientEmpty) {
+            const copyContact = window.confirm(
+                "Thông tin nhận kết quả đang để trống. Bạn có muốn lấy thông tin của người liên lạc làm thông tin nhận kết quả không?"
+            );
+            if (copyContact) {
+                finalReportRecipient = {
+                    receiverName: contactPerson || "",
+                    receiverPhone: contactPhone || "",
+                    receiverEmail: contactEmail || "",
+                    receiverAddress: contactAddress || "",
+                };
+                setReportRecipient(finalReportRecipient);
+            }
+        }
+
         if (samples.length === 0) {
             toast.error(t("order.errorSamplesRequired") || "At least one sample is required");
             return;
@@ -917,7 +940,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 clientId: selectedClient.clientId,
                 client: clientSnapshot as any,
                 contactPerson: contactData,
-                reportRecipient,
+                reportRecipient: finalReportRecipient,
 
                 quoteId,
                 orderNote: orderNote?.trim() || null,
@@ -1247,7 +1270,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                     setContactId(contact.contactId || "");
                                     setContactIdentity(contact.contactId || "");
                                     setContactEmail(contact.contactEmail || "");
-                                    setContactAddress(contact.contactAddress || "");
+                                    setContactAddress(contact.contactAddress || updated.clientAddress || "");
                                 }
                                 setIsEditClientModalOpen(false);
                             } else {
