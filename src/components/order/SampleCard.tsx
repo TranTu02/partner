@@ -71,7 +71,7 @@ export interface SampleWithQuantity {
     sampleInfo?: { label: string; value: string }[];
 }
 
-const DEFAULT_SAMPLE_INFO_LABELS = ["Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
+const DEFAULT_SAMPLE_INFO_LABELS = ["Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Địa chỉ sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
 
 interface SampleCardProps {
     sample: SampleWithQuantity;
@@ -600,7 +600,7 @@ export function SampleCard({
                                                             {!analysis.parameterId && (
                                                                 <div className="text-[10px] text-destructive font-medium mt-0.5 animate-pulse">
                                                                     * Yêu cầu chọn từ danh sách
-                                                                </div>
+                                                                 </div>
                                                             )}
                                                             {activeParamDropdownIndex === index && (
                                                                 <div className="absolute z-50 w-72 mt-1 bg-popover border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto left-0 top-full">

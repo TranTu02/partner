@@ -26,7 +26,7 @@ export type EditorMode = "view" | "edit" | "create";
 
 import type { SampleWithQuantity, AnalysisWithQuantity } from "@/components/order/SampleCard";
 
-const SAMPLE_INFO_ORDER = ["Tên mẫu thử", "Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
+const SAMPLE_INFO_ORDER = ["Tên mẫu thử", "Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Địa chỉ sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
 
 const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value: string }[]) => {
     const infoMap = new Map((rawInfo || []).map((i) => [i.label, i.value]));
@@ -527,6 +527,10 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             reportRecipient,
             contactEmail,
             contactAddress,
+
+            reportReceiverAddress: reportRecipient?.receiverAddress || clientAddress || "",
+            reportReceiverPhone: reportRecipient?.receiverPhone || contactPhone || "",
+            reportReceiverEmail: reportRecipient?.receiverEmail || contactEmail || clientEmail || "",
 
             clientAddress,
             taxName,

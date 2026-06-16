@@ -612,6 +612,7 @@ export default {
                 mfgDate: "Ngày sản xuất",
                 expDate: "Hạn sử dụng",
                 placeOfOrigin: "Nơi sản xuất",
+                productionAddress: "Địa chỉ sản xuất",
             },
             signer: {
                 customer: "KHÁCH HÀNG",

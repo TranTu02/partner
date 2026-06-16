@@ -19,9 +19,10 @@ import { convertHtmlToPdfForm1 } from "@/api/index";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import { generateSampleRequestHtml } from "@/customerComponents/order/CustomerSampleRequestPrintPreviewModal";
 import { toast } from "sonner";
+import base64Images from "@/assets/base64Images.json";
 
 // ─── Module-level constants (re-used from the modal) ─────────────────────────
-const SAMPLE_INFO_ORDER = ["Tên mẫu thử", "Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
+const SAMPLE_INFO_ORDER = ["Tên mẫu thử", "Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Địa chỉ sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
 
 const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value: string }[]) => {
     const infoMap = new Map((rawInfo || []).map((i) => [i.label, i.value]));
@@ -72,7 +73,7 @@ const parseSampleInfo = (rawInfo: any): { label: string; value: string }[] => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Labels shown in left-panel form (Tên mẫu thử is handled via sampleName field, so skip here)
-const DEFAULT_SAMPLE_INFO_LABELS = ["Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
+const DEFAULT_SAMPLE_INFO_LABELS = ["Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Địa chỉ sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
 
 export function CustomerSampleRequestPage() {
     const { t } = useTranslation();
@@ -511,7 +512,7 @@ export function CustomerSampleRequestPage() {
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <img
-                        src="https://documents-sea.bildr.com/rc19670b8d48b4c5ba0f89058aa6e7e4b/doc/IRDOP%20LOGO%20with%20Name.w8flZn8NnkuLrYinAamIkw.PAAKeAHDVEm9mFvCFtA46Q.svg"
+                        src={base64Images.LOGOFULL}
                         alt="Logo"
                         className="h-8"
                     />

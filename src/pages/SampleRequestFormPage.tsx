@@ -8,6 +8,7 @@ import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import type { Client } from "@/types/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import base64Images from "@/assets/base64Images.json";
 
 export function SampleRequestFormPage() {
     const { t } = useTranslation();
@@ -529,6 +530,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                   <div><span style="font-weight:300;">${t("sampleRequest.sampleInfo.mfgDate")}</span><strong>:</strong></div>
                   <div><span style="font-weight:300;">${t("sampleRequest.sampleInfo.expDate")}</span><strong>:</strong></div>
                   <div><span style="font-weight:300;">${t("sampleRequest.sampleInfo.placeOfOrigin")}</span><strong>:</strong></div>
+                  <div><span style="font-weight:300;">${t("sampleRequest.sampleInfo.productionAddress")}</span><strong>:</strong></div>
                 </div>
               </td>
             `
@@ -598,7 +600,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
         <!-- Left: logo + info -->
         <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:6px; flex: 1;">
           <img
-            src="https://documents-sea.bildr.com/rc19670b8d48b4c5ba0f89058aa6e7e4b/doc/IRDOP%20LOGO%20with%20Name.w8flZn8NnkuLrYinAamIkw.PAAKeAHDVEm9mFvCFtA46Q.svg"
+            src="${base64Images.LOGOFULL}"
             style="height:28px; width:auto; object-fit:contain;"
             draggable="false"
           />
@@ -701,14 +703,14 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
             </colgroup>
              <tr>
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.address")}</td>
-                <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;" class="field-dotted">${data.clientAddress || ""}</td>
+                <td colspan="3" style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;" class="field-dotted">${data.reportReceiverAddress || data.clientAddress || ""}</td>
             </tr>
             <tr>
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 110px;" class="label-text">${t("sampleRequest.contactPhone")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.contactPhone || data.client?.clientPhone || ""}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 290px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.reportReceiverPhone || data.contactPhone || data.client?.clientPhone || ""}</td>
                 
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 50px;" class="label-text">${t("sampleRequest.email")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.reportEmail || ""}</td>
+                <td style="padding: 2px 5px; border: 0 !important; width: 300px; word-break: break-word; font-weight: 700;" class="field-dotted">${data.reportReceiverEmail || data.reportEmail || ""}</td>
             </tr>
         </table>
 

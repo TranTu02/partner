@@ -189,6 +189,8 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
         const contactPosition = contact.contactPosition || contact.position || "";
         const contactAddress = contact.contactAddress || "";
 
+        const reportRecipient = fullOrder.reportRecipient;
+
         const data: OrderPrintData = {
             orderId: fullOrder.orderId,
             createdAt: fullOrder.createdAt,
@@ -202,6 +204,10 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
             contactEmail,
             contactPosition,
             contactAddress,
+
+            reportReceiverAddress: reportRecipient?.receiverAddress || fullOrder.client?.clientAddress || "",
+            reportReceiverPhone: reportRecipient?.receiverPhone || contactPhone || "",
+            reportReceiverEmail: reportRecipient?.receiverEmail || contactEmail || "",
 
             clientAddress: fullOrder.client?.clientAddress || "",
             taxName: fullOrder.client?.invoiceInfo?.taxName || fullOrder.client?.clientName || "",
