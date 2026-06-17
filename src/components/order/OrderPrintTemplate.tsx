@@ -148,7 +148,7 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                                 {t("order.print.sample")} {index + 1}: {sample.sampleName}
                             </div>
                             <div style={{ fontSize: "11px", fontWeight: "normal", color: "#333", marginTop: "2px" }}>
-                                {sample.sampleInfo && sample.sampleInfo.some(i => i.label !== "Tên mẫu thử" && i.value && i.value.trim().length > 0) ? (
+                                {sample.sampleInfo && sample.sampleInfo.some(i => i.label !== "Tên mẫu thử" && i.value && i.value.trim().length > 0) && (
                                     <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "2px", fontSize: "10.5px", color: "#444", fontWeight: "normal" }}>
                                         {sample.sampleInfo
                                             .filter((i) => i.label !== "Tên mẫu thử" && i.value && i.value.trim().length > 0)
@@ -158,8 +158,6 @@ export const OrderPrintTemplate = ({ data }: { data: OrderPrintData }) => {
                                                 </div>
                                             ))}
                                     </div>
-                                ) : (
-                                    <>Nền mẫu: {sample.sampleTypeName || sample.sampleMatrix || "--"}</>
                                 )}
                             </div>
                         </div>

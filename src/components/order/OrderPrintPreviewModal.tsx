@@ -62,12 +62,8 @@ export function OrderPrintPreviewModal({ isOpen, onClose, data }: OrderPrintPrev
                                     .map((info) => `<div style="margin-bottom: 2px;"><span style="color: #666;">${info.label}:</span> <b>${info.value}</b></div>`)
                                     .join("")}
                             </div>`;
-                        } else {
-                            const s = sample as any;
-                            const name = s.sampleTypeName || s.sampleMatrix || s.librarySampleType?.sampleTypeName || s.matrix?.matrixName;
-                            const displayName = name || (s.analyses && s.analyses.length > 0 ? s.analyses[0].sampleTypeName || s.analyses[0].sampleMatrix || "--" : "--");
-                            return `<div style="font-size: 11px; margin-bottom: 2px;">Loại mẫu: ${displayName}</div>`;
                         }
+                        return "";
                     })()}
                     ${sample.sampleNote ? `<div style="font-style: italic; margin-top: 2px; color: #555;">${t("sample.note")}: ${sample.sampleNote}</div>` : ""}
                 </div>
