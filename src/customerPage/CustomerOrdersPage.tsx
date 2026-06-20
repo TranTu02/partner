@@ -103,8 +103,15 @@ export function CustomerOrdersPage() {
                 if (duplicateId) {
                     try {
                         const res = await customerGetOrderDetail({ query: { orderId: duplicateId, clientId } });
-                        if (res.success && res.data) setSelectedOrder(res.data as Order);
-                        else setSelectedOrder(null);
+                        if (res.success && res.data) {
+                            const sourceData = { ...res.data } as any;
+                            // Clear files when duplicating
+                            sourceData.orderCustomerFileIds = [];
+                            sourceData.orderCustomerFiles = [];
+                            setSelectedOrder(sourceData as Order);
+                        } else {
+                            setSelectedOrder(null);
+                        }
                     } catch {
                         setSelectedOrder(null);
                     }

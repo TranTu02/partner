@@ -5,7 +5,7 @@ import { OrderEditor } from "@/components/order/OrderEditor";
 
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { getOrders, getOrderDetail } from "@/api/index";
+import { getOrders, getOrderFull } from "@/api/index";
 
 import type { Order } from "@/types/order";
 import { toast } from "sonner";
@@ -111,7 +111,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
         const loadSelectedOrder = async () => {
             if ((isDetail || isEdit) && orderId) {
                 try {
-                    const response = await getOrderDetail({ query: { orderId } });
+                    const response = await getOrderFull({ query: { orderId } });
                     if (response.success && response.data) {
                         setSelectedOrder(response.data as Order);
                     } else {
@@ -124,9 +124,13 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
             } else if (isCreate) {
                 if (duplicateId) {
                     try {
-                        const response = await getOrderDetail({ query: { orderId: duplicateId } });
+                        const response = await getOrderFull({ query: { orderId: duplicateId } });
                         if (response.success && response.data) {
-                            setSelectedOrder(response.data as Order);
+                            const sourceData = { ...response.data } as any;
+                            // Clear files when duplicating
+                            sourceData.orderCustomerFileIds = [];
+                            sourceData.orderCustomerFiles = [];
+                            setSelectedOrder(sourceData as Order);
                         } else {
                             setSelectedOrder(null);
                         }
@@ -160,7 +164,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
         // Optimization: if sample properties missing, fetch detail
         if (!order.samples || order.samples.length === 0) {
             try {
-                const res = await getOrderDetail({ query: { orderId: order.orderId } });
+                const res = await getOrderFull({ query: { orderId: order.orderId } });
                 if (res.success && res.data) {
                     fullOrder = res.data as Order;
                 }

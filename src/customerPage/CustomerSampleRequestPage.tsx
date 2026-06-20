@@ -11,10 +11,18 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Editor } from "@tinymce/tinymce-react";
-import { X, FileDown, HelpCircle, FileText, Lock, Unlock, ArrowLeft } from "lucide-react";
+import { X, FileDown, HelpCircle, FileText, Lock, Unlock, ArrowLeft, UploadCloud, Loader2, ChevronDown, Tag } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import Cookies from "js-cookie";
-import { customerGetOrderDetail, customerUpdateOrder, customerMe, CUSTOMER_TOKEN_KEY } from "@/api/customer";
+import { 
+    customerGetOrderDetail, 
+    customerUpdateOrder, 
+    customerMe, 
+    CUSTOMER_TOKEN_KEY,
+    customerUploadOrderDocument,
+    customerGetOrderPresignUrl,
+    buildFileUploadFormData
+} from "@/api/customer";
 import { convertHtmlToPdfForm1 } from "@/api/index";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import { generateSampleRequestHtml } from "@/customerComponents/order/CustomerSampleRequestPrintPreviewModal";
@@ -93,6 +101,116 @@ export function CustomerSampleRequestPage() {
     const [tempData, setTempData] = useState<OrderPrintData | null>(null);
     const [isDirty, setIsDirty] = useState(false);
     const [mobileTab, setMobileTab] = useState<"form" | "preview">("form");
+
+    const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
+
+    // Dropdown state for document category
+    const [showDocMenu, setShowDocMenu] = useState(false);
+    const [selectedDocCategory, setSelectedDocCategory] = useState<string>("Tiêu chuẩn cơ sở");
+    const docMenuRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const DOC_CATEGORIES = [
+        { label: "Tiêu chuẩn cơ sở", value: "Standard", color: "bg-blue-100 text-blue-700" },
+        { label: "Đặc tả kỹ thuật",   value: "Specification", color: "bg-violet-100 text-violet-700" },
+        { label: "Hợp đồng",          value: "Contract", color: "bg-orange-100 text-orange-700" },
+        { label: "Chứng từ thanh toán", value: "Payment", color: "bg-emerald-100 text-emerald-700" },
+    ];
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleOutside = (e: MouseEvent) => {
+            if (docMenuRef.current && !docMenuRef.current.contains(e.target as Node)) {
+                setShowDocMenu(false);
+            }
+        };
+        document.addEventListener("mousedown", handleOutside);
+        return () => document.removeEventListener("mousedown", handleOutside);
+    }, []);
+
+    // Sync uploadedFiles when tempData.orderCustomerFiles changes
+    useEffect(() => {
+        if (tempData?.orderCustomerFiles) {
+            setUploadedFiles(tempData.orderCustomerFiles);
+        } else {
+            setUploadedFiles([]);
+        }
+    }, [tempData?.orderCustomerFiles]);
+
+    const handleUploadDocument = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !tempData) return;
+
+        const currentSize = uploadedFiles.reduce((acc, f) => acc + Number(f.fileSize || 0), 0);
+        if (currentSize + file.size > 50 * 1024 * 1024) {
+            toast.error("Tổng dung lượng tài liệu đính kèm vượt quá giới hạn 50MB.");
+            return;
+        }
+
+        if (uploadedFiles.length >= 10) {
+            toast.error("Mỗi đơn hàng tối đa chỉ được đính kèm 10 tệp tin.");
+            return;
+        }
+
+        setIsUploading(true);
+        const tid = toast.loading(`Đang tải "${selectedDocCategory}" lên...`);
+        try {
+            const formData = buildFileUploadFormData(file);
+            // orderId: dùng tempData nếu có, fallback về URL param
+            const resolvedOrderId = tempData.orderId || orderId;
+            if (!resolvedOrderId) {
+                toast.error("Không tìm thấy mã đơn hàng.", { id: tid });
+                return;
+            }
+            formData.append("orderId", resolvedOrderId);
+            formData.append("documentCategory", selectedDocCategory);
+
+            // Map selected category label to its English tag value
+            const selectedCatObj = DOC_CATEGORIES.find(c => c.label === selectedDocCategory);
+            const tagValue = selectedCatObj ? selectedCatObj.value : "Standard";
+            formData.append("fileTags", JSON.stringify([tagValue]));
+
+            const res = await customerUploadOrderDocument({
+                body: formData
+            });
+
+            const fileObj = res.data?.file;
+            if (res.success && fileObj) {
+                toast.success(`Đã tải "${selectedDocCategory}" lên thành công!`, { id: tid });
+                const newFile = { ...fileObj, documentCategory: selectedDocCategory };
+
+                setTempData(prev => {
+                    if (!prev) return prev;
+                    const oldIds = prev.orderCustomerFileIds || [];
+                    const newIds = oldIds.includes(newFile.fileId) ? oldIds : [...oldIds, newFile.fileId];
+                    const oldFiles = prev.orderCustomerFiles || [];
+                    const newFiles = oldFiles.some((f: any) => f.fileId === newFile.fileId) ? oldFiles : [...oldFiles, newFile];
+                    return { ...prev, orderCustomerFileIds: newIds, orderCustomerFiles: newFiles };
+                });
+            } else {
+                toast.error(res.error?.message || "Tải tài liệu lên thất bại.", { id: tid });
+            }
+        } catch (err: any) {
+            toast.error(err.message || "Lỗi kết nối khi tải tài liệu lên.", { id: tid });
+        } finally {
+            setIsUploading(false);
+            if (e.target) e.target.value = "";
+        }
+    };
+
+    const handleViewFile = async (fileId: string) => {
+        try {
+            const res = await customerGetOrderPresignUrl({ query: { fileId } });
+            if (res.success && res.data?.url) {
+                window.open(res.data.url, "_blank");
+            } else {
+                toast.error("Không thể lấy đường dẫn tải file.");
+            }
+        } catch (err: any) {
+            toast.error("Lỗi khi lấy đường dẫn file.");
+        }
+    };
 
     const initialAnalysesRef = useRef<Record<string, { protocolCode: string | null; protocolId: string | null }>>({});
 
@@ -182,7 +300,7 @@ export function CustomerSampleRequestPage() {
                     invoiceAddress: invoice?.taxAddress ?? client?.clientAddress ?? "",
                     invoiceEmail: invoice?.taxEmail ?? client?.clientEmail ?? "",
 
-                    attachedDocuments: "",
+                    attachedDocuments: order.attachedDocuments || "",
 
                     samples: (order.samples ?? []).map((s: any) => ({
                         ...s,
@@ -251,6 +369,7 @@ export function CustomerSampleRequestPage() {
                     discountRate: order.discountRate || 0,
                     orderUri: order.orderUri || "",
                     orderCustomerFileIds: order.orderCustomerFileIds || [],
+                    orderCustomerFiles: order.orderCustomerFiles || [],
 
                     rawSamples: order.samples ?? [],
                     rawContactPerson: order.contactPerson ?? null,
@@ -626,13 +745,124 @@ export function CustomerSampleRequestPage() {
 
                 {/* Left Panel: Form */}
                 <div className={`${mobileTab === "form" ? "flex" : "hidden"} lg:flex w-full lg:w-[550px] flex-col border-r border-border bg-white overflow-hidden shrink-0 shadow-sm`}>
-                    <div className="px-5 py-4 border-b border-border bg-gray-50/50">
+                    <div className="px-5 py-3 border-b border-border bg-gray-50/50 flex items-center justify-between">
                         <h3 className="font-bold text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                             <FileText className="w-4 h-4 text-primary" />
                             Thông tin phiếu
                         </h3>
+
+                        {/* ── Split-button dropdown for uploading inside the header ── */}
+                        <div ref={docMenuRef} className="relative z-10">
+                            <div className={`flex rounded-md overflow-hidden shadow-sm border border-primary bg-white ${isUploading ? "opacity-50 pointer-events-none" : ""}`}>
+                                {/* Main action: trigger file picker with current category */}
+                                <label
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-foreground hover:bg-gray-50 text-xs font-semibold cursor-pointer transition-colors select-none"
+                                    title={`Tải lên: ${selectedDocCategory}`}
+                                >
+                                    {isUploading ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0 text-primary" />
+                                    ) : (
+                                        <UploadCloud className="w-3.5 h-3.5 shrink-0 text-primary" />
+                                    )}
+                                    <span className="truncate max-w-[200px] text-foreground font-semibold">
+                                        {isUploading ? "Đang tải lên..." : `Tải lên: ${selectedDocCategory}`}
+                                    </span>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        className="hidden"
+                                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                                        onChange={handleUploadDocument}
+                                        disabled={isUploading}
+                                    />
+                                </label>
+
+                                {/* Chevron — opens category selector */}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowDocMenu(v => !v)}
+                                    className="px-2 py-1.5 bg-white hover:bg-gray-50 text-primary border-l border-primary/25 transition-colors flex items-center"
+                                    title="Chọn loại tài liệu"
+                                    aria-label="Chọn loại tài liệu"
+                                >
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+
+                            {/* Dropdown menu */}
+                            {showDocMenu && (
+                                <div className="absolute right-0 top-full mt-1 w-52 z-50 bg-white border border-border rounded-lg shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+                                    <div className="px-3 py-1.5 border-b border-border bg-muted/30">
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Chọn loại tài liệu</p>
+                                    </div>
+                                    {DOC_CATEGORIES.map(({ label, color }) => (
+                                        <button
+                                            key={label}
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedDocCategory(label);
+                                                setShowDocMenu(false);
+                                                // Trigger file picker after category is chosen
+                                                setTimeout(() => fileInputRef.current?.click(), 50);
+                                            }}
+                                            className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/50 transition-colors ${
+                                                selectedDocCategory === label ? "bg-primary/5" : ""
+                                            }`}
+                                        >
+                                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${color}`}>
+                                                <Tag className="w-2 h-2" />
+                                                {label}
+                                            </span>
+                                            {selectedDocCategory === label && (
+                                                <span className="ml-auto text-[9px] text-primary font-bold">✓</span>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="flex-1 overflow-y-auto p-5 space-y-6 scroll-smooth">
+                        {/* Danh sách tệp đã tải lên — hiển thị ngay dưới tiêu đề nếu có */}
+                        {uploadedFiles.length > 0 && (
+                            <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3.5 space-y-2">
+                                <h4 className="text-[10px] font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1.5 mb-1">
+                                    <FileText className="w-3.5 h-3.5" />
+                                    Tài liệu đã đính kèm ({uploadedFiles.length})
+                                </h4>
+                                <div className="grid grid-cols-1 gap-2 max-h-[160px] overflow-y-auto pr-1">
+                                    {uploadedFiles.map((file, idx) => {
+                                        const fileTags = file.fileTags || [];
+                                        const cat = DOC_CATEGORIES.find(c => fileTags.includes(c.value) || c.label === file.documentCategory);
+                                        return (
+                                            <div
+                                                key={file.fileId || idx}
+                                                onClick={() => handleViewFile(file.fileId)}
+                                                className="flex items-center gap-2 p-2 bg-white border border-blue-100/70 rounded-lg cursor-pointer hover:bg-blue-50/50 hover:border-blue-200 transition-all group shadow-sm"
+                                                title="Nhấn để xem tệp"
+                                            >
+                                                <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-[11px] font-semibold text-foreground truncate group-hover:text-primary transition-colors">{file.fileName}</p>
+                                                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                                        {cat && (
+                                                            <span className={`inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[8px] font-bold ${cat.color}`}>
+                                                                <Tag className="w-1.5 h-1.5" />
+                                                                {cat.label}
+                                                            </span>
+                                                        )}
+                                                        <span className="text-[9px] text-muted-foreground">
+                                                            {file.fileSize ? `${(file.fileSize / (1024 * 1024)).toFixed(2)} MB` : ""}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
                         <Section title="Thông tin thể hiện trên kết quả" color="blue">
                             <Field label="Tên khách hàng" value={(tempData as any).clientName} onChange={(v) => handleUpdateTopLevel("clientName", v)} onBlur={handleRefreshPreview} />
                             <Field label="Địa chỉ" value={tempData.clientAddress} onChange={(v) => handleUpdateTopLevel("clientAddress", v)} onBlur={handleRefreshPreview} />
@@ -671,6 +901,8 @@ export function CustomerSampleRequestPage() {
                             <Field label="Giấy tờ đi kèm" value={(tempData as any).attachedDocuments} onChange={(v) => handleUpdateTopLevel("attachedDocuments", v)} onBlur={handleRefreshPreview} />
                         </Section>
 
+
+
                         <div className="space-y-4">
                             <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Danh sách mẫu</h4>
                             {tempData.samples.map((sample, sIdx) => (
@@ -679,10 +911,10 @@ export function CustomerSampleRequestPage() {
                                         <Field label="Tên mẫu" value={sample.sampleName} onChange={(v) => handleUpdateSample(sIdx, "sampleName", v)} onBlur={handleRefreshPreview} />
                                     </div>
                                     <div className="space-y-1.5 mb-4">
-                                        <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mô tả mẫu thử</label>
+                                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Mô tả mẫu thử</label>
                                         <textarea
                                             rows={2}
-                                            className="w-full px-3 py-2 border border-border rounded-lg bg-white text-xs focus:ring-1 focus:ring-primary outline-none transition-all resize-none min-h-[48px]"
+                                            className="w-full px-3 py-2 border border-border rounded-lg bg-white text-sm focus:ring-1 focus:ring-primary outline-none transition-all resize-none min-h-[48px]"
                                             placeholder="Nhập mô tả mẫu thử..."
                                             value={(sample as any).sampleDesc || ""}
                                             onChange={(e) => handleUpdateSample(sIdx, "sampleDesc", e.target.value)}
@@ -690,10 +922,10 @@ export function CustomerSampleRequestPage() {
                                         />
                                     </div>
                                     <div className="space-y-1.5 mb-4">
-                                        <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Ghi chú</label>
+                                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Ghi chú</label>
                                         <textarea
                                             rows={2}
-                                            className="w-full px-3 py-2 border border-border rounded-lg bg-white text-xs focus:ring-1 focus:ring-primary outline-none transition-all resize-none min-h-[48px]"
+                                            className="w-full px-3 py-2 border border-border rounded-lg bg-white text-sm focus:ring-1 focus:ring-primary outline-none transition-all resize-none min-h-[48px]"
                                             placeholder="Nhập ghi chú..."
                                             value={sample.sampleNote || ""}
                                             onChange={(e) => handleUpdateSample(sIdx, "sampleNote", e.target.value)}
@@ -707,10 +939,10 @@ export function CustomerSampleRequestPage() {
                                             const isTextArea = label === "Thông tin khác";
                                             return (
                                                 <div key={label} className={isTextArea ? "col-span-2" : "col-span-1"}>
-                                                    <label className="block mb-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</label>
+                                                    <label className="block mb-1 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{label}</label>
                                                     {isTextArea ? (
                                                         <textarea
-                                                            className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[60px]"
+                                                            className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[60px]"
                                                             value={info?.value || ""}
                                                             onChange={(e) => handleUpdateSampleInfoByLabel(sIdx, label, e.target.value)}
                                                             onBlur={handleRefreshPreview}
@@ -718,7 +950,7 @@ export function CustomerSampleRequestPage() {
                                                     ) : (
                                                         <input
                                                             type="text"
-                                                            className="w-full px-3 py-1.5 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none"
+                                                            className="w-full px-3 py-1.5 border border-border rounded-lg bg-gray-50/50 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none"
                                                             value={info?.value || ""}
                                                             onChange={(e) => handleUpdateSampleInfoByLabel(sIdx, label, e.target.value)}
                                                             onBlur={handleRefreshPreview}
@@ -730,27 +962,27 @@ export function CustomerSampleRequestPage() {
                                     </div>
 
                                     <div className="mt-3 overflow-hidden rounded-md border border-border/50 divide-y divide-border/50">
-                                        <div className="p-2 bg-muted/30 grid grid-cols-[1fr_80px_60px] gap-2 items-center text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        <div className="p-2 bg-muted/30 grid grid-cols-[1fr_120px_70px] gap-2 items-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                                             <div>Chỉ tiêu</div>
                                             <div>Phương pháp</div>
                                             <div>Đơn vị</div>
                                         </div>
                                         {sample.analyses.map((ana: any, aIdx: number) => (
-                                            <div key={aIdx} className="p-2 bg-card grid grid-cols-[1fr_80px_60px] gap-2 items-center">
+                                            <div key={aIdx} className="p-2 bg-card grid grid-cols-[1fr_120px_70px] gap-2 items-center">
                                                 <input
-                                                    className="w-full text-[10px] px-1.5 py-1 border border-transparent bg-transparent font-medium truncate"
+                                                    className="w-full text-xs px-1.5 py-1 border border-transparent bg-transparent font-medium truncate"
                                                     value={ana.parameterName || ""}
                                                     readOnly
                                                 />
                                                     <input
-                                                        className="w-full text-[10px] px-1.5 py-1 border border-border rounded bg-white focus:ring-1 focus:ring-primary outline-none"
+                                                        className="w-full text-xs px-1.5 py-1 border border-border rounded bg-white focus:ring-1 focus:ring-primary outline-none"
                                                         placeholder="Thống nhất với IRDOP"
                                                         value={(ana as any).protocolId ? "" : ((ana as any).protocolCode || "")}
                                                         onChange={(e) => handleUpdateAnalysis(sIdx, aIdx, "protocolCode", e.target.value)}
                                                         onBlur={handleRefreshPreview}
                                                     />
                                                 <input
-                                                    className="w-full text-[10px] px-1.5 py-1 border border-border rounded bg-white focus:ring-1 focus:ring-primary outline-none"
+                                                    className="w-full text-xs px-1.5 py-1 border border-border rounded bg-white focus:ring-1 focus:ring-primary outline-none"
                                                     placeholder="Đơn vị"
                                                     value={ana.analysisUnit || ""}
                                                     onChange={(e) => handleUpdateAnalysis(sIdx, aIdx, "analysisUnit", e.target.value)}
@@ -856,10 +1088,11 @@ function Section({ title, children, color }: { title: string; children: any; col
         green: "bg-green-50 text-green-700 border-green-100",
         yellow: "bg-yellow-50 text-yellow-700 border-yellow-100",
         indigo: "bg-indigo-50 text-indigo-700 border-indigo-100",
+        purple: "bg-purple-50 text-purple-700 border-purple-100",
     };
     return (
         <div className="bg-card rounded-xl border border-border p-4 shadow-sm relative pt-6 animate-in fade-in duration-500">
-            <div className={`absolute top-0 left-0 px-2.5 py-0.5 rounded-br-lg text-[9px] font-black uppercase tracking-widest ${colors[color] || colors.blue}`}>{title}</div>
+            <div className={`absolute top-0 left-0 px-2.5 py-0.5 rounded-br-lg text-[10px] font-black uppercase tracking-widest ${colors[color] || colors.blue}`}>{title}</div>
             <div className="space-y-3">{children}</div>
         </div>
     );
@@ -868,10 +1101,10 @@ function Section({ title, children, color }: { title: string; children: any; col
 function Field({ label, value, onChange, onBlur }: { label: string; value?: string; onChange: (v: string) => void; onBlur?: () => void }) {
     return (
         <div>
-            <label className="block mb-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</label>
+            <label className="block mb-1 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{label}</label>
             <input
                 type="text"
-                className="w-full px-3 py-1.5 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none"
+                className="w-full px-3 py-1.5 border border-border rounded-lg bg-gray-50/50 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none"
                 value={value || ""}
                 onChange={(e) => onChange(e.target.value)}
                 onBlur={onBlur}

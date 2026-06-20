@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
-import { Plus, Search as SearchIcon, Paperclip, Eye, X, Loader2, File } from "lucide-react";
+import { Plus, Search as SearchIcon, Paperclip, Eye, Loader2, File, Trash2 } from "lucide-react";
 import { ClientSectionNew } from "@/components/client/ClientSectionNew";
 import { SampleCard } from "@/components/order/SampleCard";
 import { PricingSummary } from "@/components/quote/PricingSummary";
@@ -15,12 +15,12 @@ import { OrderPrintPreviewModal } from "@/components/order/OrderPrintPreviewModa
 import { SampleRequestPrintPreviewModal } from "@/components/order/SampleRequestPrintPreviewModal";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import { getClients, getQuoteDetail, createClient, updateClient, createOrder, updateOrder } from "@/api/index";
+import { getClients, getQuoteDetail, createClient, updateClient, createOrder, updateOrder, getOrderPresignUrl, deleteOrderFile } from "@/api/index";
 import { toast } from "sonner";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { CustomerFileUploadModal } from "../../customerComponents/order/CustomerFileUploadModal";
-import { fileGetDetail, fileDelete, fileGetUrl } from "@/api/index";
+import { fileGetDetail, fileDelete } from "@/api/index";
 
 export type EditorMode = "view" | "edit" | "create";
 
@@ -157,9 +157,13 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     const [isDownloading, setIsDownloading] = useState<string | null>(null);
 
     const fetchFileDetails = async (fileIds: string[]) => {
+        const initialIds = initialData?.orderCustomerFileIds || [];
+        const newIdsToFetch = fileIds.filter(id => !initialIds.includes(id));
+        if (newIdsToFetch.length === 0) return;
+
         const newRecords: Record<string, any> = { ...fileRecords };
         let hasNew = false;
-        for (const id of fileIds) {
+        for (const id of newIdsToFetch) {
             if (!newRecords[id]) {
                 try {
                     const res = await fileGetDetail({ query: { id } });
@@ -179,7 +183,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         if (orderCustomerFileIds.length > 0) {
             fetchFileDetails(orderCustomerFileIds);
         }
-    }, [orderCustomerFileIds]);
+    }, [orderCustomerFileIds, initialData?.orderCustomerFileIds]);
 
     useEffect(() => {
         setOrderUri(initialData?.orderUri || "");
@@ -296,6 +300,15 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             }
             if (initialData.orderCustomerFileIds) {
                 setOrderCustomerFileIds(initialData.orderCustomerFileIds);
+            }
+            if (Array.isArray(initialData.orderCustomerFiles)) {
+                const initialRecords: Record<string, any> = {};
+                initialData.orderCustomerFiles.forEach((file: any) => {
+                    if (file?.fileId) {
+                        initialRecords[file.fileId] = file;
+                    }
+                });
+                setFileRecords((prev) => ({ ...prev, ...initialRecords }));
             }
         }
     }, [initialData]);
@@ -782,28 +795,15 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     const handleBatchUploadSuccess = async (newFileIds: string[]) => {
         const updatedFileIds = [...orderCustomerFileIds, ...newFileIds];
         setOrderCustomerFileIds(updatedFileIds);
-
-        // If in edit mode, auto-save the file linkage if order already exists
-        if (mode === "view" || (mode === "edit" && orderId)) {
-            try {
-                await updateOrder({
-                    body: {
-                        orderId: orderId,
-                        orderCustomerFileIds: updatedFileIds,
-                    },
-                });
-                toast.success("ÄÃ£ cáº­p nháº­t danh sÃ¡ch tÃ i liá»‡u");
-            } catch (e) {
-                console.error("Auto-update file IDs failed", e);
-            }
-        }
+        // No need to update order immediately since the upload API auto-synced the file to the order
+        toast.success(t("file.attachSuccess"));
     };
 
     const handleFileDownload = async (fileId: string) => {
         setIsDownloading(fileId);
         // Using fileGetUrl to get the latest signed URL
         try {
-            const res = await fileGetUrl({ query: { id: fileId } });
+            const res = await getOrderPresignUrl({ query: { fileId } });
             if (res.success && (res.data?.url || res.data?.fileUrl)) {
                 let downloadUrl = res.data.url || res.data.fileUrl;
                 if (downloadUrl.startsWith("/")) {
@@ -813,38 +813,40 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 }
                 window.open(downloadUrl, "_blank", "noopener,noreferrer");
             } else {
-                toast.error("KhÃ´ng tÃ¬m tháº¥y Ä‘Æ°á»ng dáº«n táº£i file");
+                toast.error(t("file.notFoundUrl"));
             }
         } catch (e) {
-            toast.error("Lỗi khi tải file");
+            toast.error(t("file.downloadError"));
         } finally {
             setIsDownloading(null);
         }
     };
 
     const handleFileDelete = async (fileId: string) => {
-        if (isReadOnly && mode !== "edit") return;
-        if (!confirm("Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a tÃ i liá»‡u nÃ y?")) return;
+        if (!confirm(t("file.deleteConfirm"))) return;
 
         try {
             const updatedFileIds = orderCustomerFileIds.filter((id) => id !== fileId);
-            setOrderCustomerFileIds(updatedFileIds);
 
-            // If in view/edit mode, persist immediately
             if (orderId) {
-                await updateOrder({
+                const res = await deleteOrderFile({
                     body: {
-                        orderId: orderId,
-                        orderCustomerFileIds: updatedFileIds,
-                    },
+                        orderId,
+                        fileId
+                    }
                 });
+                if (!res.success) {
+                    toast.error(t("file.deleteFromOrderError"));
+                    return;
+                }
+            } else {
+                await fileDelete({ body: { fileId } });
             }
 
-            // Optionally delete from storage
-            await fileDelete({ body: { fileId } });
-            toast.success("ÄÃ£ xÃ³a tÃ i liá»‡u");
-        } catch (e) {
-            toast.error("Lỗi khi xóa tài liệu");
+            setOrderCustomerFileIds(updatedFileIds);
+            toast.success(t("file.deleteSuccess"));
+        } catch (e: any) {
+            toast.error(e.message || t("file.deleteFromOrderError"));
         }
     };
 
@@ -1064,7 +1066,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                                 <button
                                                     onClick={() => handleFileDownload(fileId)}
                                                     disabled={isThisDownloading}
-                                                    title="Xem/Táº£i xuá»‘ng"
+                                                    title={t("file.viewDownload")}
                                                     className="p-1.5 text-primary hover:bg-primary/10 rounded transition-colors disabled:opacity-50"
                                                 >
                                                     {isThisDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
@@ -1072,9 +1074,9 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                                 <button
                                                     onClick={() => handleFileDelete(fileId)}
                                                     className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                                                    title="XÃ³a"
+                                                    title={t("common.delete")}
                                                 >
-                                                    <X className="w-3.5 h-3.5" />
+                                                    <Trash2 className="w-3.5 h-3.5" />
                                                 </button>
                                             </div>
                                         </div>
@@ -1298,7 +1300,14 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                     }}
                 />
             )}
-            <CustomerFileUploadModal open={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)} onUploadSuccess={handleBatchUploadSuccess} orderId={orderId || undefined} />
+            <CustomerFileUploadModal 
+                open={isUploadModalOpen} 
+                onClose={() => setIsUploadModalOpen(false)} 
+                onUploadSuccess={handleBatchUploadSuccess} 
+                orderId={orderId || undefined} 
+                isStaff={true}
+                clientId={selectedClient?.clientId || undefined}
+            />
         </div>
     );
 });

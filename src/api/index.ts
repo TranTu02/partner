@@ -131,6 +131,22 @@ export const getOrderDetail = async ({ headers, body, query }: ApiInput): Promis
     return getV2("/v2/orders/get/detail", { headers, query: query || body });
 };
 
+/** GET /v2/orders/get/full */
+export const getOrderFull = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return getV2("/v2/orders/get/full", { headers, query: query || body });
+};
+
+/** GET /v2/orders/get/presign-url */
+export const getOrderPresignUrl = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return getV2("/v2/orders/get/presign-url", { headers, query: query || body });
+};
+
+/** POST /v2/orders/delete/file */
+export const deleteOrderFile = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
+    return postV2("/v2/orders/delete/file", { headers, body, query });
+};
+
+
 /** POST /v2/orders/update */
 export const updateOrder = async ({ headers, body, query }: ApiInput): Promise<ApiResponse> => {
     return postV2("/v2/orders/update", { headers, body, query });
@@ -403,7 +419,7 @@ export const fileDelete = async ({ headers, body, query }: ApiInput): Promise<Ap
 const apis = {
     auth: { login, logout, checkSessionStatus },
     clients: { getClients, createClient, getClientDetail, updateClient, deleteClient, getClientTaxInfo },
-    orders: { getOrders, createOrder, getOrderDetail, updateOrder, deleteOrder, getOrderStats, generateOrderUri, checkOrderUri },
+    orders: { getOrders, createOrder, getOrderDetail, getOrderFull, getOrderPresignUrl, deleteOrderFile, updateOrder, deleteOrder, getOrderStats, generateOrderUri, checkOrderUri },
     quotes: { getQuotes, createQuote, getQuoteDetail, updateQuote, deleteQuote },
     parameters: { getParameters, createParameter, getParameterDetail, getParameterFull, updateParameter, deleteParameter },
     protocols: { getProtocols, createProtocol, getProtocolDetail, getProtocolFull, updateProtocol, deleteProtocol },

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
-import { Plus, Search as SearchIcon, Paperclip, X, File, Eye, Loader2 } from "lucide-react";
+import { Plus, Search as SearchIcon, Paperclip, File, Eye, Loader2, Trash2 } from "lucide-react";
 import { CustomerSampleCard as SampleCard } from "./CustomerSampleCard";
 import { CustomerFileUploadModal } from "./CustomerFileUploadModal";
+import { useTranslation } from "react-i18next";
 import { PricingSummary } from "@/components/quote/PricingSummary";
 import { OtherItemsSection } from "@/components/order/OtherItemsSection";
 import { AnalysisModalNew } from "@/components/parameter/AnalysisModalNew";
@@ -11,7 +12,7 @@ import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import type { Matrix } from "@/types/parameter";
 import type { EditorMode } from "@/components/order/OrderEditor";
 import type { SampleWithQuantity, AnalysisWithQuantity } from "./CustomerSampleCard";
-import { customerCreateOrder, customerUpdateOrder, customerGetQuoteDetail, fileGetDetail, fileGetUrl } from "@/api/customer";
+import { customerCreateOrder, customerUpdateOrder, customerGetQuoteDetail, fileGetDetail, customerGetOrderPresignUrl } from "@/api/customer";
 import type { OtherItem } from "@/types/order";
 import { toast } from "sonner";
 import { DndProvider } from "react-dnd";
@@ -87,6 +88,7 @@ export interface CustomerOrderEditorRef {
 }
 
 export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOrderEditorProps>(({ mode, initialData, onSaveSuccess, initialQuoteId }, ref) => {
+    const { t } = useTranslation();
     const [internalMode, setInternalMode] = useState<EditorMode>(mode);
     const isReadOnly = internalMode === "view";
     useEffect(() => {
@@ -216,29 +218,46 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
             if (initialData.discountRate !== undefined) setDiscountRate(initialData.discountRate);
             if (Array.isArray(initialData.otherItems)) setOtherItems(initialData.otherItems);
             if (Array.isArray(initialData.orderCustomerFileIds)) setOrderCustomerFileIds(initialData.orderCustomerFileIds);
+            if (Array.isArray(initialData.orderCustomerFiles)) {
+                const initialRecords: Record<string, any> = {};
+                initialData.orderCustomerFiles.forEach((file: any) => {
+                    if (file?.fileId) {
+                        initialRecords[file.fileId] = file;
+                    }
+                });
+                setFileRecords((prev) => ({ ...prev, ...initialRecords }));
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialData]);
 
-    // Fetch file details
+    // Fetch file details for newly uploaded files
     useEffect(() => {
         const fetchFileDetails = async () => {
-            const missingIds = orderCustomerFileIds.filter((id) => !fileRecords[id]);
+            const initialIds = initialData?.orderCustomerFileIds || [];
+            const missingIds = orderCustomerFileIds.filter((id) => !initialIds.includes(id) && !fileRecords[id]);
             if (missingIds.length === 0) return;
 
+            const newRecords: Record<string, any> = { ...fileRecords };
+            let hasNew = false;
             for (const id of missingIds) {
                 try {
                     const res = await fileGetDetail({ query: { id } });
                     if (res.success && res.data) {
-                        setFileRecords((prev) => ({ ...prev, [id]: res.data }));
+                        newRecords[id] = res.data;
+                        hasNew = true;
                     }
                 } catch (err) {
                     console.error("Failed to fetch file detail", id, err);
                 }
             }
+            if (hasNew) {
+                setFileRecords(newRecords);
+            }
         };
         fetchFileDetails();
-    }, [orderCustomerFileIds, fileRecords]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [orderCustomerFileIds]);
 
     const handleBatchUploadSuccess = async (newFileIds: string[]) => {
         const updatedIds = [...orderCustomerFileIds, ...newFileIds];
@@ -256,28 +275,14 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
             }
         }
 
-        // If in view mode, update the order immediately
-        if (isReadOnly && orderId) {
-            try {
-                const res = await customerUpdateOrder({
-                    body: {
-                        orderId,
-                        orderCustomerFileIds: updatedIds,
-                    },
-                });
-                if (res.success) {
-                    toast.success("Đã đính kèm tài liệu vào đơn hàng");
-                } else {
-                    toast.error("Không thể cập nhật danh sách tệp đính kèm vào đơn hàng");
-                }
-            } catch (err) {
-                toast.error("Lỗi khi cập nhật đơn hàng");
-            }
+        // No need to call update API immediately since the upload API already auto-synced the file to the order
+        if (isReadOnly) {
+            toast.success(t("file.attachSuccess"));
         }
     };
 
     const handleFileDelete = async (fileId: string) => {
-        if (!confirm("Bạn có chắc chắn muốn xóa tài liệu này?")) return;
+        if (!confirm(t("file.deleteConfirm"))) return;
 
         const updatedIds = orderCustomerFileIds.filter((id) => id !== fileId);
         setOrderCustomerFileIds(updatedIds);
@@ -291,13 +296,13 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                     },
                 });
                 if (res.success) {
-                    toast.success("Đã xóa tài liệu khỏi đơn hàng");
+                    toast.success(t("file.deleteFromOrderSuccess"));
                 } else {
-                    toast.error("Lỗi khi xóa tài liệu");
+                    toast.error(t("file.deleteFromOrderError"));
                     setOrderCustomerFileIds(orderCustomerFileIds); // Rollback
                 }
             } catch {
-                toast.error("Lỗi kết nối");
+                toast.error(t("file.connectionError"));
                 setOrderCustomerFileIds(orderCustomerFileIds); // Rollback
             }
         }
@@ -306,7 +311,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
     const handleFileDownload = async (fileId: string) => {
         setIsDownloading(fileId);
         try {
-            const res = await fileGetUrl({ query: { id: fileId } });
+            const res = await customerGetOrderPresignUrl({ query: { fileId } });
             if (res.success && (res.data?.url || res.data?.fileUrl)) {
                 let downloadUrl = res.data.url || res.data.fileUrl;
 
@@ -787,7 +792,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                                     className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-all text-xs font-semibold"
                                 >
                                     <Plus className="w-3.5 h-3.5" />
-                                    Thêm tài liệu
+                                    {t("order.addAttachment")}
                                 </button>
                             </div>
                         </div>
@@ -796,7 +801,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                             {orderCustomerFileIds.length === 0 ? (
                                 <div className="col-span-full py-8 text-center border-2 border-dashed border-border rounded-xl bg-muted/30">
                                     <Paperclip className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-20" />
-                                    <p className="text-xs text-muted-foreground">Chưa có tài liệu đính kèm</p>
+                                    <p className="text-xs text-muted-foreground">{t("order.noAttachments")}</p>
                                 </div>
                             ) : (
                                 orderCustomerFileIds.map((fileId) => {
@@ -811,7 +816,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                                                 </div>
                                                 <div className="overflow-hidden flex-1">
                                                     <p className="text-xs font-semibold text-foreground truncate" title={file?.fileName || fileId}>
-                                                        {file?.fileName || "Đang tải tên file..."}
+                                                        {file?.fileName || t("order.loadingFileName")}
                                                     </p>
                                                     <p className="text-[10px] text-muted-foreground">ID: {fileId.slice(-8)}</p>
                                                 </div>
@@ -820,7 +825,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                                                 <button
                                                     onClick={() => handleFileDownload(fileId)}
                                                     disabled={isThisDownloading}
-                                                    title="Xem/Tải xuống"
+                                                    title={t("file.viewDownload")}
                                                     className="p-1.5 text-primary hover:bg-primary/10 rounded transition-colors disabled:opacity-50"
                                                 >
                                                     {isThisDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
@@ -828,9 +833,9 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                                                 <button
                                                     onClick={() => handleFileDelete(fileId)}
                                                     className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                                                    title="Xóa"
+                                                    title={t("common.delete")}
                                                 >
-                                                    <X className="w-3.5 h-3.5" />
+                                                    <Trash2 className="w-3.5 h-3.5" />
                                                 </button>
                                             </div>
                                         </div>
@@ -838,7 +843,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                                 })
                             )}
                         </div>
-                        <p className="text-[10px] text-muted-foreground italic">* Đính kèm các hồ sơ liên quan đến đơn hàng (Bản scan phiếu gửi mẫu có đóng dấu, COA, hóa đơn...).</p>
+                        <p className="text-[10px] text-muted-foreground italic">{t("order.attachmentNote")}</p>
                     </div>
 
                     {/* Order Metadata Sections */}

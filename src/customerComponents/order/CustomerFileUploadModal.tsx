@@ -1,7 +1,8 @@
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, useMemo, useEffect } from "react";
 import { X, Upload, FileText, ImageIcon, Trash2, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 
 interface LocalFile {
     id: string;
@@ -14,21 +15,41 @@ interface CustomerFileUploadModalProps {
     onClose: () => void;
     onUploadSuccess: (fileIds: string[]) => void;
     orderId?: string;
+    isStaff?: boolean;
+    clientId?: string;
 }
 
-const FILE_TAG_OPTIONS = [
-    { label: "Hóa đơn", value: "INVOICE" },
-    { label: "Đơn hàng", value: "ORDER_FORM" },
-    { label: "Phiếu gửi mẫu", value: "SAMPLE_SUBMISSION" },
-    { label: "Tiêu chuẩn cơ sở", value: "PRODUCT_SPEC" },
-    { label: "Ảnh mẫu", value: "SAMPLE_IMAGE" },
-];
 
-export function CustomerFileUploadModal({ open, onClose, onUploadSuccess, orderId }: CustomerFileUploadModalProps) {
+export function CustomerFileUploadModal({ open, onClose, onUploadSuccess, orderId, isStaff = false, clientId }: CustomerFileUploadModalProps) {
+    const { t } = useTranslation();
     const [selectedFiles, setSelectedFiles] = useState<LocalFile[]>([]);
-    const [currentTag, setCurrentTag] = useState<string>("ORDER_FORM");
+    const [currentTag, setCurrentTag] = useState<string>(isStaff ? "Standard" : "ORDER_FORM");
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (open) {
+            setCurrentTag(isStaff ? "Standard" : "ORDER_FORM");
+        }
+    }, [open, isStaff]);
+
+    const translatedTagOptions = useMemo(() => {
+        if (isStaff) {
+            return [
+                { label: t("file.tags.Standard"), value: "Standard" },
+                { label: t("file.tags.Contract"), value: "Contract" },
+                { label: t("file.tags.Payment"), value: "Payment" },
+                { label: t("file.tags.SampleImage"), value: "SampleImage" },
+            ];
+        }
+        return [
+            { label: t("file.tags.INVOICE"), value: "INVOICE" },
+            { label: t("file.tags.ORDER_FORM"), value: "ORDER_FORM" },
+            { label: t("file.tags.SAMPLE_SUBMISSION"), value: "SAMPLE_SUBMISSION" },
+            { label: t("file.tags.PRODUCT_SPEC"), value: "PRODUCT_SPEC" },
+            { label: t("file.tags.SAMPLE_IMAGE"), value: "SAMPLE_IMAGE" },
+        ];
+    }, [isStaff, t]);
 
     const totalSize = useMemo(() => {
         return selectedFiles.reduce((acc, f) => acc + f.file.size, 0);
@@ -48,7 +69,7 @@ export function CustomerFileUploadModal({ open, onClose, onUploadSuccess, orderI
 
         const incomingSize = newLocalFiles.reduce((acc, f) => acc + f.file.size, 0);
         if (totalSize + incomingSize > MAX_SIZE) {
-            toast.error("Tổng dung lượng file không được vượt quá 25MB");
+            toast.error(t("file.uploadLimitError"));
             return;
         }
 
@@ -67,28 +88,33 @@ export function CustomerFileUploadModal({ open, onClose, onUploadSuccess, orderI
         const uploadedFileIds: string[] = [];
 
         try {
-            // Import dynamically to avoid circular dependencies if any, 
-            // though here we can probably import normally.
-            const { fileUpload, buildFileUploadFormData } = await import("@/api/customer");
+            const { customerUploadOrderDocument, staffUploadOrderDocument, buildFileUploadFormData } = await import("@/api/customer");
 
             for (const item of selectedFiles) {
                 const formData = buildFileUploadFormData(item.file, {
-                    fileTags: [item.tag, "CustomerOrder", orderId || "Draft"].filter(Boolean) as string[],
-                    commonKeys: orderId ? [orderId] : []
+                    orderId: orderId || undefined,
+                    fileTags: isStaff 
+                        ? [item.tag] 
+                        : [item.tag, "CustomerOrder", orderId || "Draft"].filter(Boolean) as string[],
+                    commonKeys: isStaff
+                        ? [orderId, clientId].filter(Boolean) as string[]
+                        : (orderId ? [orderId] : [])
                 });
 
-                const res: any = await fileUpload({ body: formData });
-                const fileId = res?.data?.fileId ?? res?.fileId;
+                const res: any = isStaff
+                    ? await staffUploadOrderDocument({ body: formData })
+                    : await customerUploadOrderDocument({ body: formData });
+                const fileId = res?.data?.file?.fileId ?? res?.data?.fileId ?? res?.fileId;
                 if (fileId) {
                     uploadedFileIds.push(fileId);
                 }
             }
 
-            toast.success(`Đã tải lên thành công ${uploadedFileIds.length} tệp tin`);
+            toast.success(t("file.uploadSuccessCount", { count: uploadedFileIds.length }));
             onUploadSuccess(uploadedFileIds);
             handleClose();
         } catch (err: any) {
-            toast.error(err.message || "Lỗi khi tải lên tệp tin");
+            toast.error(err.message || t("file.uploadError"));
         } finally {
             setIsUploading(false);
         }
@@ -108,8 +134,8 @@ export function CustomerFileUploadModal({ open, onClose, onUploadSuccess, orderI
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/20">
                     <div>
-                        <h2 className="text-xl font-bold text-foreground">Tải lên tài liệu</h2>
-                        <p className="text-sm text-muted-foreground">Chọn phân loại và tải tệp lên đơn hàng</p>
+                        <h2 className="text-xl font-bold text-foreground">{t("file.uploadTitle")}</h2>
+                        <p className="text-sm text-muted-foreground">{t("file.uploadSubtitle")}</p>
                     </div>
                     <button onClick={handleClose} className="p-2 hover:bg-muted rounded-full transition-colors">
                         <X className="h-5 w-5" />
@@ -119,9 +145,9 @@ export function CustomerFileUploadModal({ open, onClose, onUploadSuccess, orderI
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     {/* Tag Selection */}
                     <div className="space-y-3">
-                        <label className="text-sm font-semibold text-foreground">Phân loại tài liệu</label>
+                        <label className="text-sm font-semibold text-foreground">{t("file.category")}</label>
                         <div className="flex flex-wrap gap-2">
-                            {FILE_TAG_OPTIONS.map((opt) => (
+                            {translatedTagOptions.map((opt) => (
                                 <button
                                     key={opt.value}
                                     onClick={() => setCurrentTag(opt.value)}
@@ -152,15 +178,15 @@ export function CustomerFileUploadModal({ open, onClose, onUploadSuccess, orderI
                         <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
                             <Upload className="h-6 w-6" />
                         </div>
-                        <p className="text-sm font-bold">Thấn vào để chọn tệp</p>
-                        <p className="text-xs text-muted-foreground mt-1">Dung lượng tối đa cho phép: 25MB</p>
+                        <p className="text-sm font-bold">{t("file.selectToUpload")}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{t("file.maxSizeLimit")}</p>
                     </div>
 
                     {/* Selected Files List */}
                     {selectedFiles.length > 0 && (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <label className="text-sm font-semibold text-foreground">Danh sách tệp đã chọn ({selectedFiles.length})</label>
+                                <label className="text-sm font-semibold text-foreground">{t("file.selectedFilesCount", { count: selectedFiles.length })}</label>
                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${totalSize > MAX_SIZE ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"}`}>
                                     {(totalSize / (1024 * 1024)).toFixed(2)} MB / 25 MB
                                 </span>
@@ -177,7 +203,7 @@ export function CustomerFileUploadModal({ open, onClose, onUploadSuccess, orderI
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-[10px] text-muted-foreground">{(item.file.size / 1024).toFixed(1)} KB</span>
                                                     <span className="text-[10px] px-1.5 py-0.5 bg-background rounded border border-border font-bold uppercase text-primary">
-                                                        {FILE_TAG_OPTIONS.find(o => o.value === item.tag)?.label}
+                                                        {translatedTagOptions.find(o => o.value === item.tag)?.label}
                                                     </span>
                                                 </div>
                                             </div>
@@ -201,18 +227,18 @@ export function CustomerFileUploadModal({ open, onClose, onUploadSuccess, orderI
                         {totalSize > 0 ? (
                             <>
                                 <CheckCircle2 className="w-4 h-4 text-success" />
-                                <span>Đã sẵn sàng tải lên</span>
+                                <span>{t("file.readyToUpload")}</span>
                             </>
                         ) : (
                             <>
                                 <AlertCircle className="w-4 h-4" />
-                                <span>Chưa chọn tệp nào</span>
+                                <span>{t("file.noFileSelected")}</span>
                             </>
                         )}
                     </div>
                     <div className="flex gap-3">
                         <Button variant="outline" onClick={handleClose} disabled={isUploading}>
-                            Hủy
+                            {t("common.cancel")}
                         </Button>
                         <Button 
                             onClick={handleConfirmUpload} 
@@ -222,10 +248,10 @@ export function CustomerFileUploadModal({ open, onClose, onUploadSuccess, orderI
                             {isUploading ? (
                                 <>
                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Đang tải lên...
+                                    {t("file.uploadingCount")}
                                 </>
                             ) : (
-                                "Xác nhận tải lên"
+                                t("file.confirmUpload")
                             )}
                         </Button>
                     </div>

@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Editor } from "@tinymce/tinymce-react";
 import { Save, Printer, HelpCircle, X, FileDown, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { getOrderDetail, checkOrderUri, updateOrder, convertHtmlToPdfForm1 } from "@/api/index";
+import { getOrderFull, checkOrderUri, updateOrder, convertHtmlToPdfForm1 } from "@/api/index";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import type { Client } from "@/types/client";
 import { toast } from "sonner";
@@ -59,7 +59,7 @@ export function SampleRequestFormPage() {
                     requestFormContent = res.data.requestForm || "";
                 } else {
                     // Internal access flow
-                    const res: any = await getOrderDetail({ query: { orderId } });
+                    const res: any = await getOrderFull({ query: { orderId } });
                     if (!res?.success || !res?.data) {
                         toast.error(res?.error?.message || "Không lấy được dữ liệu order");
                         setData(null);

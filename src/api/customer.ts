@@ -138,6 +138,18 @@ export const customerUpdateOrder = async (input: ApiInput): Promise<ApiResponse>
     return postCustomer("/customer/v1/orders/update", input);
 };
 
+/** POST /customer/v1/orders/upload/document */
+export const customerUploadOrderDocument = async (input: ApiInput): Promise<ApiResponse> => {
+    return postCustomer("/customer/v1/orders/upload/document", input);
+};
+
+/** GET /customer/v1/orders/get/presign-url */
+export const customerGetOrderPresignUrl = async (input: ApiInput): Promise<ApiResponse> => {
+    return getCustomer("/customer/v1/orders/get/presign-url", input);
+};
+
+
+
 // --- Quotes ---
 /** GET /customer/v1/quotes/get/list */
 export const customerGetQuotes = async (input: ApiInput): Promise<ApiResponse> => {
@@ -213,8 +225,18 @@ export const fileUpload = async (input: ApiInput): Promise<ApiResponse> => {
     return adaptCustomerResponse(raw);
 };
 
-/** Helper: build a FormData for file upload with optional commonKeys & fileTags */
-export function buildFileUploadFormData(file: File, opts?: { commonKeys?: string[]; fileTags?: string[] }): FormData {
+/**
+ * POST /v2/orders/upload/document (Staff)
+ * Content-Type: multipart/form-data
+ */
+export const staffUploadOrderDocument = async (input: ApiInput): Promise<ApiResponse> => {
+    const headers = { ...customerAuthHeader(), ...(input.headers || {}) };
+    const raw = await api.post<any>("/v2/orders/upload/document", { headers, body: input.body, query: input.query });
+    return adaptCustomerResponse(raw);
+};
+
+/** Helper: build a FormData for file upload with optional commonKeys, fileTags & orderId */
+export function buildFileUploadFormData(file: File, opts?: { commonKeys?: string[]; fileTags?: string[]; orderId?: string }): FormData {
     const fd = new FormData();
 
     // Sanitize filename for the multipart header to avoid encoding issues
@@ -228,6 +250,7 @@ export function buildFileUploadFormData(file: File, opts?: { commonKeys?: string
     fd.append("file", file, sanitizedName);
     fd.append("fileName", file.name); // Send the original Vietnamese name as a separate field
 
+    if (opts?.orderId) fd.append("orderId", opts.orderId);
     if (opts?.commonKeys?.length) fd.append("commonKeys", JSON.stringify(opts.commonKeys));
     if (opts?.fileTags?.length) fd.append("fileTags", JSON.stringify(opts.fileTags));
     return fd;
