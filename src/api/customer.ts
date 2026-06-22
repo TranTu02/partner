@@ -128,6 +128,11 @@ export const customerGetOrderDetail = async (input: ApiInput): Promise<ApiRespon
     return getCustomer("/customer/v1/orders/get/detail", input);
 };
 
+/** GET /customer/v1/orders/get/full */
+export const customerGetOrderFull = async (input: ApiInput): Promise<ApiResponse> => {
+    return getCustomer("/customer/v1/orders/get/full", input);
+};
+
 /** POST /customer/v1/orders/create */
 export const customerCreateOrder = async (input: ApiInput): Promise<ApiResponse> => {
     return postCustomer("/customer/v1/orders/create", input);

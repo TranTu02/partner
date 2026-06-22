@@ -15,7 +15,7 @@ import { X, FileDown, HelpCircle, FileText, Lock, Unlock, ArrowLeft, UploadCloud
 import { useTranslation } from "react-i18next";
 import Cookies from "js-cookie";
 import { 
-    customerGetOrderDetail, 
+    customerGetOrderFull, 
     customerUpdateOrder, 
     customerMe, 
     CUSTOMER_TOKEN_KEY,
@@ -245,7 +245,7 @@ export function CustomerSampleRequestPage() {
             try {
                 // IMPORTANT: We only pass orderId. Let the backend identify the client via the token (Bearer).
                 // Avoid passing clientId unless explicitly required, to prevent UNKNOWN/Mismatch errors.
-                const res = await customerGetOrderDetail({ query: { orderId } });
+                const res = await customerGetOrderFull({ query: { orderId } });
                 if (!res.success || !res.data) {
                     setError(res.error?.message || "Không thể tải dữ liệu đơn hàng.");
                     return;
