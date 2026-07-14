@@ -292,3 +292,20 @@ export const fileGetList = async (input: ApiInput): Promise<ApiResponse> => {
 export const fileDelete = async (input: ApiInput): Promise<ApiResponse> => {
     return postCustomer("/v2/files/delete", input);
 };
+
+/**
+ * Helper to download raw blob responses from customer endpoints.
+ */
+async function downloadCustomer(path: string, input: ApiInput): Promise<Blob> {
+    const headers = { ...customerAuthHeader(), ...(input.headers || {}) };
+    return api.download(path, { headers, body: input.body, query: input.query });
+}
+
+/**
+ * POST /customer/v1/orders/process-pdf
+ * Updates the order details, transitions status to "Processing", and downloads the PDF buffer.
+ */
+export const customerProcessOrderPdf = async (input: ApiInput): Promise<Blob> => {
+    return downloadCustomer("/customer/v1/orders/process-pdf", input);
+};
+

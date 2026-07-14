@@ -653,6 +653,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
             discountRate,
             orderUri: initialData?.orderUri || "",
             requestForm: initialData?.requestForm || "",
+            orderStatus: initialData?.orderStatus || "",
             otherItems,
         }) as any;
 

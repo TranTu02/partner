@@ -5,6 +5,7 @@ import logoFull from "../../assets/LOGO-FULL.png";
 export interface OrderPrintData {
     createdAt?: string;
     orderId: string;
+    orderStatus?: string;
     client: Client | null;
 
     // Contact Info Snapshot

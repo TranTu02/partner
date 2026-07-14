@@ -3,13 +3,35 @@ import { X, FileDown, HelpCircle, FileText, Lock, Unlock } from "lucide-react";
 import { Editor } from "@tinymce/tinymce-react";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import { useTranslation } from "react-i18next";
-import { customerUpdateOrder } from "@/api/customer";
-import { convertHtmlToPdfForm1 } from "@/api/index";
+import { customerProcessOrderPdf } from "@/api/customer";
 import { toast } from "sonner";
 import base64Images from "@/assets/base64Images.json";
 
-// ─── Module-level constants (available before component renders) ─────────────
 const SAMPLE_INFO_ORDER = ["Tên mẫu thử", "Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Địa chỉ sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
+
+const translateOrderStatus = (status?: string): string => {
+    if (!status) return "Mới";
+    switch (status.toLowerCase()) {
+        case "pending":
+            return "Chờ xử lý";
+        case "processing":
+            return "Đang xử lý";
+        case "approved":
+            return "Đã duyệt";
+        case "rejected":
+            return "Từ chối";
+        case "draft":
+            return "Bản nháp";
+        case "new":
+            return "Mới";
+        case "completed":
+            return "Hoàn thành";
+        case "done":
+            return "Hoàn thành";
+        default:
+            return status;
+    }
+};
 
 const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value: string }[]) => {
     const infoMap = new Map((rawInfo || []).map((i) => [i.label, i.value]));
@@ -73,9 +95,15 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
     const [editorReady, setEditorReady] = useState(false);
     const [isLocked, setIsLocked] = useState(true);
     const [showGuide, setShowGuide] = useState(false);
+    const [showConfirmExportModal, setShowConfirmExportModal] = useState(false);
 
     // Local state to allow editing before saving
     const [tempData, setTempData] = useState<OrderPrintData>(data);
+
+    const isOrderLocked = useMemo(() => {
+        const status = tempData?.orderStatus?.toLowerCase() || "";
+        return status !== "pending" && status !== "draft" && status !== "new" && status !== "";
+    }, [tempData?.orderStatus]);
 
     // Cache original protocolCode/protocolId to allow restoring when user clears input
     const initialAnalysesRef = useRef<Record<string, { protocolCode: string | null; protocolId: string | null }>>({});
@@ -109,6 +137,12 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
             });
         }
     }, [isOpen, data]);
+
+    useEffect(() => {
+        if (editorRef.current && editorReady) {
+            editorRef.current.mode.set((isLocked || isOrderLocked) ? "readonly" : "design");
+        }
+    }, [isLocked, isOrderLocked, editorReady]);
 
     // Always regenerate HTML from current tempData so default texts (like
     // "Thống nhất với IRDOP về phương pháp thử") are always visible.
@@ -178,18 +212,29 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
         });
     };
 
-    const handleSave = async (): Promise<boolean> => {
-        if (!editorRef.current) return false;
+
+
+    const isDirty = useMemo(() => {
+        return JSON.stringify(tempData) !== JSON.stringify(data);
+    }, [tempData, data]);
+
+    const handleExportClick = () => {
+        if (isOrderLocked) return;
+        setShowConfirmExportModal(true);
+    };
+
+    const handleConfirmExportPdf = async () => {
+        setShowConfirmExportModal(false);
+        if (!editorRef.current) return;
         setLoading(true);
         const content = editorRef.current.getContent();
-        const tid = toast.loading(t("common.saving") || "Đang lưu...");
+        const tid = toast.loading("Đang lưu và xuất file PDF...");
 
         try {
-            const res = await customerUpdateOrder({
+            const blob = await customerProcessOrderPdf({
                 body: {
                     orderId: tempData.orderId,
                     requestForm: content,
-                    // Snapshot basic info back to server
                     clientName: tempData.clientName,
                     clientAddress: tempData.clientAddress,
                     clientPhone: tempData.clientPhone,
@@ -223,58 +268,34 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                                 ...a,
                                 parameterName: a.parameterName,
                                 protocolCode: a.protocolCode,
-                                protocolId: (a as any).protocolId, // include protocolId
+                                protocolId: (a as any).protocolId,
                                 analysisUnit: a.analysisUnit,
                             })),
                         };
                     }),
                     orderCustomerFileIds: tempData.orderCustomerFileIds,
-                },
+                }
             });
 
-            if (res.success) {
-                toast.success(t("common.saveSuccess") || "Lưu thành công", { id: tid });
-                if (onUpdateData) onUpdateData({ ...tempData, requestForm: content });
-                return true;
-            } else {
-                toast.error(res.error?.message || "Lỗi khi lưu", { id: tid });
-                return false;
-            }
-        } catch (e: any) {
-            toast.error(e.message || "Lỗi máy chủ", { id: tid });
-            return false;
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const isDirty = useMemo(() => {
-        return JSON.stringify(tempData) !== JSON.stringify(data);
-    }, [tempData, data]);
-
-    const handleExportPdf = async () => {
-        // Auto save before export
-        const isSaved = await handleSave();
-        if (!isSaved) return;
-
-        const tid = toast.loading("Đang chuẩn bị file PDF...");
-        try {
-            const html = editorRef.current?.getContent() || generateSampleRequestHtml(tempData, t);
-            const response = await convertHtmlToPdfForm1({
-                body: { requestForm: html, orderId: tempData.orderId },
-            });
-
-            const blob = new Blob([response as any], { type: "application/pdf" });
-            const url = window.URL.createObjectURL(blob);
+            const url = window.URL.createObjectURL(new Blob([blob as any]));
             const link = document.createElement("a");
             link.href = url;
             link.setAttribute("download", `request-form-${tempData.orderId || "phiếu"}.pdf`);
             document.body.appendChild(link);
             link.click();
             link.parentNode?.removeChild(link);
-            toast.success("Đã xuất PDF thành công", { id: tid });
-        } catch (e) {
-            toast.error("Lỗi khi xuất PDF", { id: tid });
+            window.URL.revokeObjectURL(url);
+
+            toast.success("Lưu và xuất PDF thành công!", { id: tid });
+            const updated = { ...tempData, orderStatus: "Processing" };
+            setTempData(updated);
+            setIsLocked(true);
+            if (onUpdateData) onUpdateData(updated);
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error?.message || "Lỗi khi lưu và xuất PDF", { id: tid });
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -297,26 +318,28 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                 <div className="flex items-center gap-2">
                     {/* Desktop Action Buttons */}
                     <div className="hidden xl:flex items-center gap-2">
-                        <button
-                            onClick={() => {
-                                const newLock = !isLocked;
-                                setIsLocked(newLock);
-                                if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
-                                toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
-                            }}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border transition-all text-xs font-medium ${isLocked ? "bg-muted" : "bg-primary/10 text-primary border-primary/20"}`}
-                        >
-                            {isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                            <span className="hidden sm:inline">{isLocked ? "Mở khóa sửa" : "Khóa mẫu"}</span>
-                        </button>
+                        {!isOrderLocked && (
+                            <button
+                                onClick={() => {
+                                    const newLock = !isLocked;
+                                    setIsLocked(newLock);
+                                    if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
+                                    toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
+                                }}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border transition-all text-xs font-medium ${isLocked ? "bg-muted" : "bg-primary/10 text-primary border-primary/20"}`}
+                            >
+                                {isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                                <span className="hidden sm:inline">{isLocked ? "Mở khóa sửa" : "Khóa mẫu"}</span>
+                            </button>
+                        )}
 
                         <button
-                            onClick={handleExportPdf}
-                            disabled={loading}
-                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all text-xs font-bold shadow-md ${isDirty ? "bg-primary text-primary-foreground hover:bg-primary/90 scale-105 ring-2 ring-primary/20" : "bg-orange-600 text-white hover:bg-orange-700"}`}
+                            onClick={handleExportClick}
+                            disabled={loading || isOrderLocked}
+                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all text-xs font-bold shadow-md disabled:opacity-55 disabled:cursor-not-allowed ${isDirty && !isOrderLocked ? "bg-primary text-primary-foreground hover:bg-primary/90 scale-105 ring-2 ring-primary/20" : "bg-orange-600 text-white hover:bg-orange-700"}`}
                         >
                             <FileDown className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Lưu & Xuất PDF</span>
+                            <span className="hidden sm:inline">Lưu &amp; Xuất PDF</span>
                         </button>
 
                         <div className="w-px h-6 bg-border mx-1" />
@@ -334,31 +357,33 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                 
                 {/* Floating Action Bar (Top Right) - Vertical Bubbles (Mobile Only) */}
                 <div className="absolute top-4 right-4 md:right-6 z-50 flex xl:hidden flex-col gap-3">
-                    <div className="relative group flex items-center justify-end">
-                        <span className="absolute right-full mr-3 whitespace-nowrap bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
-                            {isLocked ? "Mở khóa sửa" : "Khóa mẫu"}
-                        </span>
-                        <button
-                            onClick={() => {
-                                const newLock = !isLocked;
-                                setIsLocked(newLock);
-                                if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
-                                toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
-                            }}
-                            className={`p-3 rounded-full border shadow-lg transition-transform hover:scale-110 active:scale-95 backdrop-blur-sm ${isLocked ? "bg-white/90 border-border text-muted-foreground hover:text-foreground" : "bg-primary text-primary-foreground border-primary"}`}
-                        >
-                            {isLocked ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
-                        </button>
-                    </div>
+                    {!isOrderLocked && (
+                        <div className="relative group flex items-center justify-end">
+                            <span className="absolute right-full mr-3 whitespace-nowrap bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
+                                {isLocked ? "Mở khóa sửa" : "Khóa mẫu"}
+                            </span>
+                            <button
+                                onClick={() => {
+                                    const newLock = !isLocked;
+                                    setIsLocked(newLock);
+                                    if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
+                                    toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
+                                }}
+                                className={`p-3 rounded-full border shadow-lg transition-transform hover:scale-110 active:scale-95 backdrop-blur-sm ${isLocked ? "bg-white/90 border-border text-muted-foreground hover:text-foreground" : "bg-primary text-primary-foreground border-primary"}`}
+                            >
+                                {isLocked ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+                            </button>
+                        </div>
+                    )}
 
                     <div className="relative group flex items-center justify-end">
                         <span className="absolute right-full mr-3 whitespace-nowrap bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
-                            Lưu & Xuất PDF
+                            Lưu &amp; Xuất PDF
                         </span>
                         <button
-                            onClick={handleExportPdf}
-                            disabled={loading}
-                            className={`p-3 rounded-full transition-transform shadow-lg hover:scale-110 active:scale-95 text-white ${isDirty ? "bg-orange-500 hover:bg-orange-600 ring-4 ring-orange-500/20" : "bg-orange-600 hover:bg-orange-700"}`}
+                            onClick={handleExportClick}
+                            disabled={loading || isOrderLocked}
+                            className={`p-3 rounded-full transition-transform shadow-lg hover:scale-110 active:scale-95 text-white disabled:opacity-55 disabled:cursor-not-allowed ${isDirty && !isOrderLocked ? "bg-orange-500 hover:bg-orange-600 ring-4 ring-orange-500/20" : "bg-orange-600 hover:bg-orange-700"}`}
                         >
                             <FileDown className="w-5 h-5" />
                         </button>
@@ -386,42 +411,53 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                         </h3>
                     </div>
                     <div className="flex-1 overflow-y-auto p-5 space-y-6 scroll-smooth">
+                        {isOrderLocked && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 text-amber-800 text-xs shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+                                <Lock className="w-5 h-5 shrink-0 text-amber-600" />
+                                <div className="space-y-1">
+                                    <p className="font-bold uppercase tracking-wider">Phiếu yêu cầu đã khóa</p>
+                                    <p className="leading-relaxed">
+                                        Phiếu yêu cầu đang ở trạng thái <strong>{translateOrderStatus(tempData.orderStatus)}</strong> và đã bị khóa chỉnh sửa. Vui lòng liên hệ với nhân viên kinh doanh để được hỗ trợ mở lại đường link nhập mới nếu cần điều chỉnh thông tin.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                         <Section title="Thông tin thể hiện trên kết quả" color="blue">
-                            <Field label="Tên khách hàng" value={(tempData as any).clientName} onChange={(v) => handleUpdateTopLevel("clientName", v)} onBlur={handleRefreshPreview} />
-                            <Field label="Địa chỉ" value={tempData.clientAddress} onChange={(v) => handleUpdateTopLevel("clientAddress", v)} onBlur={handleRefreshPreview} />
+                            <Field label="Tên khách hàng" value={(tempData as any).clientName} onChange={(v) => handleUpdateTopLevel("clientName", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
+                            <Field label="Địa chỉ" value={tempData.clientAddress} onChange={(v) => handleUpdateTopLevel("clientAddress", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                         </Section>
 
                         <Section title="Thông tin liên hệ" color="green">
                             <div className="grid grid-cols-2 gap-3">
-                                <Field label="Người liên hệ" value={tempData.contactPerson as string} onChange={(v) => handleUpdateTopLevel("contactPerson", v)} onBlur={handleRefreshPreview} />
-                                <Field label="CCCD" value={tempData.contactIdentity} onChange={(v) => handleUpdateTopLevel("contactIdentity", v)} onBlur={handleRefreshPreview} />
+                                <Field label="Người liên hệ" value={tempData.contactPerson as string} onChange={(v) => handleUpdateTopLevel("contactPerson", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
+                                <Field label="CCCD" value={tempData.contactIdentity} onChange={(v) => handleUpdateTopLevel("contactIdentity", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <Field label="Điện thoại" value={tempData.contactPhone as string} onChange={(v) => handleUpdateTopLevel("contactPhone", v)} onBlur={handleRefreshPreview} />
-                                <Field label="Email" value={(tempData as any).contactEmail} onChange={(v) => handleUpdateTopLevel("contactEmail", v)} onBlur={handleRefreshPreview} />
+                                <Field label="Điện thoại" value={tempData.contactPhone as string} onChange={(v) => handleUpdateTopLevel("contactPhone", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
+                                <Field label="Email" value={(tempData as any).contactEmail} onChange={(v) => handleUpdateTopLevel("contactEmail", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                             </div>
                         </Section>
 
                         <Section title="Thông tin nhận kết quả" color="yellow">
-                            <Field label="Người nhận" value={(tempData as any).reportReceiverName} onChange={(v) => handleUpdateTopLevel("reportReceiverName", v)} onBlur={handleRefreshPreview} />
-                            <Field label="Địa chỉ" value={(tempData as any).reportReceiverAddress} onChange={(v) => handleUpdateTopLevel("reportReceiverAddress", v)} onBlur={handleRefreshPreview} />
+                            <Field label="Người nhận" value={(tempData as any).reportReceiverName} onChange={(v) => handleUpdateTopLevel("reportReceiverName", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
+                            <Field label="Địa chỉ" value={(tempData as any).reportReceiverAddress} onChange={(v) => handleUpdateTopLevel("reportReceiverAddress", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                             <div className="grid grid-cols-2 gap-3">
-                                <Field label="Điện thoại" value={(tempData as any).reportReceiverPhone} onChange={(v) => handleUpdateTopLevel("reportReceiverPhone", v)} onBlur={handleRefreshPreview} />
-                                <Field label="Email" value={(tempData as any).reportReceiverEmail} onChange={(v) => handleUpdateTopLevel("reportReceiverEmail", v)} onBlur={handleRefreshPreview} />
+                                <Field label="Điện thoại" value={(tempData as any).reportReceiverPhone} onChange={(v) => handleUpdateTopLevel("reportReceiverPhone", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
+                                <Field label="Email" value={(tempData as any).reportReceiverEmail} onChange={(v) => handleUpdateTopLevel("reportReceiverEmail", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                             </div>
                         </Section>
 
                         <Section title="Thông tin xuất hóa đơn" color="purple">
-                            <Field label="Tên công ty" value={(tempData as any).taxName} onChange={(v) => handleUpdateTopLevel("taxName", v)} onBlur={handleRefreshPreview} />
-                            <Field label="Địa chỉ" value={(tempData as any).invoiceAddress} onChange={(v) => handleUpdateTopLevel("invoiceAddress", v)} onBlur={handleRefreshPreview} />
+                            <Field label="Tên công ty" value={(tempData as any).taxName} onChange={(v) => handleUpdateTopLevel("taxName", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
+                            <Field label="Địa chỉ" value={(tempData as any).invoiceAddress} onChange={(v) => handleUpdateTopLevel("invoiceAddress", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                             <div className="grid grid-cols-2 gap-3">
-                                <Field label="MST/CCCD" value={(tempData as any).taxCode} onChange={(v) => handleUpdateTopLevel("taxCode", v)} onBlur={handleRefreshPreview} />
-                                <Field label="Email" value={(tempData as any).invoiceEmail} onChange={(v) => handleUpdateTopLevel("invoiceEmail", v)} onBlur={handleRefreshPreview} />
+                                <Field label="MST/CCCD" value={(tempData as any).taxCode} onChange={(v) => handleUpdateTopLevel("taxCode", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
+                                <Field label="Email" value={(tempData as any).invoiceEmail} onChange={(v) => handleUpdateTopLevel("invoiceEmail", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                             </div>
                         </Section>
 
                         <Section title="Thông tin chung" color="indigo">
-                            <Field label="Giấy tờ đi kèm" value={(tempData as any).attachedDocuments} onChange={(v) => handleUpdateTopLevel("attachedDocuments", v)} onBlur={handleRefreshPreview} />
+                            <Field label="Giấy tờ đi kèm" value={(tempData as any).attachedDocuments} onChange={(v) => handleUpdateTopLevel("attachedDocuments", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                         </Section>
 
                         <div className="space-y-4">
@@ -429,13 +465,14 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                             {tempData.samples.map((sample, sIdx) => (
                                 <Section key={sIdx} title={`Mẫu ${sIdx + 1}`} color="indigo">
                                     <div className="space-y-3 mb-4">
-                                        <Field label="Tên mẫu" value={sample.sampleName} onChange={(v) => handleUpdateSample(sIdx, "sampleName", v)} onBlur={handleRefreshPreview} />
+                                        <Field label="Tên mẫu" value={sample.sampleName} onChange={(v) => handleUpdateSample(sIdx, "sampleName", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                                     </div>
                                     <div className="space-y-1.5 mb-4">
                                         <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-0.5">Mô tả mẫu thử</label>
                                         <textarea
                                             rows={2}
-                                            className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[48px]"
+                                            disabled={isOrderLocked}
+                                            className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[48px] disabled:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed"
                                             value={sample.sampleDesc || ""}
                                             onChange={(e) => handleUpdateSample(sIdx, "sampleDesc", e.target.value)}
                                             onBlur={handleRefreshPreview}
@@ -445,7 +482,8 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                                         <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-0.5">Ghi chú</label>
                                         <textarea
                                             rows={2}
-                                            className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[48px]"
+                                            disabled={isOrderLocked}
+                                            className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[48px] disabled:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed"
                                             value={sample.sampleNote || ""}
                                             onChange={(e) => handleUpdateSample(sIdx, "sampleNote", e.target.value)}
                                             onBlur={handleRefreshPreview}
@@ -456,21 +494,22 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                                         <div className="mt-3 grid grid-cols-2 gap-2 p-2 bg-muted/20 rounded-md border border-border/50">
                                             {sample.sampleInfo.map((info, iIdx) => {
                                                 if (info.label === "Tên mẫu thử") return null;
-                                                const isTextArea = info.label === "Thông tin khác";
+                                                const isText = info.label === "Thông tin khác";
                                                 return (
-                                                    <div key={iIdx} className={isTextArea ? "col-span-2" : "col-span-1"}>
-                                                        {isTextArea ? (
+                                                    <div key={iIdx} className={isText ? "col-span-2" : "col-span-1"}>
+                                                        {isText ? (
                                                             <div>
                                                                 <label className="block mb-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{info.label}</label>
                                                                 <textarea
-                                                                    className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[60px]"
+                                                                    disabled={isOrderLocked}
+                                                                    className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[60px] disabled:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed"
                                                                     value={info.value || ""}
                                                                     onChange={(e) => handleUpdateSampleInfo(sIdx, iIdx, e.target.value)}
                                                                     onBlur={handleRefreshPreview}
                                                                 />
                                                             </div>
                                                         ) : (
-                                                            <Field label={info.label} value={info.value} onChange={(v) => handleUpdateSampleInfo(sIdx, iIdx, v)} onBlur={handleRefreshPreview} />
+                                                            <Field label={info.label} value={info.value} onChange={(v) => handleUpdateSampleInfo(sIdx, iIdx, v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                                                         )}
                                                     </div>
                                                 );
@@ -492,14 +531,16 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                                                     readOnly
                                                 />
                                                 <input
-                                                    className="w-full text-[10px] px-1.5 py-1 border border-border rounded bg-white focus:ring-1 focus:ring-primary outline-none"
+                                                    disabled={isOrderLocked}
+                                                    className="w-full text-[10px] px-1.5 py-1 border border-border rounded bg-white focus:ring-1 focus:ring-primary outline-none disabled:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed"
                                                     placeholder="Thống nhất với IRDOP"
                                                     value={(ana as any).protocolId ? "" : ((ana as any).protocolCode || "")}
                                                     onChange={(e) => handleUpdateAnalysis(sIdx, aIdx, "protocolCode", e.target.value)}
                                                     onBlur={handleRefreshPreview}
                                                 />
                                                 <input
-                                                    className="w-full text-[10px] px-1.5 py-1 border border-border rounded bg-white focus:ring-1 focus:ring-primary outline-none"
+                                                    disabled={isOrderLocked}
+                                                    className="w-full text-[10px] px-1.5 py-1 border border-border rounded bg-white focus:ring-1 focus:ring-primary outline-none disabled:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed"
                                                     placeholder="Đơn vị"
                                                     value={ana.analysisUnit || ""}
                                                     onChange={(e) => handleUpdateAnalysis(sIdx, aIdx, "analysisUnit", e.target.value)}
@@ -531,7 +572,7 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                                 tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
                                 onInit={(_evt, editor) => {
                                     editorRef.current = editor;
-                                    editor.mode.set(isLocked ? "readonly" : "design");
+                                    editor.mode.set((isLocked || isOrderLocked) ? "readonly" : "design");
                                     setEditorReady(true);
                                 }}
                                 initialValue={initialHtml}
@@ -598,6 +639,44 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                     </div>
                 )}
             </div>
+
+            {/* Custom save & export PDF confirmation modal */}
+            {showConfirmExportModal && (
+                <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl w-full max-w-md p-6 relative flex flex-col animate-in zoom-in-95 duration-200 shadow-2xl border border-border">
+                        <div className="flex items-center gap-3 text-amber-600 mb-4">
+                            <div className="p-2 bg-amber-50 rounded-full flex shrink-0">
+                                <HelpCircle className="w-6 h-6" />
+                            </div>
+                            <h3 className="font-bold text-base text-foreground uppercase tracking-wide">Xác nhận Lưu &amp; Xuất PDF</h3>
+                        </div>
+                        
+                        <div className="text-sm text-muted-foreground space-y-3 leading-relaxed mb-6">
+                            <p>
+                                <strong>Lưu ý quan trọng:</strong> Sau khi xác nhận, thông tin phiếu yêu cầu gửi mẫu sẽ chuyển sang trạng thái <strong>Đang xử lý (Processing)</strong> và sẽ <strong>bị khóa hoàn toàn</strong>. Quý khách sẽ không thể chỉnh sửa thông tin được nữa.
+                            </p>
+                            <p>
+                                Trường hợp cần sửa đổi thông tin sau khi đã xuất PDF, vui lòng liên hệ với nhân viên kinh doanh của IRDOP để được hỗ trợ mở lại đường link nhập mới.
+                            </p>
+                        </div>
+
+                        <div className="flex justify-end gap-3 shrink-0">
+                            <button
+                                onClick={() => setShowConfirmExportModal(false)}
+                                className="px-4 py-2 text-xs font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all border border-gray-200"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={handleConfirmExportPdf}
+                                className="px-4 py-2 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition-all shadow-md flex items-center gap-1.5"
+                            >
+                                Xác nhận &amp; Tải PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -617,13 +696,14 @@ function Section({ title, children, color }: { title: string; children: any; col
     );
 }
 
-function Field({ label, value, onChange, onBlur }: { label: string; value?: string; onChange: (v: string) => void; onBlur?: () => void }) {
+function Field({ label, value, onChange, onBlur, disabled }: { label: string; value?: string; onChange: (v: string) => void; onBlur?: () => void; disabled?: boolean }) {
     return (
         <div>
             <label className="block mb-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</label>
             <input
                 type="text"
-                className="w-full px-3 py-1.5 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none"
+                disabled={disabled}
+                className="w-full px-3 py-1.5 border border-border rounded-lg bg-gray-50/50 text-xs focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none disabled:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed"
                 value={value || ""}
                 onChange={(e) => onChange(e.target.value)}
                 onBlur={onBlur}

@@ -16,21 +16,43 @@ import { useTranslation } from "react-i18next";
 import Cookies from "js-cookie";
 import { 
     customerGetOrderFull, 
-    customerUpdateOrder, 
     customerMe, 
     CUSTOMER_TOKEN_KEY,
     customerUploadOrderDocument,
     customerGetOrderPresignUrl,
-    buildFileUploadFormData
+    buildFileUploadFormData,
+    customerProcessOrderPdf
 } from "@/api/customer";
-import { convertHtmlToPdfForm1 } from "@/api/index";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import { generateSampleRequestHtml } from "@/customerComponents/order/CustomerSampleRequestPrintPreviewModal";
 import { toast } from "sonner";
 import base64Images from "@/assets/base64Images.json";
 
-// ─── Module-level constants (re-used from the modal) ─────────────────────────
 const SAMPLE_INFO_ORDER = ["Tên mẫu thử", "Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Địa chỉ sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
+
+const translateOrderStatus = (status?: string): string => {
+    if (!status) return "Mới";
+    switch (status.toLowerCase()) {
+        case "pending":
+            return "Chờ xử lý";
+        case "processing":
+            return "Đang xử lý";
+        case "approved":
+            return "Đã duyệt";
+        case "rejected":
+            return "Từ chối";
+        case "draft":
+            return "Bản nháp";
+        case "new":
+            return "Mới";
+        case "completed":
+            return "Hoàn thành";
+        case "done":
+            return "Hoàn thành";
+        default:
+            return status;
+    }
+};
 
 const normalizeSampleInfo = (sampleName: string, rawInfo: { label: string; value: string }[]) => {
     const infoMap = new Map((rawInfo || []).map((i) => [i.label, i.value]));
@@ -101,6 +123,12 @@ export function CustomerSampleRequestPage() {
     const [tempData, setTempData] = useState<OrderPrintData | null>(null);
     const [isDirty, setIsDirty] = useState(false);
     const [mobileTab, setMobileTab] = useState<"form" | "preview">("form");
+    const [showConfirmExportModal, setShowConfirmExportModal] = useState(false);
+
+    const isOrderLocked = !!(tempData?.orderStatus && 
+        tempData.orderStatus.toLowerCase() !== "pending" && 
+        tempData.orderStatus.toLowerCase() !== "draft" && 
+        tempData.orderStatus.toLowerCase() !== "new");
 
     const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
     const [isUploading, setIsUploading] = useState(false);
@@ -276,6 +304,7 @@ export function CustomerSampleRequestPage() {
                     createdAt: order.createdAt,
                     client,
                     requestForm: order.requestForm || "",
+                    orderStatus: order.orderStatus || "",
 
                     contactPerson,
                     contactPhone,
@@ -496,95 +525,91 @@ export function CustomerSampleRequestPage() {
         return () => clearTimeout(timer);
     }, [tempData, editorReady, isLocked, t]);
 
-    const handleSave = async (): Promise<boolean> => {
-        if (!editorRef.current || !tempData) return false;
+    useEffect(() => {
+        if (editorRef.current && editorReady) {
+            editorRef.current.mode.set((isLocked || isOrderLocked) ? "readonly" : "design");
+        }
+    }, [isLocked, isOrderLocked, editorReady]);
+
+
+
+    const handleExportClick = () => {
+        if (isOrderLocked) return;
+        setShowConfirmExportModal(true);
+    };
+
+    const handleConfirmExportPdf = async () => {
+        setShowConfirmExportModal(false);
+        if (!editorRef.current || !tempData) return;
         setLoading(true);
         const content = editorRef.current.getContent();
-        const tid = toast.loading(t("common.saving") || "Đang lưu...");
+        const tid = toast.loading("Đang lưu và xuất file PDF...");
+
         try {
-            const res = await customerUpdateOrder({
+            const blob = await customerProcessOrderPdf({
                 body: {
                     orderId: tempData.orderId,
                     requestForm: content,
-                    clientName: (tempData as any).clientName,
+                    clientName: tempData.clientName,
                     clientAddress: tempData.clientAddress,
-                    clientPhone: (tempData as any).clientPhone,
-                    clientEmail: (tempData as any).clientEmail,
-                    taxName: (tempData as any).taxName,
-                    taxCode: (tempData as any).taxCode,
-                    invoiceAddress: (tempData as any).invoiceAddress,
-                    invoiceEmail: (tempData as any).invoiceEmail,
+                    clientPhone: tempData.clientPhone,
+                    clientEmail: tempData.clientEmail,
+                    taxName: tempData.taxName,
+                    taxCode: tempData.taxCode,
+                    invoiceAddress: tempData.invoiceAddress,
+                    invoiceEmail: tempData.invoiceEmail,
                     contactPerson: {
-                        ...(tempData as any)?.rawContactPerson,
                         contactName: tempData.contactPerson,
                         contactPhone: tempData.contactPhone,
                         contactId: tempData.contactIdentity,
                         contactEmail: (tempData as any).contactEmail,
                     },
                     reportRecipient: {
-                        receiverName: (tempData as any).reportReceiverName,
-                        receiverPhone: (tempData as any).reportReceiverPhone,
-                        receiverEmail: (tempData as any).reportReceiverEmail,
-                        receiverAddress: (tempData as any).reportReceiverAddress,
+                        receiverName: tempData.reportReceiverName,
+                        receiverPhone: tempData.reportReceiverPhone,
+                        receiverEmail: tempData.reportReceiverEmail,
+                        receiverAddress: tempData.reportReceiverAddress,
                     },
                     attachedDocuments: (tempData as any).attachedDocuments,
-                    samples: tempData.samples.map((s, sIdx) => {
+                    samples: tempData.samples.map((s) => {
                         const finalInfo = normalizeSampleInfo(s.sampleName || "", parseSampleInfo(s.sampleInfo));
                         const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
                         return {
                             ...s,
-                            ...(tempData as any)?.rawSamples?.[sIdx],
                             sampleName: s.sampleName,
-                            sampleNote: s.sampleNote,
-                            sampleDesc: (s as any).sampleDesc,
+                            sampleDesc: s.sampleDesc,
                             sampleInfo: apiInfo,
-                            analyses: s.analyses.map((a: any, aidx: number) => ({
+                            analyses: s.analyses.map((a) => ({
                                 ...a,
-                                ...(tempData as any)?.rawSamples?.[sIdx]?.analyses?.[aidx],
                                 parameterName: a.parameterName,
                                 protocolCode: a.protocolCode,
-                                protocolId: a.protocolId,
+                                protocolId: (a as any).protocolId,
                                 analysisUnit: a.analysisUnit,
                             })),
                         };
                     }),
                     orderCustomerFileIds: tempData.orderCustomerFileIds,
-                },
+                }
             });
-            if (res.success) {
-                toast.success("Đã lưu phiếu gửi mẫu", { id: tid });
-                setIsDirty(false);
-                return true;
-            } else {
-                toast.error(res.error?.message || "Lưu thất bại", { id: tid });
-                return false;
-            }
-        } catch (e: any) {
-            toast.error(e?.message || "Lỗi khi lưu", { id: tid });
-            return false;
-        } finally {
-            setLoading(false);
-        }
-    };
 
-    const handleExportPdf = async () => {
-        // Auto save before export
-        const isSaved = await handleSave();
-        if (!isSaved || !editorRef.current || !tempData) return;
-        const tid = toast.loading("Đang xuất file PDF...");
-        try {
-            const html = editorRef.current.getContent() || generateSampleRequestHtml(tempData, t);
-            const blob = await convertHtmlToPdfForm1({ body: { html, orderId } });
             const url = window.URL.createObjectURL(new Blob([blob as any]));
             const link = document.createElement("a");
             link.href = url;
-            link.setAttribute("download", `request-form-${orderId || "phiếu"}.pdf`);
+            link.setAttribute("download", `request-form-${tempData.orderId || "phiếu"}.pdf`);
             document.body.appendChild(link);
             link.click();
             link.parentNode?.removeChild(link);
-            toast.success("Đã xuất PDF thành công", { id: tid });
-        } catch {
-            toast.error("Lỗi khi xuất PDF", { id: tid });
+            window.URL.revokeObjectURL(url);
+
+            toast.success("Lưu và xuất PDF thành công!", { id: tid });
+            setIsDirty(false);
+            setTempData(prev => prev ? { ...prev, orderStatus: "Processing" } : null);
+            setIsLocked(true);
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error?.message || "Lỗi khi lưu và xuất PDF", { id: tid });
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -644,23 +669,29 @@ export function CustomerSampleRequestPage() {
                 <div className="flex items-center gap-2">
                     {/* Desktop Action Buttons */}
                     <div className="hidden xl:flex items-center gap-2">
-                        <button
-                            onClick={() => {
-                                const newLock = !isLocked;
-                                setIsLocked(newLock);
-                                if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
-                                toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
-                            }}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border transition-all text-xs font-medium ${isLocked ? "bg-muted" : "bg-primary/10 text-primary border-primary/20"}`}
-                        >
-                            {isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                            <span className="hidden sm:inline">{isLocked ? "Mở khóa sửa" : "Khóa mẫu"}</span>
-                        </button>
+                        {!isOrderLocked && (
+                            <button
+                                onClick={() => {
+                                    const newLock = !isLocked;
+                                    setIsLocked(newLock);
+                                    if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
+                                    toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
+                                }}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border transition-all text-xs font-medium ${isLocked ? "bg-muted" : "bg-primary/10 text-primary border-primary/20"}`}
+                            >
+                                {isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                                <span className="hidden sm:inline">{isLocked ? "Mở khóa sửa" : "Khóa mẫu"}</span>
+                            </button>
+                        )}
 
                         <button
-                            onClick={handleExportPdf}
-                            disabled={loading}
-                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all text-xs font-bold shadow-md ${isDirty ? "bg-primary text-primary-foreground hover:bg-primary/90 scale-105 ring-2 ring-primary/20" : "bg-orange-600 text-white hover:bg-orange-700"}`}
+                            onClick={handleExportClick}
+                            disabled={loading || isOrderLocked}
+                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all text-xs font-bold shadow-md disabled:opacity-55 disabled:cursor-not-allowed ${
+                                isDirty && !isOrderLocked 
+                                    ? "bg-primary text-primary-foreground hover:bg-primary/90 scale-105 ring-2 ring-primary/20" 
+                                    : "bg-orange-600 text-white hover:bg-orange-700"
+                            }`}
                         >
                             <FileDown className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">Lưu & Xuất PDF</span>
@@ -700,31 +731,33 @@ export function CustomerSampleRequestPage() {
                 
                 {/* Floating Action Bar (Top Right) - Vertical Bubbles (Mobile Only) */}
                 <div className="absolute top-4 right-4 md:right-6 z-50 flex xl:hidden flex-col gap-3">
-                    <div className="relative group flex items-center justify-end">
-                        <span className="absolute right-full mr-3 whitespace-nowrap bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
-                            {isLocked ? "Mở khóa sửa" : "Khóa mẫu"}
-                        </span>
-                        <button
-                            onClick={() => {
-                                const newLock = !isLocked;
-                                setIsLocked(newLock);
-                                if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
-                                toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
-                            }}
-                            className={`p-3 rounded-full border shadow-lg transition-transform hover:scale-110 active:scale-95 backdrop-blur-sm ${isLocked ? "bg-white/90 border-border text-muted-foreground hover:text-foreground" : "bg-primary text-primary-foreground border-primary"}`}
-                        >
-                            {isLocked ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
-                        </button>
-                    </div>
+                    {!isOrderLocked && (
+                        <div className="relative group flex items-center justify-end">
+                            <span className="absolute right-full mr-3 whitespace-nowrap bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
+                                {isLocked ? "Mở khóa sửa" : "Khóa mẫu"}
+                            </span>
+                            <button
+                                onClick={() => {
+                                    const newLock = !isLocked;
+                                    setIsLocked(newLock);
+                                    if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
+                                    toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
+                                }}
+                                className={`p-3 rounded-full border shadow-lg transition-transform hover:scale-110 active:scale-95 backdrop-blur-sm ${isLocked ? "bg-white/90 border-border text-muted-foreground hover:text-foreground" : "bg-primary text-primary-foreground border-primary"}`}
+                            >
+                                {isLocked ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+                            </button>
+                        </div>
+                    )}
 
                     <div className="relative group flex items-center justify-end">
                         <span className="absolute right-full mr-3 whitespace-nowrap bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
-                            Lưu & Xuất PDF
+                            Lưu &amp; Xuất PDF
                         </span>
                         <button
-                            onClick={handleExportPdf}
-                            disabled={loading}
-                            className={`p-3 rounded-full transition-transform shadow-lg hover:scale-110 active:scale-95 text-white ${isDirty ? "bg-orange-500 hover:bg-orange-600 ring-4 ring-orange-500/20" : "bg-orange-600 hover:bg-orange-700"}`}
+                            onClick={handleExportClick}
+                            disabled={loading || isOrderLocked}
+                            className={`p-3 rounded-full transition-transform shadow-lg hover:scale-110 active:scale-95 text-white disabled:opacity-55 disabled:cursor-not-allowed ${isDirty && !isOrderLocked ? "bg-orange-500 hover:bg-orange-600 ring-4 ring-orange-500/20" : "bg-orange-600 hover:bg-orange-700"}`}
                         >
                             <FileDown className="w-5 h-5" />
                         </button>
@@ -751,78 +784,90 @@ export function CustomerSampleRequestPage() {
                             Thông tin phiếu
                         </h3>
 
-                        {/* ── Split-button dropdown for uploading inside the header ── */}
-                        <div ref={docMenuRef} className="relative z-10">
-                            <div className={`flex rounded-md overflow-hidden shadow-sm border border-primary bg-white ${isUploading ? "opacity-50 pointer-events-none" : ""}`}>
-                                {/* Main action: trigger file picker with current category */}
-                                <label
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-foreground hover:bg-gray-50 text-xs font-semibold cursor-pointer transition-colors select-none"
-                                    title={`Tải lên: ${selectedDocCategory}`}
-                                >
-                                    {isUploading ? (
-                                        <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0 text-primary" />
-                                    ) : (
-                                        <UploadCloud className="w-3.5 h-3.5 shrink-0 text-primary" />
-                                    )}
-                                    <span className="truncate max-w-[200px] text-foreground font-semibold">
-                                        {isUploading ? "Đang tải lên..." : `Tải lên: ${selectedDocCategory}`}
-                                    </span>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        className="hidden"
-                                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-                                        onChange={handleUploadDocument}
-                                        disabled={isUploading}
-                                    />
-                                </label>
+                        {!isOrderLocked ? (
+                            <div ref={docMenuRef} className="relative z-10">
+                                <div className={`flex rounded-md overflow-hidden shadow-sm border border-primary bg-white ${isUploading ? "opacity-50 pointer-events-none" : ""}`}>
+                                    {/* Main action: trigger file picker with current category */}
+                                    <label
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-foreground hover:bg-gray-50 text-xs font-semibold cursor-pointer transition-colors select-none"
+                                        title={`Tải lên: ${selectedDocCategory}`}
+                                    >
+                                        {isUploading ? (
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0 text-primary" />
+                                        ) : (
+                                            <UploadCloud className="w-3.5 h-3.5 shrink-0 text-primary" />
+                                        )}
+                                        <span className="truncate max-w-[200px] text-foreground font-semibold">
+                                            {isUploading ? "Đang tải lên..." : `Tải lên: ${selectedDocCategory}`}
+                                        </span>
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            className="hidden"
+                                            accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                                            onChange={handleUploadDocument}
+                                            disabled={isUploading}
+                                        />
+                                    </label>
 
-                                {/* Chevron — opens category selector */}
-                                <button
-                                    type="button"
-                                    onClick={() => setShowDocMenu(v => !v)}
-                                    className="px-2 py-1.5 bg-white hover:bg-gray-50 text-primary border-l border-primary/25 transition-colors flex items-center"
-                                    title="Chọn loại tài liệu"
-                                    aria-label="Chọn loại tài liệu"
-                                >
-                                    <ChevronDown className="w-3.5 h-3.5" />
-                                </button>
-                            </div>
-
-                            {/* Dropdown menu */}
-                            {showDocMenu && (
-                                <div className="absolute right-0 top-full mt-1 w-52 z-50 bg-white border border-border rounded-lg shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
-                                    <div className="px-3 py-1.5 border-b border-border bg-muted/30">
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Chọn loại tài liệu</p>
-                                    </div>
-                                    {DOC_CATEGORIES.map(({ label, color }) => (
-                                        <button
-                                            key={label}
-                                            type="button"
-                                            onClick={() => {
-                                                setSelectedDocCategory(label);
-                                                setShowDocMenu(false);
-                                                // Trigger file picker after category is chosen
-                                                setTimeout(() => fileInputRef.current?.click(), 50);
-                                            }}
-                                            className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/50 transition-colors ${
-                                                selectedDocCategory === label ? "bg-primary/5" : ""
-                                            }`}
-                                        >
-                                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${color}`}>
-                                                <Tag className="w-2 h-2" />
-                                                {label}
-                                            </span>
-                                            {selectedDocCategory === label && (
-                                                <span className="ml-auto text-[9px] text-primary font-bold">✓</span>
-                                            )}
-                                        </button>
-                                    ))}
+                                    {/* Chevron — opens category selector */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowDocMenu(v => !v)}
+                                        className="px-2 py-1.5 bg-white hover:bg-gray-50 text-primary border-l border-primary/25 transition-colors flex items-center"
+                                        title="Chọn loại tài liệu"
+                                        aria-label="Chọn loại tài liệu"
+                                    >
+                                        <ChevronDown className="w-3.5 h-3.5" />
+                                    </button>
                                 </div>
-                            )}
-                        </div>
+
+                                {/* Dropdown menu */}
+                                {showDocMenu && (
+                                    <div className="absolute right-0 top-full mt-1 w-52 z-50 bg-white border border-border rounded-lg shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+                                        <div className="px-3 py-1.5 border-b border-border bg-muted/30">
+                                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Chọn loại tài liệu</p>
+                                        </div>
+                                        {DOC_CATEGORIES.map(({ label, color }) => (
+                                            <button
+                                                key={label}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedDocCategory(label);
+                                                    setShowDocMenu(false);
+                                                    // Trigger file picker after category is chosen
+                                                    setTimeout(() => fileInputRef.current?.click(), 50);
+                                                }}
+                                                className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/50 transition-colors ${
+                                                    selectedDocCategory === label ? "bg-primary/5" : ""
+                                                }`}
+                                            >
+                                                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${color}`}>
+                                                    <Tag className="w-2 h-2" />
+                                                    {label}
+                                                </span>
+                                                {selectedDocCategory === label && (
+                                                    <span className="ml-auto text-[9px] text-primary font-bold">✓</span>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ) : null}
                     </div>
                     <div className="flex-1 overflow-y-auto p-5 space-y-6 scroll-smooth">
+                        {isOrderLocked && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 text-amber-800 text-xs shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+                                <Lock className="w-5 h-5 shrink-0 text-amber-600" />
+                                <div className="space-y-1">
+                                    <p className="font-bold uppercase tracking-wider">Phiếu yêu cầu đã khóa</p>
+                                    <p className="leading-relaxed">
+                                        Phiếu yêu cầu đang ở trạng thái <strong>{translateOrderStatus(tempData.orderStatus)}</strong> và đã bị khóa chỉnh sửa. Vui lòng liên hệ với nhân viên kinh doanh để được hỗ trợ mở lại đường link nhập mới nếu cần điều chỉnh thông tin.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                         {/* Danh sách tệp đã tải lên — hiển thị ngay dưới tiêu đề nếu có */}
                         {uploadedFiles.length > 0 && (
                             <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3.5 space-y-2">
@@ -864,57 +909,56 @@ export function CustomerSampleRequestPage() {
                         )}
 
                         <Section title="Thông tin thể hiện trên kết quả" color="blue">
-                            <Field label="Tên khách hàng" value={(tempData as any).clientName} onChange={(v) => handleUpdateTopLevel("clientName", v)} onBlur={handleRefreshPreview} />
-                            <Field label="Địa chỉ" value={tempData.clientAddress} onChange={(v) => handleUpdateTopLevel("clientAddress", v)} onBlur={handleRefreshPreview} />
+                            <Field label="Tên khách hàng" value={(tempData as any).clientName} onChange={(v) => handleUpdateTopLevel("clientName", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
+                            <Field label="Địa chỉ" value={tempData.clientAddress} onChange={(v) => handleUpdateTopLevel("clientAddress", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                         </Section>
 
                         <Section title="Thông tin liên hệ" color="green">
                             <div className="grid grid-cols-2 gap-3">
-                                <Field label="Người liên hệ" value={tempData.contactPerson as string} onChange={(v) => handleUpdateTopLevel("contactPerson", v)} onBlur={handleRefreshPreview} />
-                                <Field label="CCCD" value={tempData.contactIdentity} onChange={(v) => handleUpdateTopLevel("contactIdentity", v)} onBlur={handleRefreshPreview} />
+                                <Field label="Người liên hệ" value={tempData.contactPerson as string} onChange={(v) => handleUpdateTopLevel("contactPerson", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
+                                <Field label="CCCD" value={tempData.contactIdentity} onChange={(v) => handleUpdateTopLevel("contactIdentity", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <Field label="Điện thoại" value={tempData.contactPhone as string} onChange={(v) => handleUpdateTopLevel("contactPhone", v)} onBlur={handleRefreshPreview} />
-                                <Field label="Email" value={(tempData as any).contactEmail} onChange={(v) => handleUpdateTopLevel("contactEmail", v)} onBlur={handleRefreshPreview} />
+                                <Field label="Điện thoại" value={tempData.contactPhone as string} onChange={(v) => handleUpdateTopLevel("contactPhone", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
+                                <Field label="Email" value={(tempData as any).contactEmail} onChange={(v) => handleUpdateTopLevel("contactEmail", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                             </div>
                         </Section>
 
                         <Section title="Thông tin nhận kết quả" color="yellow">
-                            <Field label="Người nhận" value={(tempData as any).reportReceiverName} onChange={(v) => handleUpdateTopLevel("reportReceiverName", v)} onBlur={handleRefreshPreview} />
-                            <Field label="Địa chỉ" value={(tempData as any).reportReceiverAddress} onChange={(v) => handleUpdateTopLevel("reportReceiverAddress", v)} onBlur={handleRefreshPreview} />
+                            <Field label="Người nhận" value={(tempData as any).reportReceiverName} onChange={(v) => handleUpdateTopLevel("reportReceiverName", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
+                            <Field label="Địa chỉ" value={(tempData as any).reportReceiverAddress} onChange={(v) => handleUpdateTopLevel("reportReceiverAddress", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                             <div className="grid grid-cols-2 gap-3">
-                                <Field label="Điện thoại" value={(tempData as any).reportReceiverPhone} onChange={(v) => handleUpdateTopLevel("reportReceiverPhone", v)} onBlur={handleRefreshPreview} />
-                                <Field label="Email" value={(tempData as any).reportReceiverEmail} onChange={(v) => handleUpdateTopLevel("reportReceiverEmail", v)} onBlur={handleRefreshPreview} />
+                                <Field label="Điện thoại" value={(tempData as any).reportReceiverPhone} onChange={(v) => handleUpdateTopLevel("reportReceiverPhone", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
+                                <Field label="Email" value={(tempData as any).reportReceiverEmail} onChange={(v) => handleUpdateTopLevel("reportReceiverEmail", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                             </div>
                         </Section>
 
                         <Section title="Thông tin xuất hóa đơn" color="purple">
-                            <Field label="Tên công ty" value={(tempData as any).taxName} onChange={(v) => handleUpdateTopLevel("taxName", v)} onBlur={handleRefreshPreview} />
-                            <Field label="Địa chỉ" value={(tempData as any).invoiceAddress} onChange={(v) => handleUpdateTopLevel("invoiceAddress", v)} onBlur={handleRefreshPreview} />
+                            <Field label="Tên công ty" value={(tempData as any).taxName} onChange={(v) => handleUpdateTopLevel("taxName", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
+                            <Field label="Địa chỉ" value={(tempData as any).invoiceAddress} onChange={(v) => handleUpdateTopLevel("invoiceAddress", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                             <div className="grid grid-cols-2 gap-3">
-                                <Field label="MST/CCCD" value={(tempData as any).taxCode} onChange={(v) => handleUpdateTopLevel("taxCode", v)} onBlur={handleRefreshPreview} />
-                                <Field label="Email" value={(tempData as any).invoiceEmail} onChange={(v) => handleUpdateTopLevel("invoiceEmail", v)} onBlur={handleRefreshPreview} />
+                                <Field label="MST/CCCD" value={(tempData as any).taxCode} onChange={(v) => handleUpdateTopLevel("taxCode", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
+                                <Field label="Email" value={(tempData as any).invoiceEmail} onChange={(v) => handleUpdateTopLevel("invoiceEmail", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                             </div>
                         </Section>
 
                         <Section title="Thông tin chung" color="indigo">
-                            <Field label="Giấy tờ đi kèm" value={(tempData as any).attachedDocuments} onChange={(v) => handleUpdateTopLevel("attachedDocuments", v)} onBlur={handleRefreshPreview} />
+                            <Field label="Giấy tờ đi kèm" value={(tempData as any).attachedDocuments} onChange={(v) => handleUpdateTopLevel("attachedDocuments", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                         </Section>
-
-
 
                         <div className="space-y-4">
                             <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">Danh sách mẫu</h4>
                             {tempData.samples.map((sample, sIdx) => (
                                 <Section key={sIdx} title={`Mẫu ${sIdx + 1}`} color="indigo">
                                     <div className="space-y-3 mb-4">
-                                        <Field label="Tên mẫu" value={sample.sampleName} onChange={(v) => handleUpdateSample(sIdx, "sampleName", v)} onBlur={handleRefreshPreview} />
+                                        <Field label="Tên mẫu" value={sample.sampleName} onChange={(v) => handleUpdateSample(sIdx, "sampleName", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
                                     </div>
                                     <div className="space-y-1.5 mb-4">
                                         <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Mô tả mẫu thử</label>
                                         <textarea
                                             rows={2}
-                                            className="w-full px-3 py-2 border border-border rounded-lg bg-white text-sm focus:ring-1 focus:ring-primary outline-none transition-all resize-none min-h-[48px]"
+                                            disabled={isOrderLocked}
+                                            className="w-full px-3 py-2 border border-border rounded-lg bg-white text-sm focus:ring-1 focus:ring-primary outline-none transition-all resize-none min-h-[48px] disabled:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed"
                                             placeholder="Nhập mô tả mẫu thử..."
                                             value={(sample as any).sampleDesc || ""}
                                             onChange={(e) => handleUpdateSample(sIdx, "sampleDesc", e.target.value)}
@@ -925,7 +969,8 @@ export function CustomerSampleRequestPage() {
                                         <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Ghi chú</label>
                                         <textarea
                                             rows={2}
-                                            className="w-full px-3 py-2 border border-border rounded-lg bg-white text-sm focus:ring-1 focus:ring-primary outline-none transition-all resize-none min-h-[48px]"
+                                            disabled={isOrderLocked}
+                                            className="w-full px-3 py-2 border border-border rounded-lg bg-white text-sm focus:ring-1 focus:ring-primary outline-none transition-all resize-none min-h-[48px] disabled:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed"
                                             placeholder="Nhập ghi chú..."
                                             value={sample.sampleNote || ""}
                                             onChange={(e) => handleUpdateSample(sIdx, "sampleNote", e.target.value)}
@@ -942,7 +987,8 @@ export function CustomerSampleRequestPage() {
                                                     <label className="block mb-1 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{label}</label>
                                                     {isTextArea ? (
                                                         <textarea
-                                                            className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[60px]"
+                                                            disabled={isOrderLocked}
+                                                            className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[60px] disabled:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed"
                                                             value={info?.value || ""}
                                                             onChange={(e) => handleUpdateSampleInfoByLabel(sIdx, label, e.target.value)}
                                                             onBlur={handleRefreshPreview}
@@ -950,7 +996,8 @@ export function CustomerSampleRequestPage() {
                                                     ) : (
                                                         <input
                                                             type="text"
-                                                            className="w-full px-3 py-1.5 border border-border rounded-lg bg-gray-50/50 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none"
+                                                            disabled={isOrderLocked}
+                                                            className="w-full px-3 py-1.5 border border-border rounded-lg bg-gray-50/50 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none disabled:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed"
                                                             value={info?.value || ""}
                                                             onChange={(e) => handleUpdateSampleInfoByLabel(sIdx, label, e.target.value)}
                                                             onBlur={handleRefreshPreview}
@@ -974,15 +1021,17 @@ export function CustomerSampleRequestPage() {
                                                     value={ana.parameterName || ""}
                                                     readOnly
                                                 />
-                                                    <input
-                                                        className="w-full text-xs px-1.5 py-1 border border-border rounded bg-white focus:ring-1 focus:ring-primary outline-none"
-                                                        placeholder="Thống nhất với IRDOP"
-                                                        value={(ana as any).protocolId ? "" : ((ana as any).protocolCode || "")}
-                                                        onChange={(e) => handleUpdateAnalysis(sIdx, aIdx, "protocolCode", e.target.value)}
-                                                        onBlur={handleRefreshPreview}
-                                                    />
                                                 <input
-                                                    className="w-full text-xs px-1.5 py-1 border border-border rounded bg-white focus:ring-1 focus:ring-primary outline-none"
+                                                    disabled={isOrderLocked}
+                                                    className="w-full text-xs px-1.5 py-1 border border-border rounded bg-white focus:ring-1 focus:ring-primary outline-none disabled:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed"
+                                                    placeholder="Thống nhất với IRDOP"
+                                                    value={(ana as any).protocolId ? "" : ((ana as any).protocolCode || "")}
+                                                    onChange={(e) => handleUpdateAnalysis(sIdx, aIdx, "protocolCode", e.target.value)}
+                                                    onBlur={handleRefreshPreview}
+                                                />
+                                                <input
+                                                    disabled={isOrderLocked}
+                                                    className="w-full text-xs px-1.5 py-1 border border-border rounded bg-white focus:ring-1 focus:ring-primary outline-none disabled:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed"
                                                     placeholder="Đơn vị"
                                                     value={ana.analysisUnit || ""}
                                                     onChange={(e) => handleUpdateAnalysis(sIdx, aIdx, "analysisUnit", e.target.value)}
@@ -1013,7 +1062,7 @@ export function CustomerSampleRequestPage() {
                             tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
                             onInit={(_evt, editor) => {
                                 editorRef.current = editor;
-                                editor.mode.set(isLocked ? "readonly" : "design");
+                                editor.mode.set((isLocked || isOrderLocked) ? "readonly" : "design");
                                 setEditorReady(true);
                             }}
                             initialValue={initialHtml}
@@ -1076,6 +1125,44 @@ export function CustomerSampleRequestPage() {
                     </div>
                 )}
             </div>
+
+            {/* Custom save & export PDF confirmation modal */}
+            {showConfirmExportModal && (
+                <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl w-full max-w-md p-6 relative flex flex-col animate-in zoom-in-95 duration-200 shadow-2xl border border-border">
+                        <div className="flex items-center gap-3 text-amber-600 mb-4">
+                            <div className="p-2 bg-amber-50 rounded-full flex shrink-0">
+                                <HelpCircle className="w-6 h-6" />
+                            </div>
+                            <h3 className="font-bold text-base text-foreground uppercase tracking-wide">Xác nhận Lưu &amp; Xuất PDF</h3>
+                        </div>
+                        
+                        <div className="text-sm text-muted-foreground space-y-3 leading-relaxed mb-6">
+                            <p>
+                                <strong>Lưu ý quan trọng:</strong> Sau khi xác nhận, thông tin phiếu yêu cầu gửi mẫu sẽ chuyển sang trạng thái <strong>Đang xử lý (Processing)</strong> và sẽ <strong>bị khóa hoàn toàn</strong>. Quý khách sẽ không thể chỉnh sửa thông tin được nữa.
+                            </p>
+                            <p>
+                                Trường hợp cần sửa đổi thông tin sau khi đã xuất PDF, vui lòng liên hệ với nhân viên kinh doanh của IRDOP để được hỗ trợ mở lại đường link nhập mới.
+                            </p>
+                        </div>
+
+                        <div className="flex justify-end gap-3 shrink-0">
+                            <button
+                                onClick={() => setShowConfirmExportModal(false)}
+                                className="px-4 py-2 text-xs font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all border border-gray-200"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={handleConfirmExportPdf}
+                                className="px-4 py-2 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition-all shadow-md flex items-center gap-1.5"
+                            >
+                                Xác nhận &amp; Tải PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -1098,13 +1185,14 @@ function Section({ title, children, color }: { title: string; children: any; col
     );
 }
 
-function Field({ label, value, onChange, onBlur }: { label: string; value?: string; onChange: (v: string) => void; onBlur?: () => void }) {
+function Field({ label, value, onChange, onBlur, disabled }: { label: string; value?: string; onChange: (v: string) => void; onBlur?: () => void; disabled?: boolean }) {
     return (
         <div>
             <label className="block mb-1 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{label}</label>
             <input
                 type="text"
-                className="w-full px-3 py-1.5 border border-border rounded-lg bg-gray-50/50 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none"
+                disabled={disabled}
+                className="w-full px-3 py-1.5 border border-border rounded-lg bg-gray-50/50 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none disabled:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed"
                 value={value || ""}
                 onChange={(e) => onChange(e.target.value)}
                 onBlur={onBlur}
