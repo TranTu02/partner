@@ -309,7 +309,6 @@ export function SampleRequestFormPage() {
         }
     };
 
-    const [isTinyMCELocked, setIsTinyMCELocked] = useState(true);
 
     return (
         <div className="h-screen flex flex-col bg-background">
@@ -322,19 +321,6 @@ export function SampleRequestFormPage() {
                 </div>
 
                 <div className="flex gap-2 shrink-0">
-                    <button
-                        onClick={() => {
-                            setIsTinyMCELocked(!isTinyMCELocked);
-                            if (editorRef.current) {
-                                editorRef.current.mode.set(isTinyMCELocked ? "design" : "readonly");
-                                toast.success(isTinyMCELocked ? "Đã mở khóa chỉnh sửa" : "Đã khóa chỉnh sửa");
-                            }
-                        }}
-                        className="flex items-center gap-2 px-3 py-2 rounded-md transition-colors shadow-sm bg-gray-100 text-gray-700 hover:bg-gray-200 border border-border"
-                        title="Khóa/Mở khóa"
-                    >
-                        {isTinyMCELocked ? <span className="text-sm font-medium">Mở khóa sửa</span> : <span className="text-sm font-medium">Khóa mẫu</span>}
-                    </button>
 
                     <button
                         onClick={handleExportPdf}
@@ -726,7 +712,7 @@ export function SampleRequestFormPage() {
                                         tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
                                         onInit={(_evt: any, editor: any) => {
                                             editorRef.current = editor;
-                                            editor.mode.set(isTinyMCELocked ? "readonly" : "design");
+                                            editor.mode.set("design");
                                             setEditorReady(true);
                                         }}
                                         initialValue={initialHtml}

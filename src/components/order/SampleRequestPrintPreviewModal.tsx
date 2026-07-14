@@ -62,6 +62,8 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
         }
     };
 
+    const isProcessing = !!(data as any)?.orderStatus && (data as any).orderStatus.toLowerCase() === "processing";
+
     const handleGenerateLink = async () => {
         if (!data?.orderId) return;
 
@@ -158,9 +160,20 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
                         </button>
 
                         <button
-                            onClick={handleGenerateLink}
-                            className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-destructive/10 text-destructive border-destructive/20 transition-colors text-sm font-medium"
-                            title="Tạo lại link mới (Reset phiếu)"
+                            onClick={() => {
+                                if (isProcessing) {
+                                    toast.error("Đơn hàng đã ở trạng thái Đang xử lý (Processing), không thể tạo link mới.");
+                                    return;
+                                }
+                                handleGenerateLink();
+                            }}
+                            disabled={isProcessing}
+                            className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${
+                                isProcessing
+                                    ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50 border-border"
+                                    : "border-destructive/20 hover:bg-destructive/10 text-destructive"
+                            }`}
+                            title={isProcessing ? "Đơn hàng đang ở trạng thái Processing, không thể tạo link mới" : "Tạo lại link mới (Reset phiếu)"}
                         >
                             <LinkIcon className="w-4 h-4" />
                             <span className="hidden sm:inline">{t("Tạo Link Mới")}</span>
@@ -175,7 +188,10 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
                     <Editor
                         key={data.orderId}
                         tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
-                        onInit={(_evt: any, editor: any) => (editorRef.current = editor)}
+                        onInit={(_evt: any, editor: any) => {
+                            editorRef.current = editor;
+                            if (isProcessing) editor.mode.set("readonly");
+                        }}
                         initialValue={initialHtml}
                         init={{
                             height: "100%",

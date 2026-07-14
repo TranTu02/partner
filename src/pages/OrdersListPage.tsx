@@ -244,6 +244,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
             discountRate: fullOrder.discountRate || 0,
             orderUri: fullOrder.orderUri || "",
             requestForm: fullOrder.requestForm || "",
+            orderStatus: fullOrder.orderStatus || "",
         };
 
         return data;
