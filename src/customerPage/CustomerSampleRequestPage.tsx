@@ -11,7 +11,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Editor } from "@tinymce/tinymce-react";
-import { X, FileDown, HelpCircle, FileText, ArrowLeft, UploadCloud, Loader2, ChevronDown, Tag, Unlock, Lock } from "lucide-react";
+import { X, FileDown, HelpCircle, FileText, ArrowLeft, UploadCloud, Loader2, ChevronDown, Tag, Lock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import Cookies from "js-cookie";
 import { 
@@ -23,7 +23,6 @@ import {
     buildFileUploadFormData,
     customerProcessOrderPdf
 } from "@/api/customer";
-import { generateOrderUri } from "@/api/index";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import { generateSampleRequestHtml } from "@/customerComponents/order/CustomerSampleRequestPrintPreviewModal";
 import { toast } from "sonner";

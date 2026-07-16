@@ -395,7 +395,15 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                         data={printData}
                         onUpdateData={(newData) => {
                             setPrintData(prev => prev ? { ...prev, ...newData } : null);
-                            setSelectedOrder(prev => prev ? { ...prev, ...newData } : null);
+                            setSelectedOrder(prev => {
+                                if (!prev) return null;
+                                return {
+                                    ...prev,
+                                    orderUri: newData.orderUri !== undefined ? newData.orderUri : prev.orderUri,
+                                    requestForm: newData.requestForm !== undefined ? newData.requestForm : prev.requestForm,
+                                    orderStatus: (newData.orderStatus !== undefined ? newData.orderStatus : prev.orderStatus) as any,
+                                };
+                            });
                             fetchOrders();
                         }}
                     />

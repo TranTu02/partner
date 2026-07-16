@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Eye, FileDown, Search, ArrowLeft, FileText, Pencil, Save, Upload, Unlock, Lock } from "lucide-react";
+import { Eye, FileDown, Search, ArrowLeft, FileText, Pencil, Save, Upload, Lock } from "lucide-react";
 import { CustomerOrderEditor } from "@/customerComponents/order/CustomerOrderEditor";
 import type { CustomerOrderEditorRef } from "@/customerComponents/order/CustomerOrderEditor";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { customerGetOrders, customerGetOrderDetail } from "@/api/customer";
-import { generateOrderUri } from "@/api/index";
 import type { Order } from "@/types/order";
 import { toast } from "sonner";
 import { Pagination } from "@/components/common/Pagination";
@@ -27,7 +26,6 @@ export function CustomerOrdersPage() {
     // Print State
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [printData, setPrintData] = useState<OrderPrintData | null>(null);
-    const [showUnlockModal, setShowUnlockModal] = useState(false);
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
