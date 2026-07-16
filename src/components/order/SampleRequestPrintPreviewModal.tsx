@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { X, Link as LinkIcon, Printer } from "lucide-react";
+import { useRef, useState } from "react";
+import { X, Link as LinkIcon, Printer, Unlock } from "lucide-react";
 import { Editor } from "@tinymce/tinymce-react";
 import type { OrderPrintData } from "./OrderPrintTemplate";
 import { useTranslation } from "react-i18next";
@@ -17,6 +17,7 @@ interface SampleRequestPrintPreviewModalProps {
 export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdateData }: SampleRequestPrintPreviewModalProps) {
     const { t } = useTranslation();
     const editorRef = useRef<any>(null);
+    const [showUnlockModal, setShowUnlockModal] = useState(false);
 
     const copyToClipboard = async (text: string) => {
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -64,13 +65,8 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
 
     const isProcessing = !!(data as any)?.orderStatus && (data as any).orderStatus.toLowerCase() === "processing";
 
-    const handleGenerateLink = async () => {
+    const handleGenerateLink = async (isUnlockAction = false) => {
         if (!data?.orderId) return;
-
-        // Confirmation dialog
-        if (!window.confirm("CẢNH BÁO: Việc tạo link mới sẽ đặt lại nội dung phiếu về mặc định ban đầu. Bạn có chắc chắn muốn tiếp tục?")) {
-            return;
-        }
 
         try {
             const res: any = await generateOrderUri({ body: { orderId: data.orderId } });
@@ -92,9 +88,16 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
 
                 const link = `${window.location.origin}/customer/orders/sample-request?orderId=${data.orderId}&sessionId=${token}`;
                 await copyToClipboard(link);
-                toast.success("Đã tạo và sao chép liên kết mới thành công");
+                if (isUnlockAction) {
+                    toast.success("Đã mở khóa và sao chép liên kết mới thành công");
+                } else {
+                    toast.success("Đã tạo và sao chép liên kết mới thành công");
+                }
                 if (onUpdateData) {
-                    onUpdateData({ orderUri: token, requestForm: "" });
+                    onUpdateData({ orderUri: token, requestForm: "", orderStatus: "Pending" });
+                }
+                if (editorRef.current) {
+                    editorRef.current.mode.set("design");
                 }
             } else {
                 toast.error("Không thể tạo liên kết: " + (res?.error?.message || "Lỗi không xác định"));
@@ -159,25 +162,29 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
                             <span className="hidden sm:inline">{t("Lấy Link")}</span>
                         </button>
 
-                        <button
-                            onClick={() => {
-                                if (isProcessing) {
-                                    toast.error("Đơn hàng đã ở trạng thái Đang xử lý (Processing), không thể tạo link mới.");
-                                    return;
-                                }
-                                handleGenerateLink();
-                            }}
-                            disabled={isProcessing}
-                            className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${
-                                isProcessing
-                                    ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50 border-border"
-                                    : "border-destructive/20 hover:bg-destructive/10 text-destructive"
-                            }`}
-                            title={isProcessing ? "Đơn hàng đang ở trạng thái Processing, không thể tạo link mới" : "Tạo lại link mới (Reset phiếu)"}
-                        >
-                            <LinkIcon className="w-4 h-4" />
-                            <span className="hidden sm:inline">{t("Tạo Link Mới")}</span>
-                        </button>
+                        {isProcessing ? (
+                            <button
+                                onClick={() => setShowUnlockModal(true)}
+                                className="flex items-center gap-2 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors text-sm font-medium shadow-sm"
+                                title="Mở khóa chỉnh sửa"
+                            >
+                                <Unlock className="w-4 h-4" />
+                                <span className="hidden sm:inline">{t("Mở khóa sửa")}</span>
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => {
+                                    if (window.confirm("CẢNH BÁO: Việc tạo link mới sẽ đặt lại nội dung phiếu về mặc định ban đầu. Bạn có chắc chắn muốn tiếp tục?")) {
+                                        handleGenerateLink(false);
+                                    }
+                                }}
+                                className="flex items-center gap-2 px-3 py-2 border border-destructive/20 rounded-lg hover:bg-destructive/10 text-destructive transition-colors text-sm font-medium"
+                                title="Tạo lại link mới (Reset phiếu)"
+                            >
+                                <LinkIcon className="w-4 h-4" />
+                                <span className="hidden sm:inline">{t("Tạo Link Mới")}</span>
+                            </button>
+                        )}
                         <button onClick={onClose} className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-colors">
                             <X className="w-5 h-5" />
                         </button>
@@ -259,6 +266,51 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
                     />
                 </div>
             </div>
+
+            {/* Unlock edit confirmation modal */}
+            {showUnlockModal && (
+                <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl w-full max-w-lg p-8 relative flex flex-col animate-in zoom-in-95 duration-200 shadow-2xl border border-border">
+                        <div className="flex items-center gap-3 text-amber-600 mb-5">
+                            <div className="p-2.5 bg-amber-50 rounded-full flex shrink-0">
+                                <Unlock className="w-8 h-8" />
+                            </div>
+                            <h3 className="font-bold text-lg text-foreground uppercase tracking-wide">Mở khóa chỉnh sửa phiếu</h3>
+                        </div>
+
+                        <div className="text-base text-muted-foreground space-y-4 leading-relaxed mb-8">
+                            <p className="text-red-600 font-bold">
+                                ⚠️ Đơn hàng đang ở trạng thái <span className="uppercase">Đang xử lý (Processing)</span>. Việc mở khóa sẽ tạo một liên kết mới và đặt lại phiếu về trạng thái <span className="uppercase">Chờ xử lý (Pending)</span>.
+                            </p>
+                            <p>
+                                Toàn bộ nội dung phiếu đã xuất trước đó sẽ được xóa và khách hàng/quý khách cần điền lại thông tin, nộp lại phiếu mới.
+                            </p>
+                            <p className="text-red-700 font-semibold">
+                                Chỉ thực hiện khi thực sự cần điều chỉnh thông tin quan trọng trên phiếu.
+                            </p>
+                        </div>
+
+                        <div className="flex justify-end gap-3 shrink-0">
+                            <button
+                                onClick={() => setShowUnlockModal(false)}
+                                className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all border border-gray-200"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    setShowUnlockModal(false);
+                                    await handleGenerateLink(true);
+                                }}
+                                className="px-5 py-2.5 text-sm font-bold rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition-all shadow-md flex items-center gap-2"
+                            >
+                                <Unlock className="w-4 h-4" />
+                                Xác nhận Mở khóa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Eye, FileDown, Search, ArrowLeft, FileText, Pencil, Save, Upload } from "lucide-react";
+import { Eye, FileDown, Search, ArrowLeft, FileText, Pencil, Save, Upload, Unlock, Lock } from "lucide-react";
 import { CustomerOrderEditor } from "@/customerComponents/order/CustomerOrderEditor";
 import type { CustomerOrderEditorRef } from "@/customerComponents/order/CustomerOrderEditor";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { customerGetOrders, customerGetOrderDetail } from "@/api/customer";
+import { generateOrderUri } from "@/api/index";
 import type { Order } from "@/types/order";
 import { toast } from "sonner";
 import { Pagination } from "@/components/common/Pagination";
@@ -26,6 +27,7 @@ export function CustomerOrdersPage() {
     // Print State
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [printData, setPrintData] = useState<OrderPrintData | null>(null);
+    const [showUnlockModal, setShowUnlockModal] = useState(false);
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -264,6 +266,15 @@ export function CustomerOrdersPage() {
                                         <span>Chỉnh sửa</span>
                                     </button>
                                 )}
+                                {selectedOrder?.orderStatus?.toLowerCase() === "processing" && (
+                                    <button
+                                        onClick={() => toast.warning("Đơn hàng đã khóa chỉnh sửa. Vui lòng liên hệ với nhân viên kinh doanh để được hỗ trợ mở khóa.")}
+                                        className="flex items-center gap-2 px-3 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg transition-colors text-sm font-medium shadow-sm"
+                                    >
+                                        <Lock className="w-4 h-4" />
+                                        <span>Đơn hàng đã khóa</span>
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => editorRef.current?.triggerUpload()}
                                     className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
@@ -317,6 +328,8 @@ export function CustomerOrdersPage() {
                         initialQuoteId={quoteId || undefined}
                     />
                 </div>
+
+
             </div>
         );
     }

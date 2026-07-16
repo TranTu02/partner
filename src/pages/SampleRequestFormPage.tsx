@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Editor } from "@tinymce/tinymce-react";
-import { Save, Printer, HelpCircle, X, FileDown } from "lucide-react";
+import { Save, Printer, HelpCircle, X, FileDown, Unlock } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { getOrderFull, checkOrderUri, updateOrder, convertHtmlToPdfForm1 } from "@/api/index";
+import { getOrderFull, checkOrderUri, updateOrder, convertHtmlToPdfForm1, generateOrderUri } from "@/api/index";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import type { Client } from "@/types/client";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ export function SampleRequestFormPage() {
     const [savedContent, setSavedContent] = useState<string>("");
     const [showGuide, setShowGuide] = useState(false); // For mobile modal
     const [showPrintConfirm, setShowPrintConfirm] = useState(false);
+    const [showUnlockModal, setShowUnlockModal] = useState(false);
 
     // Removed isLocked logic to allow editing at all times
 
@@ -177,6 +178,23 @@ export function SampleRequestFormPage() {
         }
     };
 
+    const handleConfirmUnlock = async () => {
+        if (!orderId) return;
+        setShowUnlockModal(false);
+        const tid = toast.loading("Đang mở khóa phiếu yêu cầu...");
+        try {
+            const res = await generateOrderUri({ body: { orderId } });
+            if (res?.success) {
+                toast.success("Đã mở khóa phiếu thành công. Trạng thái được thiết lập về Pending.", { id: tid });
+                setData(prev => prev ? { ...prev, orderStatus: "Pending" } : null);
+            } else {
+                toast.error(res?.error?.message || "Không thể mở khóa.", { id: tid });
+            }
+        } catch (err: any) {
+            toast.error(err?.message || "Lỗi khi mở khóa.", { id: tid });
+        }
+    };
+
     // handleProcessPdf removed
 
     return (
@@ -210,6 +228,18 @@ export function SampleRequestFormPage() {
                         <Save className="w-4 h-4" />
                         <span className="text-sm font-medium hidden sm:inline">{t("common.save") || "Lưu"}</span>
                     </button>
+
+                    {data?.orderStatus?.toLowerCase() === "processing" && (
+                        <button
+                            onClick={() => setShowUnlockModal(true)}
+                            disabled={loading}
+                            className="flex items-center gap-2 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-md transition-colors shadow-sm text-sm font-medium"
+                            title="Mở khóa chỉnh sửa cho khách hàng"
+                        >
+                            <Unlock className="w-4 h-4" />
+                            <span className="text-sm font-medium hidden sm:inline">Mở khóa sửa</span>
+                        </button>
+                    )}
 
                     <button
                         onClick={handlePrint}
@@ -372,6 +402,48 @@ export function SampleRequestFormPage() {
                                     className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
                                 >
                                     {t("common.saveAndPrint")}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Unlock edit confirmation modal */}
+                {showUnlockModal && (
+                    <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-2xl w-full max-w-lg p-8 relative flex flex-col animate-in zoom-in-95 duration-200 shadow-2xl border border-border text-left">
+                            <div className="flex items-center gap-3 text-amber-600 mb-5">
+                                <div className="p-2.5 bg-amber-50 rounded-full flex shrink-0">
+                                    <Unlock className="w-8 h-8" />
+                                </div>
+                                <h3 className="font-bold text-lg text-foreground uppercase tracking-wide">Mở khóa chỉnh sửa phiếu</h3>
+                            </div>
+
+                            <div className="text-base text-muted-foreground space-y-4 leading-relaxed mb-8">
+                                <p className="text-red-600 font-bold">
+                                    ⚠️ Đơn hàng đang ở trạng thái <span className="uppercase">Đang xử lý (Processing)</span>. Việc mở khóa sẽ tạo một liên kết mới và đặt lại phiếu về trạng thái <span className="uppercase">Chờ xử lý (Pending)</span>.
+                                </p>
+                                <p>
+                                    Toàn bộ nội dung phiếu đã xuất trước đó sẽ được xóa và khách hàng/quý khách cần điền lại thông tin, nộp lại phiếu mới.
+                                </p>
+                                <p className="text-red-700 font-semibold">
+                                    Chỉ thực hiện khi thực sự cần điều chỉnh thông tin quan trọng trên phiếu.
+                                </p>
+                            </div>
+
+                            <div className="flex justify-end gap-3 shrink-0">
+                                <button
+                                    onClick={() => setShowUnlockModal(false)}
+                                    className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all border border-gray-200"
+                                >
+                                    Hủy
+                                </button>
+                                <button
+                                    onClick={handleConfirmUnlock}
+                                    className="px-5 py-2.5 text-sm font-bold rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition-all shadow-md flex items-center gap-2"
+                                >
+                                    <Unlock className="w-4 h-4" />
+                                    Xác nhận Mở khóa
                                 </button>
                             </div>
                         </div>

@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft, FileText } from "lucide-react";
+import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft, FileText, Unlock } from "lucide-react";
 import type { OrderEditorRef } from "@/components/order/OrderEditor";
 import { OrderEditor } from "@/components/order/OrderEditor";
 
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { getOrders, getOrderFull } from "@/api/index";
+import { getOrders, getOrderFull, generateOrderUri } from "@/api/index";
 
 import type { Order } from "@/types/order";
 import { toast } from "sonner";
@@ -40,6 +40,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [isSampleRequestModalOpen, setIsSampleRequestModalOpen] = useState(false);
     const [printData, setPrintData] = useState<OrderPrintData | null>(null);
+    const [showUnlockModal, setShowUnlockModal] = useState(false);
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -323,10 +324,20 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                     <div className="flex gap-2">
                         {/* Always show Toggle button if not creating */}
                         {!isCreate && (
-                            <button onClick={toggleLocalMode} className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
-                                {localViewMode === "view" ? <Pencil className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                <span className="hidden sm:inline">{localViewMode === "view" ? t("common.edit") : t("common.view")}</span>
-                            </button>
+                            selectedOrder?.orderStatus?.toLowerCase() === "processing" ? (
+                                <button
+                                    onClick={() => setShowUnlockModal(true)}
+                                    className="flex items-center gap-2 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors text-sm font-medium shadow-sm"
+                                >
+                                    <Unlock className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Mở khóa chỉnh sửa</span>
+                                </button>
+                            ) : (
+                                <button onClick={toggleLocalMode} className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
+                                    {localViewMode === "view" ? <Pencil className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    <span className="hidden sm:inline">{localViewMode === "view" ? t("common.edit") : t("common.view")}</span>
+                                </button>
+                            )
                         )}
 
                         {localViewMode === "view" && (
@@ -377,7 +388,76 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                         initialQuoteId={quoteId || undefined}
                     />
                 </div>
-                {printData && <SampleRequestPrintPreviewModal isOpen={isSampleRequestModalOpen} onClose={() => setIsSampleRequestModalOpen(false)} data={printData} />}
+                {printData && (
+                    <SampleRequestPrintPreviewModal
+                        isOpen={isSampleRequestModalOpen}
+                        onClose={() => setIsSampleRequestModalOpen(false)}
+                        data={printData}
+                        onUpdateData={(newData) => {
+                            setPrintData(prev => prev ? { ...prev, ...newData } : null);
+                            setSelectedOrder(prev => prev ? { ...prev, ...newData } : null);
+                            fetchOrders();
+                        }}
+                    />
+                )}
+
+                {/* Unlock edit confirmation modal */}
+                {showUnlockModal && (
+                    <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-2xl w-full max-w-lg p-8 relative flex flex-col animate-in zoom-in-95 duration-200 shadow-2xl border border-border">
+                            <div className="flex items-center gap-3 text-amber-600 mb-5">
+                                <div className="p-2.5 bg-amber-50 rounded-full flex shrink-0">
+                                    <Unlock className="w-8 h-8" />
+                                </div>
+                                <h3 className="font-bold text-lg text-foreground uppercase tracking-wide">Mở khóa chỉnh sửa đơn hàng</h3>
+                            </div>
+
+                            <div className="text-base text-muted-foreground space-y-4 leading-relaxed mb-8">
+                                <p className="text-red-600 font-bold">
+                                    ⚠️ Đơn hàng đang ở trạng thái <span className="uppercase">Đang xử lý (Processing)</span>. Việc mở khóa sẽ tạo một liên kết mới và đặt lại phiếu về trạng thái <span className="uppercase">Chờ xử lý (Pending)</span>.
+                                </p>
+                                <p>
+                                    Toàn bộ nội dung phiếu gửi mẫu đã xuất trước đó sẽ bị xóa. Khách hàng cần điền lại thông tin và nộp lại phiếu mới.
+                                </p>
+                                <p className="text-red-700 font-semibold">
+                                    Chỉ thực hiện khi cần điều chỉnh thông tin quan trọng trên phiếu.
+                                </p>
+                            </div>
+
+                            <div className="flex justify-end gap-3 shrink-0">
+                                <button
+                                    onClick={() => setShowUnlockModal(false)}
+                                    className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all border border-gray-200"
+                                >
+                                    Hủy
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        if (!selectedOrder?.orderId) return;
+                                        setShowUnlockModal(false);
+                                        const tid = toast.loading("Đang tạo liên kết mới...");
+                                        try {
+                                            const res = await generateOrderUri({ body: { orderId: selectedOrder.orderId } });
+                                            if (res?.success) {
+                                                toast.success("Đã tạo liên kết mới. Đơn hàng được mở lại.", { id: tid });
+                                                setSelectedOrder(prev => prev ? { ...prev, orderStatus: "Pending" } : null);
+                                                fetchOrders();
+                                            } else {
+                                                toast.error(res?.error?.message || "Không thể tạo liên kết mới.", { id: tid });
+                                            }
+                                        } catch (err: any) {
+                                            toast.error(err?.message || "Lỗi khi tạo liên kết mới.", { id: tid });
+                                        }
+                                    }}
+                                    className="px-5 py-2.5 text-sm font-bold rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition-all shadow-md flex items-center gap-2"
+                                >
+                                    <Unlock className="w-4 h-4" />
+                                    Xác nhận Mở khóa
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }

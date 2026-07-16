@@ -11,7 +11,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Editor } from "@tinymce/tinymce-react";
-import { X, FileDown, HelpCircle, FileText, Lock, Unlock, ArrowLeft, UploadCloud, Loader2, ChevronDown, Tag } from "lucide-react";
+import { X, FileDown, HelpCircle, FileText, ArrowLeft, UploadCloud, Loader2, ChevronDown, Tag, Unlock, Lock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import Cookies from "js-cookie";
 import { 
@@ -23,6 +23,7 @@ import {
     buildFileUploadFormData,
     customerProcessOrderPdf
 } from "@/api/customer";
+import { generateOrderUri } from "@/api/index";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import { generateSampleRequestHtml } from "@/customerComponents/order/CustomerSampleRequestPrintPreviewModal";
 import { toast } from "sonner";
@@ -118,7 +119,6 @@ export function CustomerSampleRequestPage() {
     // Same state as the modal
     const [loading, setLoading] = useState(false);
     const [editorReady, setEditorReady] = useState(false);
-    const [isLocked, setIsLocked] = useState(true);
     const [showGuide, setShowGuide] = useState(false);
     const [tempData, setTempData] = useState<OrderPrintData | null>(null);
     const [isDirty, setIsDirty] = useState(false);
@@ -516,20 +516,20 @@ export function CustomerSampleRequestPage() {
     // Only runs in locked mode so we don't overwrite direct TinyMCE edits.
     // Debounced 300ms so rapid keystrokes don't cause flickering.
     useEffect(() => {
-        if (!editorReady || !tempData || !isLocked) return;
+        if (!editorReady || !tempData) return;
         const timer = setTimeout(() => {
             if (editorRef.current) {
                 editorRef.current.setContent(generateSampleRequestHtml(tempData, t));
             }
         }, 300);
         return () => clearTimeout(timer);
-    }, [tempData, editorReady, isLocked, t]);
+    }, [tempData, editorReady, t]);
 
     useEffect(() => {
         if (editorRef.current && editorReady) {
-            editorRef.current.mode.set((isLocked || isOrderLocked) ? "readonly" : "design");
+            editorRef.current.mode.set(isOrderLocked ? "readonly" : "design");
         }
-    }, [isLocked, isOrderLocked, editorReady]);
+    }, [isOrderLocked, editorReady]);
 
 
 
@@ -598,7 +598,7 @@ export function CustomerSampleRequestPage() {
                 }
             });
 
-            const url = window.URL.createObjectURL(new Blob([blob as any]));
+            const url = window.URL.createObjectURL(blob as Blob);
             const link = document.createElement("a");
             link.href = url;
             link.setAttribute("download", `request-form-${tempData.orderId || "phiếu"}.pdf`);
@@ -610,7 +610,6 @@ export function CustomerSampleRequestPage() {
             toast.success("Lưu và xuất PDF thành công!", { id: tid });
             setIsDirty(false);
             setTempData(prev => prev ? { ...prev, orderStatus: "Processing" } : null);
-            setIsLocked(true);
         } catch (error: any) {
             console.error(error);
             toast.error(error?.message || "Lỗi khi lưu và xuất PDF", { id: tid });
@@ -618,6 +617,8 @@ export function CustomerSampleRequestPage() {
             setLoading(false);
         }
     };
+
+
 
     // ── Loading ──
     if (isLoading) {
@@ -675,33 +676,29 @@ export function CustomerSampleRequestPage() {
                 <div className="flex items-center gap-2">
                     {/* Desktop Action Buttons */}
                     <div className="hidden xl:flex items-center gap-2">
-                        {!isOrderLocked && (
+
+                        {isOrderLocked ? (
                             <button
-                                onClick={() => {
-                                    const newLock = !isLocked;
-                                    setIsLocked(newLock);
-                                    if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
-                                    toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
-                                }}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border transition-all text-xs font-medium ${isLocked ? "bg-muted" : "bg-primary/10 text-primary border-primary/20"}`}
+                                onClick={() => toast.warning("Phiếu yêu cầu đã khóa chỉnh sửa. Vui lòng liên hệ với nhân viên kinh doanh để được hỗ trợ mở lại.")}
+                                className="flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all text-xs font-bold shadow-md bg-gray-400 hover:bg-gray-500 text-white"
                             >
-                                {isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                                <span className="hidden sm:inline">{isLocked ? "Mở khóa sửa" : "Khóa mẫu"}</span>
+                                <Lock className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Phiếu đã khóa</span>
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleExportClick}
+                                disabled={loading}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all text-xs font-bold shadow-md disabled:opacity-55 disabled:cursor-not-allowed ${
+                                    isDirty
+                                        ? "bg-primary text-primary-foreground hover:bg-primary/90 scale-105 ring-2 ring-primary/20"
+                                        : "bg-orange-600 text-white hover:bg-orange-700"
+                                }`}
+                            >
+                                <FileDown className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Lưu &amp; Xuất PDF</span>
                             </button>
                         )}
-
-                        <button
-                            onClick={handleExportClick}
-                            disabled={loading || isOrderLocked}
-                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all text-xs font-bold shadow-md disabled:opacity-55 disabled:cursor-not-allowed ${
-                                isDirty && !isOrderLocked 
-                                    ? "bg-primary text-primary-foreground hover:bg-primary/90 scale-105 ring-2 ring-primary/20" 
-                                    : "bg-orange-600 text-white hover:bg-orange-700"
-                            }`}
-                        >
-                            <FileDown className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Lưu & Xuất PDF</span>
-                        </button>
 
                         <div className="w-px h-6 bg-border mx-1" />
                     </div>
@@ -737,35 +734,23 @@ export function CustomerSampleRequestPage() {
                 
                 {/* Floating Action Bar (Top Right) - Vertical Bubbles (Mobile Only) */}
                 <div className="absolute top-4 right-4 md:right-6 z-50 flex xl:hidden flex-col gap-3">
-                    {!isOrderLocked && (
-                        <div className="relative group flex items-center justify-end">
-                            <span className="absolute right-full mr-3 whitespace-nowrap bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
-                                {isLocked ? "Mở khóa sửa" : "Khóa mẫu"}
-                            </span>
-                            <button
-                                onClick={() => {
-                                    const newLock = !isLocked;
-                                    setIsLocked(newLock);
-                                    if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
-                                    toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
-                                }}
-                                className={`p-3 rounded-full border shadow-lg transition-transform hover:scale-110 active:scale-95 backdrop-blur-sm ${isLocked ? "bg-white/90 border-border text-muted-foreground hover:text-foreground" : "bg-primary text-primary-foreground border-primary"}`}
-                            >
-                                {isLocked ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
-                            </button>
-                        </div>
-                    )}
 
                     <div className="relative group flex items-center justify-end">
                         <span className="absolute right-full mr-3 whitespace-nowrap bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
-                            Lưu &amp; Xuất PDF
+                            {isOrderLocked ? "Phiếu đã khóa" : "Lưu & Xuất PDF"}
                         </span>
                         <button
-                            onClick={handleExportClick}
-                            disabled={loading || isOrderLocked}
-                            className={`p-3 rounded-full transition-transform shadow-lg hover:scale-110 active:scale-95 text-white disabled:opacity-55 disabled:cursor-not-allowed ${isDirty && !isOrderLocked ? "bg-orange-500 hover:bg-orange-600 ring-4 ring-orange-500/20" : "bg-orange-600 hover:bg-orange-700"}`}
+                            onClick={isOrderLocked ? () => toast.warning("Phiếu yêu cầu đã khóa chỉnh sửa. Vui lòng liên hệ với nhân viên kinh doanh để được hỗ trợ mở lại.") : handleExportClick}
+                            disabled={loading}
+                            className={`p-3 rounded-full transition-transform shadow-lg hover:scale-110 active:scale-95 text-white disabled:opacity-55 disabled:cursor-not-allowed ${
+                                isOrderLocked
+                                    ? "bg-gray-400 hover:bg-gray-500"
+                                    : isDirty
+                                        ? "bg-orange-500 hover:bg-orange-600 ring-4 ring-orange-500/20"
+                                        : "bg-orange-600 hover:bg-orange-700"
+                            }`}
                         >
-                            <FileDown className="w-5 h-5" />
+                            {isOrderLocked ? <Lock className="w-5 h-5" /> : <FileDown className="w-5 h-5" />}
                         </button>
                     </div>
 
@@ -1068,7 +1053,7 @@ export function CustomerSampleRequestPage() {
                             tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
                             onInit={(_evt, editor) => {
                                 editorRef.current = editor;
-                                editor.mode.set((isLocked || isOrderLocked) ? "readonly" : "design");
+                                editor.mode.set(isOrderLocked ? "readonly" : "design");
                                 setEditorReady(true);
                             }}
                             initialValue={initialHtml}
@@ -1135,33 +1120,36 @@ export function CustomerSampleRequestPage() {
             {/* Custom save & export PDF confirmation modal */}
             {showConfirmExportModal && (
                 <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl w-full max-w-md p-6 relative flex flex-col animate-in zoom-in-95 duration-200 shadow-2xl border border-border">
-                        <div className="flex items-center gap-3 text-amber-600 mb-4">
-                            <div className="p-2 bg-amber-50 rounded-full flex shrink-0">
-                                <HelpCircle className="w-6 h-6" />
+                    <div className="bg-white rounded-2xl w-full max-w-lg p-8 relative flex flex-col animate-in zoom-in-95 duration-200 shadow-2xl border border-border">
+                        <div className="flex items-center gap-3 text-amber-600 mb-5">
+                            <div className="p-2.5 bg-amber-50 rounded-full flex shrink-0">
+                                <HelpCircle className="w-8 h-8" />
                             </div>
-                            <h3 className="font-bold text-base text-foreground uppercase tracking-wide">Xác nhận Lưu &amp; Xuất PDF</h3>
+                            <h3 className="font-bold text-lg text-foreground uppercase tracking-wide">Xác nhận Lưu &amp; Xuất PDF</h3>
                         </div>
-                        
-                        <div className="text-sm text-muted-foreground space-y-3 leading-relaxed mb-6">
-                            <p>
-                                <strong>Lưu ý quan trọng:</strong> Sau khi xác nhận, thông tin phiếu yêu cầu gửi mẫu sẽ chuyển sang trạng thái <strong>Đang xử lý (Processing)</strong> và sẽ <strong>bị khóa hoàn toàn</strong>. Quý khách sẽ không thể chỉnh sửa thông tin được nữa.
+
+                        <div className="text-base text-muted-foreground space-y-4 leading-relaxed mb-8">
+                            <p className="text-red-600 font-bold text-base">
+                                ⚠️ Lưu ý quan trọng: Sau khi xác nhận, phiếu yêu cầu gửi mẫu sẽ chuyển sang trạng thái <span className="uppercase">Đang xử lý (Processing)</span> và bị khóa hoàn toàn — Quý khách sẽ KHÔNG thể chỉnh sửa thêm bất kỳ thông tin nào.
                             </p>
                             <p>
-                                Trường hợp cần sửa đổi thông tin sau khi đã xuất PDF, vui lòng liên hệ với nhân viên kinh doanh của IRDOP để được hỗ trợ mở lại đường link nhập mới.
+                                Trường hợp cần sửa đổi thông tin sau khi đã xuất PDF, Quý khách vui lòng liên hệ với nhân viên kinh doanh để được hỗ trợ mở lại đường link nhập mới.
+                            </p>
+                            <p className="text-red-700 font-semibold">
+                                Vui lòng kiểm tra kỹ toàn bộ thông tin trước khi xác nhận.
                             </p>
                         </div>
 
                         <div className="flex justify-end gap-3 shrink-0">
                             <button
                                 onClick={() => setShowConfirmExportModal(false)}
-                                className="px-4 py-2 text-xs font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all border border-gray-200"
+                                className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all border border-gray-200"
                             >
                                 Hủy
                             </button>
                             <button
                                 onClick={handleConfirmExportPdf}
-                                className="px-4 py-2 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition-all shadow-md flex items-center gap-1.5"
+                                className="px-5 py-2.5 text-sm font-bold rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition-all shadow-md flex items-center gap-1.5"
                             >
                                 Xác nhận &amp; Tải PDF
                             </button>
@@ -1169,6 +1157,7 @@ export function CustomerSampleRequestPage() {
                     </div>
                 </div>
             )}
+
         </div>
     );
 }

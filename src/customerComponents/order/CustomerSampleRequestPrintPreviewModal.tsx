@@ -283,7 +283,7 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                 }
             });
 
-            const url = window.URL.createObjectURL(new Blob([blob as any]));
+            const url = window.URL.createObjectURL(blob as Blob);
             const link = document.createElement("a");
             link.href = url;
             link.setAttribute("download", `request-form-${tempData.orderId || "phiếu"}.pdf`);
