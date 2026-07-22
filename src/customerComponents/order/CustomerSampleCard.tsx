@@ -490,24 +490,12 @@ export function CustomerSampleCard({
                                             )}
                                             <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>{index + 1}</td>
                                             <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
-                                                {tableReadOnly ? (
-                                                    <div>
-                                                        <div>{analysis.parameterName}</div>
-                                                        {analysis.parameterId && <div className="text-xs text-muted-foreground">{analysis.parameterId}</div>}
+                                                <div>
+                                                    <div className="font-semibold text-sm break-words whitespace-normal text-foreground mb-1 leading-normal select-text">
+                                                        {analysis.parameterName}
                                                     </div>
-                                                ) : (
-                                                    <div>
-                                                        <input
-                                                            type="text"
-                                                            className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent mb-1 disabled:opacity-75 disabled:cursor-not-allowed"
-                                                            value={analysis.parameterName}
-                                                            onChange={(e) => handleAnalysisChange(index, "parameterName", e.target.value)}
-                                                            placeholder={t("order.print.parameter")}
-                                                            disabled={tableReadOnly || !!analysis.matrixId}
-                                                        />
-                                                        {analysis.parameterId && <div className="text-xs text-muted-foreground px-2">{analysis.parameterId}</div>}
-                                                    </div>
-                                                )}
+                                                    {analysis.parameterId && <div className="text-xs text-muted-foreground">{analysis.parameterId}</div>}
+                                                </div>
                                             </td>
                                             <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
                                                 {analysis.sampleTypeName || "--"}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft, FileText, Unlock } from "lucide-react";
 import type { OrderEditorRef } from "@/components/order/OrderEditor";
 import { OrderEditor } from "@/components/order/OrderEditor";
@@ -26,12 +26,17 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
     const { t } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const editorRef = useRef<OrderEditorRef>(null);
+
+    // URL params as single source of truth for query, page, itemsPerPage
+    const searchQueryUrl = searchParams.get("search") || "";
+    const currentPage = Number(searchParams.get("page")) || 1;
+    const itemsPerPage = Number(searchParams.get("itemsPerPage")) || 20;
 
     // State
     const [orders, setOrders] = useState<Order[]>([]);
-    const [searchQuery, setSearchQuery] = useState("");
+    const [searchQuery, setSearchQuery] = useState(searchQueryUrl);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [localFilters, setLocalFilters] = useState<any>({});
@@ -43,21 +48,17 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
     const [showUnlockModal, setShowUnlockModal] = useState(false);
 
     // Pagination State
-    const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [totalItems, setTotalItems] = useState(0);
-    const [itemsPerPage, setItemsPerPage] = useState(20);
 
-    // Determine current view from URL
-    const isCreate = location.pathname.endsWith("/create");
-    const isDetail = location.pathname.endsWith("/detail");
-    const isEdit = location.pathname.endsWith("/edit");
-
+    const isCreate = searchParams.get("create") === "true";
     const orderId = searchParams.get("orderId");
     const quoteId = searchParams.get("quoteId");
     const duplicateId = searchParams.get("duplicateId");
+    const isEdit = searchParams.get("edit") === "true" && !!orderId;
+    const isDetail = !isEdit && !!orderId;
 
-    const isEditorActive = isCreate || isDetail || isEdit;
+    const isEditorActive = isCreate || !!orderId;
     const isSampleRequestForm = location.pathname.endsWith("/form/request");
     const initialViewMode = isCreate ? "create" : isEdit ? "edit" : "view";
     const [localViewMode, setLocalViewMode] = useState(initialViewMode);
@@ -70,43 +71,83 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
         setLocalViewMode((prev: any) => (prev === "view" ? "edit" : "view"));
     };
 
-    // API-based Fetch
-    const fetchOrders = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const query: any = {
-                search: searchQuery || undefined,
-                page: currentPage,
-                itemsPerPage,
-                ...localFilters,
-            };
-            const response = await getOrders({ query });
-            if (response.success && response.data) {
-                setOrders(response.data as Order[]);
-                if (response.meta) {
-                    setTotalPages(response.meta.totalPages || 0);
-                    setTotalItems(response.meta.total || 0);
-                }
-            } else {
-                if (response.error) {
-                    console.error("Fetch orders error", response.error);
-                }
-            }
-        } catch (error) {
-            console.error("Failed to fetch orders", error);
-            toast.error("Error fetching orders");
-        } finally {
-            setIsLoading(false);
-        }
-    }, [searchQuery, currentPage, itemsPerPage, localFilters]);
-
+    // Đồng bộ ngược từ URL về local state searchQuery khi URL thay đổi (nhấn Back/Forward)
     useEffect(() => {
-        if (isEditorActive) return; // Don't fetch list when in editor mode
+        setSearchQuery(searchQueryUrl);
+    }, [searchQueryUrl]);
+
+    // Debounce search query và đẩy lên URL
+    useEffect(() => {
         const timer = setTimeout(() => {
-            fetchOrders();
+            if (searchQuery !== searchQueryUrl) {
+                const newParams = new URLSearchParams(searchParams);
+                if (searchQuery) {
+                    newParams.set("search", searchQuery);
+                } else {
+                    newParams.delete("search");
+                }
+                newParams.set("page", "1"); // Đưa page về 1 khi tìm kiếm thay đổi
+                setSearchParams(newParams, { replace: true });
+            }
         }, 300);
         return () => clearTimeout(timer);
-    }, [fetchOrders, isEditorActive]);
+    }, [searchQuery, searchQueryUrl, searchParams, setSearchParams]);
+
+    const handlePageChange = (page: number) => {
+        const newParams = new URLSearchParams(searchParams);
+        if (page > 1) {
+            newParams.set("page", String(page));
+        } else {
+            newParams.delete("page");
+        }
+        setSearchParams(newParams, { replace: true });
+    };
+
+    const handleItemsPerPageChange = (items: number) => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set("itemsPerPage", String(items));
+        newParams.delete("page"); // reset page
+        setSearchParams(newParams, { replace: true });
+    };
+
+    const handleFilterChange = (filters: any) => {
+        setLocalFilters(filters);
+        handlePageChange(1);
+    };
+
+    // Fetch orders
+    useEffect(() => {
+        const fetchOrders = async () => {
+            setIsLoading(true);
+            try {
+                const query: any = {
+                    search: searchQueryUrl || undefined,
+                    page: currentPage,
+                    itemsPerPage,
+                    ...localFilters,
+                };
+                const response = await getOrders({ query });
+                if (response.success && response.data) {
+                    setOrders(response.data as Order[]);
+                    if (response.meta) {
+                        setTotalPages(response.meta.totalPages || 0);
+                        setTotalItems(response.meta.total || 0);
+                    }
+                } else {
+                    if (response.error) {
+                        console.error("Fetch orders error", response.error);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch orders", error);
+                toast.error("Error fetching orders");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchOrders();
+    }, [searchQueryUrl, currentPage, itemsPerPage, localFilters]);
 
     useEffect(() => {
         const loadSelectedOrder = async () => {
@@ -128,10 +169,11 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                         const response = await getOrderFull({ query: { orderId: duplicateId } });
                         if (response.success && response.data) {
                             const sourceData = { ...response.data } as any;
-                            // Clear files when duplicating
-                            sourceData.orderCustomerFileIds = [];
-                            sourceData.orderCustomerFiles = [];
-                            setSelectedOrder(sourceData as Order);
+                            // Only copy samples and clear client, files, and other fields when duplicating
+                            const duplicatedOrder = {
+                                samples: sourceData.samples || [],
+                            } as any;
+                            setSelectedOrder(duplicatedOrder as Order);
                         } else {
                             setSelectedOrder(null);
                         }
@@ -149,13 +191,36 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
     }, [orderId, isDetail, isEdit, isCreate, duplicateId]);
 
     // Status Configurations
-
-    const handleCreate = () => navigate("/orders/create");
-    const handleViewDetail = (order: Order) => navigate(`/orders/detail?orderId=${order.orderId}`);
-    const handleEdit = (order: Order) => navigate(`/orders/edit?orderId=${order.orderId}`);
+ 
+    const handleCreate = () => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set("create", "true");
+        newParams.delete("orderId");
+        newParams.delete("edit");
+        setSearchParams(newParams, { replace: true });
+    };
+    const handleViewDetail = (order: Order) => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set("orderId", order.orderId);
+        newParams.delete("edit");
+        newParams.delete("create");
+        setSearchParams(newParams, { replace: true });
+    };
+    const handleEdit = (order: Order) => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set("orderId", order.orderId);
+        newParams.set("edit", "true");
+        newParams.delete("create");
+        setSearchParams(newParams, { replace: true });
+    };
 
     const handleDuplicate = (order: Order) => {
-        navigate(`/orders/create?duplicateId=${order.orderId}`);
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set("create", "true");
+        newParams.set("duplicateId", order.orderId);
+        newParams.delete("orderId");
+        newParams.delete("edit");
+        setSearchParams(newParams, { replace: true });
     };
 
     const preparePrintData = async (order: Order) => {
@@ -275,23 +340,36 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
         }
     };
 
+    const closeModal = () => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete("orderId");
+        newParams.delete("edit");
+        newParams.delete("create");
+        newParams.delete("duplicateId");
+        setSearchParams(newParams, { replace: true });
+    };
+
     const handleBack = () => {
         if (editorRef.current?.hasUnsavedChanges()) {
             if (confirm(t("common.unsavedChanges"))) {
-                navigate("/orders");
+                closeModal();
             }
         } else {
-            navigate("/orders");
+            closeModal();
         }
     };
 
     const handleSaveSuccess = (createdOrder?: any) => {
-        fetchOrders();
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete("create");
+        newParams.delete("edit");
+        newParams.delete("duplicateId");
         if (createdOrder && createdOrder.orderId) {
-            navigate(`/orders/detail?orderId=${createdOrder.orderId}`);
+            newParams.set("orderId", createdOrder.orderId);
         } else {
-            navigate("/orders");
+            newParams.delete("orderId");
         }
+        setSearchParams(newParams, { replace: true });
     };
 
     const handleSaveTrigger = () => {
@@ -302,173 +380,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
         return <SampleRequestFormPage />;
     }
 
-    if (isEditorActive) {
-        return (
-            <div className="h-screen flex flex-col bg-background">
-                {/* Editor Header */}
-                <div className="h-14 border-b border-border flex items-center justify-between px-4 bg-card">
-                    <div className="flex items-center gap-4">
-                        <button onClick={handleBack} className="p-2 hover:bg-accent rounded-full text-muted-foreground transition-colors">
-                            <ArrowLeft className="w-5 h-5" />
-                        </button>
-                        <div className="flex flex-col">
-                            <h1 className="text-lg font-semibold text-foreground">
-                                {isCreate
-                                    ? t("order.create")
-                                    : initialViewMode === "edit"
-                                      ? `${t("order.edit")} ${selectedOrder?.orderId ? `- ${selectedOrder.orderId}` : ""}`
-                                      : `${t("order.detail")} ${selectedOrder?.orderId ? `- ${selectedOrder.orderId}` : ""}`}
-                            </h1>
-                        </div>
-                    </div>
-                    <div className="flex gap-2">
-                        {/* Always show Toggle button if not creating */}
-                        {!isCreate && (
-                            selectedOrder?.orderStatus?.toLowerCase() === "processing" ? (
-                                <button
-                                    onClick={() => setShowUnlockModal(true)}
-                                    className="flex items-center gap-2 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors text-sm font-medium shadow-sm"
-                                >
-                                    <Unlock className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Mở khóa chỉnh sửa</span>
-                                </button>
-                            ) : (
-                                <button onClick={toggleLocalMode} className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
-                                    {localViewMode === "view" ? <Pencil className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    <span className="hidden sm:inline">{localViewMode === "view" ? t("common.edit") : t("common.view")}</span>
-                                </button>
-                            )
-                        )}
 
-                        {localViewMode === "view" && (
-                            <>
-                                <button
-                                    onClick={() => editorRef.current?.export()}
-                                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
-                                >
-                                    <FileDown className="w-4 h-4" />
-                                    <span className="hidden sm:inline">{t("order.printButton", "In Đơn hàng")}</span>
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        if (selectedOrder) {
-                                            handleSampleRequestPrint(selectedOrder);
-                                        } else {
-                                            toast.error("No order selected");
-                                        }
-                                    }}
-                                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
-                                >
-                                    <FileText className="w-4 h-4" />
-                                    <span className="hidden sm:inline">{t("order.print.sampleRequest", "Phiếu gửi mẫu")}</span>
-                                </button>
-                            </>
-                        )}
-                        {localViewMode !== "view" && (
-                            <button
-                                onClick={handleSaveTrigger}
-                                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-                            >
-                                <Save className="w-4 h-4" />
-                                <span className="hidden sm:inline">{t("common.save")}</span>
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {/* Editor Content */}
-                <div className="flex-1 overflow-hidden">
-                    {/* Use key to force remount if duplicate loaded, or rely on initialData update */}
-                    <OrderEditor
-                        ref={editorRef}
-                        mode={localViewMode as any}
-                        initialData={selectedOrder || undefined}
-                        onBack={handleBack}
-                        onSaveSuccess={handleSaveSuccess}
-                        initialQuoteId={quoteId || undefined}
-                    />
-                </div>
-                {printData && (
-                    <SampleRequestPrintPreviewModal
-                        isOpen={isSampleRequestModalOpen}
-                        onClose={() => setIsSampleRequestModalOpen(false)}
-                        data={printData}
-                        onUpdateData={(newData) => {
-                            setPrintData(prev => prev ? { ...prev, ...newData } : null);
-                            setSelectedOrder(prev => {
-                                if (!prev) return null;
-                                return {
-                                    ...prev,
-                                    orderUri: newData.orderUri !== undefined ? newData.orderUri : prev.orderUri,
-                                    requestForm: newData.requestForm !== undefined ? newData.requestForm : prev.requestForm,
-                                    orderStatus: (newData.orderStatus !== undefined ? newData.orderStatus : prev.orderStatus) as any,
-                                };
-                            });
-                            fetchOrders();
-                        }}
-                    />
-                )}
-
-                {/* Unlock edit confirmation modal */}
-                {showUnlockModal && (
-                    <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-                        <div className="bg-white rounded-2xl w-full max-w-lg p-8 relative flex flex-col animate-in zoom-in-95 duration-200 shadow-2xl border border-border">
-                            <div className="flex items-center gap-3 text-amber-600 mb-5">
-                                <div className="p-2.5 bg-amber-50 rounded-full flex shrink-0">
-                                    <Unlock className="w-8 h-8" />
-                                </div>
-                                <h3 className="font-bold text-lg text-foreground uppercase tracking-wide">Mở khóa chỉnh sửa đơn hàng</h3>
-                            </div>
-
-                            <div className="text-base text-muted-foreground space-y-4 leading-relaxed mb-8">
-                                <p className="text-red-600 font-bold">
-                                    ⚠️ Đơn hàng đang ở trạng thái <span className="uppercase">Đang xử lý (Processing)</span>. Việc mở khóa sẽ tạo một liên kết mới và đặt lại phiếu về trạng thái <span className="uppercase">Chờ xử lý (Pending)</span>.
-                                </p>
-                                <p>
-                                    Toàn bộ nội dung phiếu gửi mẫu đã xuất trước đó sẽ bị xóa. Khách hàng cần điền lại thông tin và nộp lại phiếu mới.
-                                </p>
-                                <p className="text-red-700 font-semibold">
-                                    Chỉ thực hiện khi cần điều chỉnh thông tin quan trọng trên phiếu.
-                                </p>
-                            </div>
-
-                            <div className="flex justify-end gap-3 shrink-0">
-                                <button
-                                    onClick={() => setShowUnlockModal(false)}
-                                    className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all border border-gray-200"
-                                >
-                                    Hủy
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        if (!selectedOrder?.orderId) return;
-                                        setShowUnlockModal(false);
-                                        const tid = toast.loading("Đang tạo liên kết mới...");
-                                        try {
-                                            const res = await generateOrderUri({ body: { orderId: selectedOrder.orderId } });
-                                            if (res?.success) {
-                                                toast.success("Đã tạo liên kết mới. Đơn hàng được mở lại.", { id: tid });
-                                                setSelectedOrder(prev => prev ? { ...prev, orderStatus: "Pending" } : null);
-                                                fetchOrders();
-                                            } else {
-                                                toast.error(res?.error?.message || "Không thể tạo liên kết mới.", { id: tid });
-                                            }
-                                        } catch (err: any) {
-                                            toast.error(err?.message || "Lỗi khi tạo liên kết mới.", { id: tid });
-                                        }
-                                    }}
-                                    className="px-5 py-2.5 text-sm font-bold rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition-all shadow-md flex items-center gap-2"
-                                >
-                                    <Unlock className="w-4 h-4" />
-                                    Xác nhận Mở khóa
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
-    }
 
     const headerContent = (
         <div className="flex items-center justify-between w-full">
@@ -511,25 +423,165 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                             totalItems,
                             totalPages,
                         }}
-                        onPageChange={setCurrentPage}
-                        onItemsPerPageChange={(items) => {
-                            setItemsPerPage(items);
-                            setCurrentPage(1);
-                        }}
+                        onPageChange={handlePageChange}
+                        onItemsPerPageChange={handleItemsPerPageChange}
                         onViewDetail={handleViewDetail}
                         onEdit={handleEdit}
                         onDuplicate={handleDuplicate}
                         onPrint={handlePrint}
                         onPrintSampleRequest={handleSampleRequestPrint as any}
-                        onFilterChange={(filters) => {
-                            setLocalFilters(filters);
-                            setCurrentPage(1);
-                        }}
+                        onFilterChange={handleFilterChange}
                     />
                 </div>
             </div>
             {printData && <OrderPrintPreviewModal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} data={printData} />}
             {printData && <SampleRequestPrintPreviewModal isOpen={isSampleRequestModalOpen} onClose={() => setIsSampleRequestModalOpen(false)} data={printData} />}
+
+            {isEditorActive && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 md:p-3 animate-in fade-in duration-200">
+                    <div className="bg-background rounded-2xl w-[98vw] h-[98vh] max-w-[98vw] max-h-[98vh] flex flex-col shadow-2xl border border-border animate-in zoom-in-95 duration-200 overflow-hidden">
+                        {/* Editor Header */}
+                        <div className="h-14 border-b border-border flex items-center justify-between px-4 bg-card shrink-0">
+                            <div className="flex items-center gap-4">
+                                <button onClick={handleBack} className="p-2 hover:bg-accent rounded-full text-muted-foreground transition-colors">
+                                    <ArrowLeft className="w-5 h-5" />
+                                </button>
+                                <div className="flex flex-col">
+                                    <h1 className="text-lg font-semibold text-foreground">
+                                        {isCreate
+                                            ? t("order.create")
+                                            : initialViewMode === "edit"
+                                              ? `${t("order.edit")} ${selectedOrder?.orderId ? `- ${selectedOrder.orderId}` : ""}`
+                                              : `${t("order.detail")} ${selectedOrder?.orderId ? `- ${selectedOrder.orderId}` : ""}`}
+                                    </h1>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                {/* Always show Toggle button if not creating */}
+                                {!isCreate && (
+                                    selectedOrder?.orderStatus?.toLowerCase() === "processing" ? (
+                                        <button
+                                            onClick={() => setShowUnlockModal(true)}
+                                            className="flex items-center gap-2 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors text-sm font-medium shadow-sm"
+                                        >
+                                            <Unlock className="w-4 h-4" />
+                                            <span className="hidden sm:inline">Mở khóa chỉnh sửa</span>
+                                        </button>
+                                    ) : (
+                                        <button onClick={toggleLocalMode} className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
+                                            {localViewMode === "view" ? <Pencil className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            <span className="hidden sm:inline">{localViewMode === "view" ? t("common.edit") : t("common.view")}</span>
+                                        </button>
+                                    )
+                                )}
+
+                                {localViewMode === "view" && (
+                                    <>
+                                        <button
+                                            onClick={() => editorRef.current?.export()}
+                                            className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+                                        >
+                                            <FileDown className="w-4 h-4" />
+                                            <span className="hidden sm:inline">{t("order.printButton", "In Đơn hàng")}</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                if (selectedOrder) {
+                                                    handleSampleRequestPrint(selectedOrder);
+                                                } else {
+                                                    toast.error("No order selected");
+                                                }
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+                                        >
+                                            <FileText className="w-4 h-4" />
+                                            <span className="hidden sm:inline">{t("order.print.sampleRequest", "Phiếu gửi mẫu")}</span>
+                                        </button>
+                                    </>
+                                )}
+                                {localViewMode !== "view" && (
+                                    <button
+                                        onClick={handleSaveTrigger}
+                                        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                                    >
+                                        <Save className="w-4 h-4" />
+                                        <span className="hidden sm:inline">{t("common.save")}</span>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Editor Content */}
+                        <div className="flex-1 overflow-hidden">
+                            <OrderEditor
+                                ref={editorRef}
+                                mode={localViewMode as any}
+                                initialData={selectedOrder || undefined}
+                                onBack={handleBack}
+                                onSaveSuccess={handleSaveSuccess}
+                                initialQuoteId={quoteId || undefined}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Unlock edit confirmation modal */}
+            {showUnlockModal && (
+                <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl w-full max-w-lg p-8 relative flex flex-col animate-in zoom-in-95 duration-200 shadow-2xl border border-border">
+                        <div className="flex items-center gap-3 text-amber-600 mb-5">
+                            <div className="p-2.5 bg-amber-50 rounded-full flex shrink-0">
+                                <Unlock className="w-8 h-8" />
+                            </div>
+                            <h3 className="font-bold text-lg text-foreground uppercase tracking-wide">Mở khóa chỉnh sửa đơn hàng</h3>
+                        </div>
+
+                        <div className="text-base text-muted-foreground space-y-4 leading-relaxed mb-8">
+                            <p className="text-red-600 font-bold">
+                                ⚠️ Đơn hàng đang ở trạng thái <span className="uppercase">Đang xử lý (Processing)</span>. Việc mở khóa sẽ tạo một liên kết mới và đặt lại phiếu về trạng thái <span className="uppercase">Chờ xử lý (Pending)</span>.
+                            </p>
+                            <p>
+                                Toàn bộ nội dung phiếu gửi mẫu đã xuất trước đó sẽ bị xóa. Khách hàng cần điền lại thông tin và nộp lại phiếu mới.
+                            </p>
+                            <p className="text-red-700 font-semibold">
+                                Chỉ thực hiện khi cần điều chỉnh thông tin quan trọng trên phiếu.
+                            </p>
+                        </div>
+
+                        <div className="flex justify-end gap-3 shrink-0">
+                            <button
+                                onClick={() => setShowUnlockModal(false)}
+                                className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all border border-gray-200"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!selectedOrder?.orderId) return;
+                                    setShowUnlockModal(false);
+                                    const tid = toast.loading("Đang tạo liên kết mới...");
+                                    try {
+                                        const res = await generateOrderUri({ body: { orderId: selectedOrder.orderId } });
+                                        if (res?.success) {
+                                            toast.success("Đã tạo liên kết mới. Đơn hàng được mở lại.", { id: tid });
+                                            setSelectedOrder(prev => prev ? { ...prev, orderStatus: "Pending" } : null);
+                                        } else {
+                                            toast.error(res?.error?.message || "Không thể tạo liên kết mới.", { id: tid });
+                                        }
+                                    } catch (err: any) {
+                                        toast.error(err?.message || "Lỗi khi tạo liên kết mới.", { id: tid });
+                                    }
+                                }}
+                                className="px-5 py-2.5 text-sm font-bold rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition-all shadow-md flex items-center gap-2"
+                            >
+                                <Unlock className="w-4 h-4" />
+                                Xác nhận Mở khóa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </MainLayout>
     );
 }

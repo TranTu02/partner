@@ -632,15 +632,10 @@ export function SampleCard({
                                                         </div>
                                                     ) : (
                                                         <div>
-                                                            <input
-                                                                type="text"
-                                                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent mb-1 disabled:opacity-75 disabled:cursor-not-allowed"
-                                                                value={analysis.parameterName}
-                                                                onChange={(e) => handleAnalysisChange(index, "parameterName", e.target.value)}
-                                                                placeholder={t("order.print.parameter")}
-                                                                disabled={isReadOnly || !!analysis.matrixId}
-                                                            />
-                                                            {analysis.parameterId && <div className="text-xs text-muted-foreground px-2">{analysis.parameterId}</div>}
+                                                            <div className="font-semibold text-sm break-words whitespace-normal text-foreground mb-1 leading-normal select-text">
+                                                                {analysis.parameterName}
+                                                            </div>
+                                                            {analysis.parameterId && <div className="text-xs text-muted-foreground">{analysis.parameterId}</div>}
                                                         </div>
                                                     )}
                                                 </td>

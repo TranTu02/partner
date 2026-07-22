@@ -75,6 +75,29 @@ const parseSampleInfo = (rawInfo: any): { label: string; value: string }[] => {
     return [];
 };
 
+const syncTempIds = (samples: SampleWithQuantity[]): SampleWithQuantity[] => {
+    return (samples || []).map((sample, sIdx) => {
+        const analyses = (sample.analyses || []).map((analysis, aIdx) => {
+            const isTemp = !analysis.id || isNaN(Number(analysis.id)) || String(analysis.id).startsWith("temp") || String(analysis.id).startsWith("SP");
+            if (isTemp) {
+                const existingIdStr = String(analysis.id || "");
+                const tsMatch = existingIdStr.match(/(\d{13})/);
+                const timestamp = tsMatch ? tsMatch[1] : String(Date.now() + aIdx);
+                const newId = `SP${sIdx + 1}-${aIdx + 1}-${timestamp}`;
+                return {
+                    ...analysis,
+                    id: newId,
+                };
+            }
+            return analysis;
+        });
+        return {
+            ...sample,
+            analyses,
+        };
+    });
+};
+
 
 interface OrderEditorProps {
     mode: EditorMode;
@@ -141,7 +164,14 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
     const [taxEmail, setTaxEmail] = useState("");
 
     const [quoteId, setQuoteId] = useState(initialData?.quoteId || initialQuoteId || "");
-    const [samples, setSamples] = useState<SampleWithQuantity[]>([]);
+    const [samples, _setSamples] = useState<SampleWithQuantity[]>([]);
+    const setSamples = (val: SampleWithQuantity[] | ((prev: SampleWithQuantity[]) => SampleWithQuantity[])) => {
+        if (typeof val === "function") {
+            _setSamples((prev) => syncTempIds(val(prev)));
+        } else {
+            _setSamples(syncTempIds(val));
+        }
+    };
     const [discountRate, setDiscountRate] = useState(initialData?.discountRate || 0);
     const [commission, setCommission] = useState(0);
 
@@ -349,10 +379,10 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
             setClientPhone(client.clientPhone || "");
             setClientEmail(client.clientEmail || "");
 
-            // Invoice
-            setTaxName(client.invoiceInfo?.taxName || client.clientName || "");
-            setTaxCode(client.invoiceInfo?.taxCode || client.legalId || "");
-            setTaxAddress(client.invoiceInfo?.taxAddress || client.clientAddress || "");
+            // Invoice - strictly clear if not present in B's invoiceInfo
+            setTaxName(client.invoiceInfo?.taxName || "");
+            setTaxCode(client.invoiceInfo?.taxCode || "");
+            setTaxAddress(client.invoiceInfo?.taxAddress || "");
             setTaxEmail(client.invoiceInfo?.taxEmail || "");
 
             // Contact
@@ -374,6 +404,21 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                 setContactEmail("");
                 setContactAddress("");
             }
+        } else {
+            // Clear everything client-related if client is set to null (cleared)
+            setClientAddress("");
+            setClientPhone("");
+            setClientEmail("");
+            setTaxName("");
+            setTaxCode("");
+            setTaxAddress("");
+            setTaxEmail("");
+            setContactPerson("");
+            setContactId("");
+            setContactPhone("");
+            setContactIdentity("");
+            setContactEmail("");
+            setContactAddress("");
         }
     };
 

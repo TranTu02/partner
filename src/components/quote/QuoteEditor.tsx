@@ -70,6 +70,29 @@ const parseSampleInfo = (rawInfo: any): { label: string; value: string }[] => {
     return [];
 };
 
+const syncTempIds = (samples: SampleWithQuantity[]): SampleWithQuantity[] => {
+    return (samples || []).map((sample, sIdx) => {
+        const analyses = (sample.analyses || []).map((analysis, aIdx) => {
+            const isTemp = !analysis.id || isNaN(Number(analysis.id)) || String(analysis.id).startsWith("temp") || String(analysis.id).startsWith("SP");
+            if (isTemp) {
+                const existingIdStr = String(analysis.id || "");
+                const tsMatch = existingIdStr.match(/(\d{13})/);
+                const timestamp = tsMatch ? tsMatch[1] : String(Date.now() + aIdx);
+                const newId = `SP${sIdx + 1}-${aIdx + 1}-${timestamp}`;
+                return {
+                    ...analysis,
+                    id: newId,
+                };
+            }
+            return analysis;
+        });
+        return {
+            ...sample,
+            analyses,
+        };
+    });
+};
+
 interface QuoteEditorProps {
     mode: EditorMode;
     initialData?: any; // Quote
@@ -130,7 +153,14 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
     const [taxAddress, setTaxAddress] = useState("");
     const [taxEmail, setTaxEmail] = useState("");
 
-    const [samples, setSamples] = useState<SampleWithQuantity[]>([]);
+    const [samples, _setSamples] = useState<SampleWithQuantity[]>([]);
+    const setSamples = (val: SampleWithQuantity[] | ((prev: SampleWithQuantity[]) => SampleWithQuantity[])) => {
+        if (typeof val === "function") {
+            _setSamples((prev) => syncTempIds(val(prev)));
+        } else {
+            _setSamples(syncTempIds(val));
+        }
+    };
     const [discountRate, setDiscountRate] = useState(initialData?.discountRate || 0);
     const [commission, setCommission] = useState(0);
     const [otherItems, setOtherItems] = useState<OtherItem[]>([]);
@@ -238,9 +268,9 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             setClientEmail(selectedClient.clientEmail || "");
 
             // Invoice
-            setTaxName(selectedClient.invoiceInfo?.taxName || selectedClient.clientName || "");
-            setTaxCode(selectedClient.invoiceInfo?.taxCode || selectedClient.legalId || "");
-            setTaxAddress(selectedClient.invoiceInfo?.taxAddress || selectedClient.clientAddress || "");
+            setTaxName(selectedClient.invoiceInfo?.taxName || "");
+            setTaxCode(selectedClient.invoiceInfo?.taxCode || "");
+            setTaxAddress(selectedClient.invoiceInfo?.taxAddress || "");
             setTaxEmail(selectedClient.invoiceInfo?.taxEmail || "");
 
             // Contact
@@ -264,9 +294,9 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             setClientPhone(selectedClient.clientPhone || "");
             setClientEmail(selectedClient.clientEmail || "");
 
-            setTaxName(selectedClient.invoiceInfo?.taxName || selectedClient.clientName || "");
-            setTaxCode(selectedClient.invoiceInfo?.taxCode || selectedClient.legalId || "");
-            setTaxAddress(selectedClient.invoiceInfo?.taxAddress || selectedClient.clientAddress || "");
+            setTaxName(selectedClient.invoiceInfo?.taxName || "");
+            setTaxCode(selectedClient.invoiceInfo?.taxCode || "");
+            setTaxAddress(selectedClient.invoiceInfo?.taxAddress || "");
             setTaxEmail(selectedClient.invoiceInfo?.taxEmail || "");
 
             if (selectedClient.clientContacts?.[0]) {
@@ -276,7 +306,27 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 setContactIdentity(contact.contactId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
                 setContactAddress(contact.contactAddress || "");
+            } else {
+                setContactPerson("");
+                setContactPhone("");
+                setContactIdentity("");
+                setContactEmail("");
+                setContactAddress("");
             }
+        } else if (!selectedClient) {
+            // Clear everything if client is cleared
+            setClientAddress("");
+            setClientPhone("");
+            setClientEmail("");
+            setTaxName("");
+            setTaxCode("");
+            setTaxAddress("");
+            setTaxEmail("");
+            setContactPerson("");
+            setContactPhone("");
+            setContactIdentity("");
+            setContactEmail("");
+            setContactAddress("");
         }
     }, [selectedClient, initialData]);
 

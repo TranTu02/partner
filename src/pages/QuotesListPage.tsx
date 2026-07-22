@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Plus, Eye, FileDown, Pencil, Search, Save, ArrowLeft, Copy, MoreHorizontal } from "lucide-react";
 import type { QuoteEditorRef } from "@/components/quote/QuoteEditor";
 import { QuoteEditor } from "@/components/quote/QuoteEditor";
@@ -24,11 +24,16 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
     const { t } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const editorRef = useRef<QuoteEditorRef>(null);
 
+    // URL params as single source of truth for query, page, itemsPerPage
+    const searchQueryUrl = searchParams.get("search") || "";
+    const currentPage = Number(searchParams.get("page")) || 1;
+    const itemsPerPage = Number(searchParams.get("itemsPerPage")) || 20;
+
     const [quotes, setQuotes] = useState<Quote[]>([]);
-    const [searchQuery, setSearchQuery] = useState("");
+    const [searchQuery, setSearchQuery] = useState(searchQueryUrl);
     const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -37,57 +42,89 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
     const [printData, setPrintData] = useState<QuotePrintData | null>(null);
 
     // Pagination State
-    const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [totalItems, setTotalItems] = useState(0);
-    const [itemsPerPage, setItemsPerPage] = useState(20);
 
-    // Determine current view from URL
-    const isCreate = location.pathname.endsWith("/create");
-    const isDetail = location.pathname.endsWith("/detail");
-    const isEdit = location.pathname.endsWith("/edit");
+    const isCreate = searchParams.get("create") === "true";
     const quoteId = searchParams.get("quoteId");
     const duplicateId = searchParams.get("duplicateId");
+    const isEdit = searchParams.get("edit") === "true" && !!quoteId;
+    const isDetail = !isEdit && !!quoteId;
 
-    const isEditorActive = isCreate || isDetail || isEdit;
+    const isEditorActive = isCreate || !!quoteId;
     const viewMode = isCreate ? "create" : isEdit ? "edit" : "view";
 
-    // API Fetch
-    const fetchQuotes = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const query: any = {
-                search: searchQuery || undefined,
-                page: currentPage,
-                itemsPerPage,
-            };
-            const response = await getQuotes({ query });
-            if (response.success && response.data) {
-                setQuotes(response.data as Quote[]);
-                if (response.meta) {
-                    setTotalPages(response.meta.totalPages || 0);
-                    setTotalItems(response.meta.total || 0);
-                }
-            } else {
-                if (response.error) {
-                    console.error("Fetch quotes error", response.error);
-                }
-            }
-        } catch (error) {
-            console.error("Failed to fetch quotes", error);
-            toast.error("Error fetching quotes");
-        } finally {
-            setIsLoading(false);
-        }
-    }, [searchQuery, currentPage, itemsPerPage]);
-
+    // Đồng bộ ngược từ URL về local state searchQuery khi URL thay đổi (nhấn Back/Forward)
     useEffect(() => {
-        if (isEditorActive) return; // Don't fetch list when in editor mode
+        setSearchQuery(searchQueryUrl);
+    }, [searchQueryUrl]);
+
+    // Debounce search query và đẩy lên URL
+    useEffect(() => {
         const timer = setTimeout(() => {
-            fetchQuotes();
+            if (searchQuery !== searchQueryUrl) {
+                const newParams = new URLSearchParams(searchParams);
+                if (searchQuery) {
+                    newParams.set("search", searchQuery);
+                } else {
+                    newParams.delete("search");
+                }
+                newParams.set("page", "1"); // Đưa page về 1 khi tìm kiếm thay đổi
+                setSearchParams(newParams, { replace: true });
+            }
         }, 300);
         return () => clearTimeout(timer);
-    }, [fetchQuotes, isEditorActive]);
+    }, [searchQuery, searchQueryUrl, searchParams, setSearchParams]);
+
+    const handlePageChange = (page: number) => {
+        const newParams = new URLSearchParams(searchParams);
+        if (page > 1) {
+            newParams.set("page", String(page));
+        } else {
+            newParams.delete("page");
+        }
+        setSearchParams(newParams, { replace: true });
+    };
+
+    const handleItemsPerPageChange = (items: number) => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set("itemsPerPage", String(items));
+        newParams.delete("page"); // reset page
+        setSearchParams(newParams, { replace: true });
+    };
+
+    // Fetch quotes
+    useEffect(() => {
+        const fetchQuotes = async () => {
+            setIsLoading(true);
+            try {
+                const query: any = {
+                    search: searchQueryUrl || undefined,
+                    page: currentPage,
+                    itemsPerPage,
+                };
+                const response = await getQuotes({ query });
+                if (response.success && response.data) {
+                    setQuotes(response.data as Quote[]);
+                    if (response.meta) {
+                        setTotalPages(response.meta.totalPages || 0);
+                        setTotalItems(response.meta.total || 0);
+                    }
+                } else {
+                    if (response.error) {
+                        console.error("Fetch quotes error", response.error);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch quotes", error);
+                toast.error("Error fetching quotes");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchQuotes();
+    }, [searchQueryUrl, currentPage, itemsPerPage]);
 
     // Set selected quote based on URL ID
     useEffect(() => {
@@ -109,7 +146,12 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                     try {
                         const response = await getQuoteDetail({ query: { quoteId: duplicateId } });
                         if (response.success && response.data) {
-                            setSelectedQuote(response.data as Quote);
+                            const sourceData = { ...response.data } as any;
+                            // Only copy samples and clear client and other fields when duplicating
+                            const duplicatedQuote = {
+                                samples: sourceData.samples || [],
+                            } as any;
+                            setSelectedQuote(duplicatedQuote as Quote);
                         } else {
                             setSelectedQuote(null);
                         }
@@ -126,12 +168,35 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [quoteId, isDetail, isEdit, isCreate, duplicateId]);
 
-    const handleCreate = () => navigate("/quotes/create");
-    const handleViewDetail = (quote: Quote) => navigate(`/quotes/detail?quoteId=${quote.quoteId}`);
-    const handleEdit = (quote: Quote) => navigate(`/quotes/edit?quoteId=${quote.quoteId}`);
+    const handleCreate = () => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set("create", "true");
+        newParams.delete("quoteId");
+        newParams.delete("edit");
+        setSearchParams(newParams, { replace: true });
+    };
+    const handleViewDetail = (quote: Quote) => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set("quoteId", quote.quoteId);
+        newParams.delete("edit");
+        newParams.delete("create");
+        setSearchParams(newParams, { replace: true });
+    };
+    const handleEdit = (quote: Quote) => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set("quoteId", quote.quoteId);
+        newParams.set("edit", "true");
+        newParams.delete("create");
+        setSearchParams(newParams, { replace: true });
+    };
 
     const handleDuplicate = (quote: Quote) => {
-        navigate(`/quotes/create?duplicateId=${quote.quoteId}`);
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set("create", "true");
+        newParams.set("duplicateId", quote.quoteId);
+        newParams.delete("quoteId");
+        newParams.delete("edit");
+        setSearchParams(newParams, { replace: true });
     };
 
     const handlePrint = async (quote: Quote) => {
@@ -231,28 +296,41 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
         setIsPrintModalOpen(true);
     };
 
+    const closeModal = () => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete("quoteId");
+        newParams.delete("edit");
+        newParams.delete("create");
+        newParams.delete("duplicateId");
+        setSearchParams(newParams, { replace: true });
+    };
+
     const handleBack = () => {
         if (editorRef.current?.hasUnsavedChanges()) {
             if (confirm(t("common.unsavedChanges"))) {
-                navigate("/quotes");
+                closeModal();
             }
         } else {
-            navigate("/quotes");
+            closeModal();
         }
     };
 
     const handleSaveSuccess = (createdQuote?: any) => {
-        fetchQuotes();
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete("create");
+        newParams.delete("edit");
+        newParams.delete("duplicateId");
         if (createdQuote && createdQuote.quoteId) {
-            navigate(`/quotes/detail?quoteId=${createdQuote.quoteId}`);
+            newParams.set("quoteId", createdQuote.quoteId);
         } else {
-            navigate("/quotes");
+            newParams.delete("quoteId");
         }
+        setSearchParams(newParams, { replace: true });
     };
 
     const handleCreateOrder = () => {
         if (selectedQuote) {
-            navigate(`/orders/create?quoteId=${selectedQuote.quoteId}`);
+            navigate(`/orders?create=true&quoteId=${selectedQuote.quoteId}`);
         }
     };
 
@@ -260,70 +338,7 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
         editorRef.current?.save();
     };
 
-    if (isEditorActive) {
-        return (
-            <div className="h-screen flex flex-col bg-background">
-                {/* Editor Header */}
-                <div className="h-14 border-b border-border flex items-center justify-between px-4 bg-card">
-                    <div className="flex items-center gap-4">
-                        <button onClick={handleBack} className="p-2 hover:bg-accent rounded-full text-muted-foreground transition-colors">
-                            <ArrowLeft className="w-5 h-5" />
-                        </button>
-                        <div className="flex flex-col">
-                            <h1 className="text-lg font-semibold text-foreground">
-                                {isCreate
-                                    ? t("quote.create")
-                                    : viewMode === "edit"
-                                      ? `${t("quote.edit")} ${selectedQuote?.quoteId ? `- ${selectedQuote.quoteId}` : ""}`
-                                      : `${t("quote.detail")} ${selectedQuote?.quoteId ? `- ${selectedQuote.quoteId}` : ""}`}
-                            </h1>
-                        </div>
-                    </div>
-                    <div className="flex gap-2">
-                        {viewMode === "view" && (
-                            <>
-                                <button
-                                    onClick={() => navigate(`/quotes/edit?quoteId=${selectedQuote?.quoteId}`)}
-                                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
-                                >
-                                    <Pencil className="w-4 h-4" />
-                                    <span className="hidden sm:inline">{t("common.edit")}</span>
-                                </button>
-                                <button
-                                    onClick={handleCreateOrder}
-                                    className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-                                >
-                                    <Plus className="w-4 h-4" />
-                                    <span className="hidden sm:inline">{t("quote.createOrder", "Tạo đơn hàng")}</span>
-                                </button>
-                                <button
-                                    onClick={() => editorRef.current?.export()}
-                                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
-                                >
-                                    <FileDown className="w-4 h-4" />
-                                    <span className="hidden sm:inline">{t("quote.printButton", "In Báo giá")}</span>
-                                </button>
-                            </>
-                        )}
-                        {viewMode !== "view" && (
-                            <button
-                                onClick={handleSaveTrigger}
-                                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-                            >
-                                <Save className="w-4 h-4" />
-                                <span className="hidden sm:inline">{t("common.save")}</span>
-                            </button>
-                        )}
-                    </div>
-                </div>
 
-                {/* Editor Content */}
-                <div className="flex-1 overflow-hidden">
-                    <QuoteEditor ref={editorRef} mode={viewMode} initialData={selectedQuote || undefined} onBack={handleBack} onSaveSuccess={handleSaveSuccess} />
-                </div>
-            </div>
-        );
-    }
 
     const headerContent = (
         <div className="flex items-center justify-between w-full">
@@ -482,16 +497,82 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                             totalPages={totalPages}
                             totalItems={totalItems}
                             itemsPerPage={itemsPerPage}
-                            onPageChange={(page) => setCurrentPage(page)}
-                            onItemsPerPageChange={(items) => {
-                                setItemsPerPage(items);
-                                setCurrentPage(1);
-                            }}
+                            onPageChange={handlePageChange}
+                            onItemsPerPageChange={handleItemsPerPageChange}
                         />
                     )}
                 </div>
             </div>
             {printData && <QuotePrintPreviewModal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} data={printData} />}
+
+            {isEditorActive && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 md:p-3 animate-in fade-in duration-200">
+                    <div className="bg-background rounded-2xl w-[98vw] h-[98vh] max-w-[98vw] max-h-[98vh] flex flex-col shadow-2xl border border-border animate-in zoom-in-95 duration-200 overflow-hidden">
+                        {/* Editor Header */}
+                        <div className="h-14 border-b border-border flex items-center justify-between px-4 bg-card shrink-0">
+                            <div className="flex items-center gap-4">
+                                <button onClick={handleBack} className="p-2 hover:bg-accent rounded-full text-muted-foreground transition-colors">
+                                    <ArrowLeft className="w-5 h-5" />
+                                </button>
+                                <div className="flex flex-col">
+                                    <h1 className="text-lg font-semibold text-foreground">
+                                        {isCreate
+                                            ? t("quote.create")
+                                            : viewMode === "edit"
+                                              ? `${t("quote.edit")} ${selectedQuote?.quoteId ? `- ${selectedQuote.quoteId}` : ""}`
+                                              : `${t("quote.detail")} ${selectedQuote?.quoteId ? `- ${selectedQuote.quoteId}` : ""}`}
+                                    </h1>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                {viewMode === "view" && (
+                                    <>
+                                        <button
+                                            onClick={() => {
+                                                const newParams = new URLSearchParams(searchParams);
+                                                newParams.set("edit", "true");
+                                                setSearchParams(newParams, { replace: true });
+                                            }}
+                                            className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                            <span className="hidden sm:inline">{t("common.edit")}</span>
+                                        </button>
+                                        <button
+                                            onClick={handleCreateOrder}
+                                            className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                                        >
+                                            <Plus className="w-4 h-4" />
+                                            <span className="hidden sm:inline">{t("quote.createOrder", "Tạo đơn hàng")}</span>
+                                        </button>
+                                        <button
+                                            onClick={() => editorRef.current?.export()}
+                                            className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium"
+                                        >
+                                            <FileDown className="w-4 h-4" />
+                                            <span className="hidden sm:inline">{t("quote.printButton", "In Báo giá")}</span>
+                                        </button>
+                                    </>
+                                )}
+                                {viewMode !== "view" && (
+                                    <button
+                                        onClick={handleSaveTrigger}
+                                        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                                    >
+                                        <Save className="w-4 h-4" />
+                                        <span className="hidden sm:inline">{t("common.save")}</span>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Editor Content */}
+                        <div className="flex-1 overflow-hidden">
+                            <QuoteEditor ref={editorRef} mode={viewMode} initialData={selectedQuote || undefined} onBack={handleBack} onSaveSuccess={handleSaveSuccess} />
+                        </div>
+                    </div>
+                </div>
+            )}
         </MainLayout>
     );
 }

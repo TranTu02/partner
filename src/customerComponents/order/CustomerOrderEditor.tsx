@@ -71,6 +71,29 @@ const parseSampleInfo = (rawInfo: any): { label: string; value: string }[] => {
 const defaultSampleInfo = SAMPLE_INFO_ORDER.map((label) => ({ label, value: "" }));
 // ─────────────────────────────────────────────────────────────────────────────
 
+const syncTempIds = (samples: SampleWithQuantity[]): SampleWithQuantity[] => {
+    return (samples || []).map((sample, sIdx) => {
+        const analyses = (sample.analyses || []).map((analysis, aIdx) => {
+            const isTemp = !analysis.id || isNaN(Number(analysis.id)) || String(analysis.id).startsWith("temp") || String(analysis.id).startsWith("SP");
+            if (isTemp) {
+                const existingIdStr = String(analysis.id || "");
+                const tsMatch = existingIdStr.match(/(\d{13})/);
+                const timestamp = tsMatch ? tsMatch[1] : String(Date.now() + aIdx);
+                const newId = `SP${sIdx + 1}-${aIdx + 1}-${timestamp}`;
+                return {
+                    ...analysis,
+                    id: newId,
+                };
+            }
+            return analysis;
+        });
+        return {
+            ...sample,
+            analyses,
+        };
+    });
+};
+
 interface CustomerOrderEditorProps {
     mode: EditorMode;
     initialData?: any;
@@ -137,7 +160,14 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
     const [quoteId, setQuoteId] = useState(initialData?.quoteId || initialQuoteId || "");
     const [orderNote, setOrderNote] = useState(initialData?.orderNote || "");
 
-    const [samples, setSamples] = useState<SampleWithQuantity[]>([]);
+    const [samples, _setSamples] = useState<SampleWithQuantity[]>([]);
+    const setSamples = (val: SampleWithQuantity[] | ((prev: SampleWithQuantity[]) => SampleWithQuantity[])) => {
+        if (typeof val === "function") {
+            _setSamples((prev) => syncTempIds(val(prev)));
+        } else {
+            _setSamples(syncTempIds(val));
+        }
+    };
     const [discountRate, setDiscountRate] = useState(initialData?.discountRate || 0);
     const [otherItems, setOtherItems] = useState<OtherItem[]>([]);
     const [orderCustomerFileIds, setOrderCustomerFileIds] = useState<string[]>(initialData?.orderCustomerFileIds || []);
