@@ -552,9 +552,9 @@ export function CustomerSampleRequestPage() {
 
     useEffect(() => {
         if (editorRef.current && editorReady) {
-            editorRef.current.mode.set(isOrderLocked ? "readonly" : "design");
+            editorRef.current.mode.set("readonly");
         }
-    }, [isOrderLocked, editorReady]);
+    }, [editorReady]);
 
 
 
@@ -1091,7 +1091,7 @@ export function CustomerSampleRequestPage() {
                             tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
                             onInit={(_evt, editor) => {
                                 editorRef.current = editor;
-                                editor.mode.set(isOrderLocked ? "readonly" : "design");
+                                editor.mode.set("readonly");
                                 setEditorReady(true);
                             }}
                             initialValue={initialHtml}

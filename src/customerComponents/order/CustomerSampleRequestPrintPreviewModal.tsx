@@ -140,9 +140,9 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
 
     useEffect(() => {
         if (editorRef.current && editorReady) {
-            editorRef.current.mode.set((isLocked || isOrderLocked) ? "readonly" : "design");
+            editorRef.current.mode.set("readonly");
         }
-    }, [isLocked, isOrderLocked, editorReady]);
+    }, [editorReady]);
 
     // Always regenerate HTML from current tempData so default texts (like
     // "Thống nhất với IRDOP về phương pháp thử") are always visible.
@@ -349,20 +349,7 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                 <div className="flex items-center gap-2">
                     {/* Desktop Action Buttons */}
                     <div className="hidden xl:flex items-center gap-2">
-                        {!isOrderLocked && (
-                            <button
-                                onClick={() => {
-                                    const newLock = !isLocked;
-                                    setIsLocked(newLock);
-                                    if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
-                                    toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
-                                }}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border transition-all text-xs font-medium ${isLocked ? "bg-muted" : "bg-primary/10 text-primary border-primary/20"}`}
-                            >
-                                {isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                                <span className="hidden sm:inline">{isLocked ? "Mở khóa sửa" : "Khóa mẫu"}</span>
-                            </button>
-                        )}
+
 
                         <button
                             onClick={handleExportClick}
@@ -388,24 +375,7 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                 
                 {/* Floating Action Bar (Top Right) - Vertical Bubbles (Mobile Only) */}
                 <div className="absolute top-4 right-4 md:right-6 z-50 flex xl:hidden flex-col gap-3">
-                    {!isOrderLocked && (
-                        <div className="relative group flex items-center justify-end">
-                            <span className="absolute right-full mr-3 whitespace-nowrap bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
-                                {isLocked ? "Mở khóa sửa" : "Khóa mẫu"}
-                            </span>
-                            <button
-                                onClick={() => {
-                                    const newLock = !isLocked;
-                                    setIsLocked(newLock);
-                                    if (editorRef.current) editorRef.current.mode.set(newLock ? "readonly" : "design");
-                                    toast.success(newLock ? "Đã khóa mẫu" : "Đã mở khóa sửa trực tiếp");
-                                }}
-                                className={`p-3 rounded-full border shadow-lg transition-transform hover:scale-110 active:scale-95 backdrop-blur-sm ${isLocked ? "bg-white/90 border-border text-muted-foreground hover:text-foreground" : "bg-primary text-primary-foreground border-primary"}`}
-                            >
-                                {isLocked ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
-                            </button>
-                        </div>
-                    )}
+
 
                     <div className="relative group flex items-center justify-end">
                         <span className="absolute right-full mr-3 whitespace-nowrap bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
@@ -603,7 +573,7 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                                 tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
                                 onInit={(_evt, editor) => {
                                     editorRef.current = editor;
-                                    editor.mode.set((isLocked || isOrderLocked) ? "readonly" : "design");
+                                    editor.mode.set("readonly");
                                     setEditorReady(true);
                                 }}
                                 initialValue={initialHtml}

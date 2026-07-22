@@ -733,8 +733,7 @@ export function SampleRequestFormPage() {
                             {/* Editor container - A4 width centered */}
                             <div className="w-[794px] min-w-[794px] mx-auto bg-white shadow-lg">
                                 {!editorReady && <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted/50">{t("common.loading")}</div>}
-
-                                <div
+                                                <div
                                     style={{
                                         visibility: editorReady ? "visible" : "hidden",
                                         height: "100%",
@@ -746,7 +745,7 @@ export function SampleRequestFormPage() {
                                         tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
                                         onInit={(_evt: any, editor: any) => {
                                             editorRef.current = editor;
-                                            editor.mode.set("design");
+                                            editor.mode.set("readonly");
                                             setEditorReady(true);
                                         }}
                                         initialValue={initialHtml}
