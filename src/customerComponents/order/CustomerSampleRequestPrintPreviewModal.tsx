@@ -162,7 +162,31 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
     };
 
     const handleUpdateTopLevel = (field: string, value: string) => {
-        setTempData((prev) => ({ ...prev, [field]: value }));
+        setTempData((prev) => {
+            const updated = { ...prev, [field]: value };
+
+            if (["taxName", "taxCode", "invoiceAddress", "invoiceEmail", "clientName", "clientAddress", "clientPhone", "clientEmail"].includes(field)) {
+                const client = prev.client ? { ...prev.client } : {} as any;
+
+                if (field === "clientName") client.clientName = value;
+                if (field === "clientAddress") client.clientAddress = value;
+                if (field === "clientPhone") client.clientPhone = value;
+                if (field === "clientEmail") client.clientEmail = value;
+
+                if (["taxName", "taxCode", "invoiceAddress", "invoiceEmail"].includes(field)) {
+                    const invoiceInfo = client.invoiceInfo ? { ...client.invoiceInfo } : {};
+                    if (field === "taxName") invoiceInfo.taxName = value;
+                    if (field === "taxCode") invoiceInfo.taxCode = value;
+                    if (field === "invoiceAddress") invoiceInfo.taxAddress = value;
+                    if (field === "invoiceEmail") invoiceInfo.taxEmail = value;
+                    client.invoiceInfo = invoiceInfo;
+                }
+
+                updated.client = client;
+            }
+
+            return updated;
+        });
     };
 
     const handleUpdateSample = (idx: number, field: string, value: string) => {
@@ -262,6 +286,7 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                         receiverAddress: tempData.reportReceiverAddress,
                     },
                     attachedDocuments: (tempData as any).attachedDocuments,
+                    orderNote: (tempData as any).orderNote,
                     samples: tempData.samples.map((s) => {
                         const finalInfo = normalizeSampleInfo(s.sampleName || "", parseSampleInfo(s.sampleInfo));
                         const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
@@ -1025,9 +1050,15 @@ export function generateSampleRequestHtml(data: OrderPrintData, t: any) {
 
         <table>
             <tr>
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 120px; font-weight: 700;">${t("sampleRequest.section5.title")}</td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 120px; font-weight: 700;">${t("sampleRequest.section5.title")}<strong>:</strong></td>
                 <td style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;">${(data as any).attachedDocuments || ""}</td>
             </tr>
+            ${(data as any).orderNote ? `
+            <tr>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 120px; font-weight: 700;">GHI CHÚ<strong>:</strong></td>
+                <td style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;">${(data as any).orderNote || ""}</td>
+            </tr>
+            ` : ""}
         </table>
       </div>
 

@@ -398,6 +398,7 @@ export function CustomerSampleRequestPage() {
                     orderUri: order.orderUri || "",
                     orderCustomerFileIds: order.orderCustomerFileIds || [],
                     orderCustomerFiles: order.orderCustomerFiles || [],
+                    orderNote: order.orderNote || "",
 
                     rawSamples: order.samples ?? [],
                     rawContactPerson: order.contactPerson ?? null,
@@ -445,7 +446,32 @@ export function CustomerSampleRequestPage() {
     }, [tempData, t]);
 
     const handleUpdateTopLevel = useCallback((field: string, value: string) => {
-        setTempData((prev) => (prev ? { ...prev, [field]: value } : prev));
+        setTempData((prev) => {
+            if (!prev) return prev;
+            const updated = { ...prev, [field]: value };
+
+            if (["taxName", "taxCode", "invoiceAddress", "invoiceEmail", "clientName", "clientAddress", "clientPhone", "clientEmail"].includes(field)) {
+                const client = prev.client ? { ...prev.client } : {} as any;
+
+                if (field === "clientName") client.clientName = value;
+                if (field === "clientAddress") client.clientAddress = value;
+                if (field === "clientPhone") client.clientPhone = value;
+                if (field === "clientEmail") client.clientEmail = value;
+
+                if (["taxName", "taxCode", "invoiceAddress", "invoiceEmail"].includes(field)) {
+                    const invoiceInfo = client.invoiceInfo ? { ...client.invoiceInfo } : {};
+                    if (field === "taxName") invoiceInfo.taxName = value;
+                    if (field === "taxCode") invoiceInfo.taxCode = value;
+                    if (field === "invoiceAddress") invoiceInfo.taxAddress = value;
+                    if (field === "invoiceEmail") invoiceInfo.taxEmail = value;
+                    client.invoiceInfo = invoiceInfo;
+                }
+
+                updated.client = client;
+            }
+
+            return updated;
+        });
         setIsDirty(true);
     }, []);
 
@@ -576,6 +602,7 @@ export function CustomerSampleRequestPage() {
                         receiverAddress: tempData.reportReceiverAddress,
                     },
                     attachedDocuments: (tempData as any).attachedDocuments,
+                    orderNote: (tempData as any).orderNote,
                     samples: tempData.samples.map((s) => {
                         const finalInfo = normalizeSampleInfo(s.sampleName || "", parseSampleInfo(s.sampleInfo));
                         const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
@@ -934,6 +961,18 @@ export function CustomerSampleRequestPage() {
 
                         <Section title="Thông tin chung" color="indigo">
                             <Field label="Giấy tờ đi kèm" value={(tempData as any).attachedDocuments} onChange={(v) => handleUpdateTopLevel("attachedDocuments", v)} onBlur={handleRefreshPreview} disabled={isOrderLocked} />
+                            <div>
+                                <label className="block mb-1 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Ghi chú chung</label>
+                                <textarea
+                                    rows={2}
+                                    disabled={isOrderLocked}
+                                    className="w-full px-3 py-2 border border-border rounded-lg bg-gray-50/50 text-sm focus:bg-white focus:ring-1 focus:ring-primary transition-all outline-none resize-none min-h-[48px] disabled:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed"
+                                    placeholder="Nhập ghi chú chung..."
+                                    value={(tempData as any).orderNote || ""}
+                                    onChange={(e) => handleUpdateTopLevel("orderNote", e.target.value)}
+                                    onBlur={handleRefreshPreview}
+                                />
+                            </div>
                         </Section>
 
                         <div className="space-y-4">

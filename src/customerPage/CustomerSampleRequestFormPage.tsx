@@ -121,6 +121,7 @@ export function SampleRequestFormPage() {
                     orderId,
                     requestForm: content,
                     orderUri: uri || undefined,
+                    orderNote: data?.orderNote,
                     client: {
                         ...data?.client,
                         clientName: data?.clientName,
@@ -235,6 +236,27 @@ export function SampleRequestFormPage() {
     const updateTopLevelData = (field: string, value: string) => {
         if (!data) return;
         const newData = { ...data, [field]: value };
+
+        if (["taxName", "taxCode", "invoiceAddress", "invoiceEmail", "clientName", "clientAddress", "clientPhone", "clientEmail"].includes(field)) {
+            const client = data.client ? { ...data.client } : {} as any;
+
+            if (field === "clientName") client.clientName = value;
+            if (field === "clientAddress") client.clientAddress = value;
+            if (field === "clientPhone") client.clientPhone = value;
+            if (field === "clientEmail") client.clientEmail = value;
+
+            if (["taxName", "taxCode", "invoiceAddress", "invoiceEmail"].includes(field)) {
+                const invoiceInfo = client.invoiceInfo ? { ...client.invoiceInfo } : {};
+                if (field === "taxName") invoiceInfo.taxName = value;
+                if (field === "taxCode") invoiceInfo.taxCode = value;
+                if (field === "invoiceAddress") invoiceInfo.taxAddress = value;
+                if (field === "invoiceEmail") invoiceInfo.taxEmail = value;
+                client.invoiceInfo = invoiceInfo;
+            }
+
+            newData.client = client;
+        }
+
         setData(newData);
 
         if (editorRef.current) {
@@ -572,15 +594,27 @@ export function SampleRequestFormPage() {
                             {/* Attached Documents Section (Auxiliary) */}
                             <div className="bg-card rounded-lg border border-border p-4 shadow-sm relative pt-5">
                                 <div className="absolute top-0 left-0 bg-gray-100 text-gray-700 px-2 py-0.5 rounded-br-lg text-[10px] font-bold uppercase tracking-wider">Tài liệu đính kèm</div>
-                                <div className="mt-1">
-                                    <label className="block mb-1.5 text-xs font-medium text-muted-foreground">Tài liệu đi kèm</label>
-                                    <input
-                                        type="text"
-                                        className="w-full px-3 py-1.5 border border-border rounded-md focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm transition-shadow"
-                                        value={data.attachedDocuments || ""}
-                                        onChange={(e) => updateTopLevelData("attachedDocuments", e.target.value)}
-                                        placeholder="Ghi chú về tài liệu đính kèm hỗ trợ in..."
-                                    />
+                                <div className="mt-1 space-y-3">
+                                    <div>
+                                        <label className="block mb-1.5 text-xs font-medium text-muted-foreground">Tài liệu đi kèm</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-3 py-1.5 border border-border rounded-md focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm transition-shadow"
+                                            value={data.attachedDocuments || ""}
+                                            onChange={(e) => updateTopLevelData("attachedDocuments", e.target.value)}
+                                            placeholder="Ghi chú về tài liệu đính kèm hỗ trợ in..."
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block mb-1.5 text-xs font-medium text-muted-foreground">Ghi chú chung</label>
+                                        <textarea
+                                            rows={2}
+                                            className="w-full px-3 py-1.5 border border-border rounded-md focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary bg-input text-foreground text-sm transition-shadow resize-none"
+                                            value={data.orderNote || ""}
+                                            onChange={(e) => updateTopLevelData("orderNote", e.target.value)}
+                                            placeholder="Nhập ghi chú chung cho đơn hàng..."
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
@@ -933,7 +967,8 @@ function mapOrderDetailResponseToPrintData(resp: any): any {
         invoiceAddress: invoice?.taxAddress ?? client?.clientAddress ?? "",
         invoiceEmail: invoice?.taxEmail ?? client?.clientEmail ?? "",
 
-        attachedDocuments: "",
+        attachedDocuments: order.attachedDocuments || "",
+        orderNote: order.orderNote || "",
 
         rawSamples: order?.samples ?? [],
         rawContactPerson: order?.contactPerson ?? null,
@@ -1242,9 +1277,15 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
         </table>
         <table>
             <tr>
-                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 120px; font-weight: 700;">${t("sampleRequest.section5.title")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;"></td>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 120px; font-weight: 700;">${t("sampleRequest.section5.title")}<strong>:</strong></td>
+                <td style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;">${data.attachedDocuments || ""}</td>
             </tr>
+            ${data.orderNote ? `
+            <tr>
+                <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 120px; font-weight: 700;">GHI CHÚ<strong>:</strong></td>
+                <td style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;">${data.orderNote || ""}</td>
+            </tr>
+            ` : ""}
         </table>
       </div>
 

@@ -74,6 +74,7 @@ export interface OrderPrintData {
     requestForm?: string;
     orderCustomerFileIds?: string[];
     orderCustomerFiles?: any[];
+    orderNote?: string;
     otherItems?: {
         itemName: string;
         feeBeforeTax: number;
