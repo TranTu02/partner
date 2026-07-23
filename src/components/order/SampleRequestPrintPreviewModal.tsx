@@ -136,7 +136,7 @@ export function SampleRequestPrintPreviewModal({ isOpen, onClose, data, onUpdate
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
             <div className="bg-card w-full max-w-5xl md:min-w-[900px] h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-border">
                 <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
                     <h2 className="text-lg font-bold text-foreground flex items-center gap-2">{t("sampleRequest.header", "Phiếu gửi mẫu thử nghiệm")}</h2>
@@ -352,7 +352,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                     // Always show Tên mẫu thử if it was handled as sampleName and no sampleInfo yet
                     const hasSampleNameInInfo = allSampleInfo.some((i: any) => i.label === "Tên mẫu thử");
                     const sampleInfoLines = allSampleInfo
-                        .map((info: any) => `<div><span style="font-weight:300;">${info.label}</span><strong>:</strong> <span style="font-weight:700;">${info.value || ""}</span></div>`)
+                        .map((info: any) => `<div><span style="font-weight:300;">${info.label}</span><strong>:</strong> <span style="font-weight:700;">${(info.value || "").replace(/\r?\n/g, "<br/>")}</span></div>`)
                         .join("");
 
                     const sampleNameLineHtml =
@@ -409,7 +409,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                     // })();
 
                     const noteCell = isFirst
-                        ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important; width: 18%;">${sample.sampleNote || ""}</td>`
+                        ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important; width: 18%;">${(sample.sampleNote || "").replace(/\r?\n/g, "<br/>")}</td>`
                         : "";
 
                     return `
@@ -598,7 +598,7 @@ function generateSampleRequestHtml(data: OrderPrintData, t: any) {
         <table>
             <tr>
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 120px; font-weight: 700;">${t("sampleRequest.section5.title")}</td>
-                <td style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;"></td>
+                <td style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;">${((data as any).attachedDocuments || "").replace(/\r?\n/g, "<br/>")}</td>
             </tr>
         </table>
       </div>

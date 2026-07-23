@@ -4,7 +4,7 @@ import type { OrderEditorRef } from "@/components/order/OrderEditor";
 import { OrderEditor } from "@/components/order/OrderEditor";
 
 import { useTranslation } from "react-i18next";
-import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { getOrders, getOrderFull, generateOrderUri } from "@/api/index";
 
 import type { Order } from "@/types/order";
@@ -24,7 +24,6 @@ interface OrdersListPageProps {
 
 export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps) {
     const { t } = useTranslation();
-    const navigate = useNavigate();
     const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
     const editorRef = useRef<OrderEditorRef>(null);

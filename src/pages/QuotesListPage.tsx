@@ -4,7 +4,7 @@ import type { QuoteEditorRef } from "@/components/quote/QuoteEditor";
 import { QuoteEditor } from "@/components/quote/QuoteEditor";
 
 import { useTranslation } from "react-i18next";
-import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { getQuotes, getQuoteDetail } from "@/api/index";
 
 import type { Quote } from "@/types/quote";
@@ -23,7 +23,6 @@ interface QuotesListPageProps {
 export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps) {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
     const editorRef = useRef<QuoteEditorRef>(null);
 

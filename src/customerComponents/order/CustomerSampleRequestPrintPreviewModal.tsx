@@ -1,5 +1,5 @@
 import { useRef, useState, useMemo, useEffect } from "react";
-import { X, FileDown, HelpCircle, FileText, Lock, Unlock } from "lucide-react";
+import { X, FileDown, HelpCircle, FileText, Lock, AlertTriangle } from "lucide-react";
 import { Editor } from "@tinymce/tinymce-react";
 import type { OrderPrintData } from "@/components/order/OrderPrintTemplate";
 import { useTranslation } from "react-i18next";
@@ -93,12 +93,12 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
     const editorRef = useRef<any>(null);
     const [loading, setLoading] = useState(false);
     const [editorReady, setEditorReady] = useState(false);
-    const [isLocked, setIsLocked] = useState(true);
     const [showGuide, setShowGuide] = useState(false);
     const [showConfirmExportModal, setShowConfirmExportModal] = useState(false);
 
     // Local state to allow editing before saving
     const [tempData, setTempData] = useState<OrderPrintData>(data);
+    const [isEditorFocused, setIsEditorFocused] = useState(false);
 
     const isOrderLocked = useMemo(() => {
         const status = tempData?.orderStatus?.toLowerCase() || "";
@@ -320,7 +320,6 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
             toast.success("Lưu và xuất PDF thành công!", { id: tid });
             const updated = { ...tempData, orderStatus: "Processing" };
             setTempData(updated);
-            setIsLocked(true);
             if (onUpdateData) onUpdateData(updated);
         } catch (error: any) {
             console.error(error);
@@ -557,8 +556,21 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                 </div>
 
                 {/* Center: Editor Preview */}
-                <div className="flex-1 overflow-x-auto overflow-y-auto bg-muted/30 flex justify-start lg:justify-center p-4 md:p-8 pt-16 md:pt-20">
-                    <div className="w-[794px] min-w-[794px] h-fit bg-white shadow-2xl relative mb-20 border border-border/50">
+                <div className="flex-1 overflow-x-auto overflow-y-auto bg-muted/30 flex flex-col items-start lg:items-center p-4 md:p-8 pt-16 md:pt-20">
+                    {isEditorFocused && !isOrderLocked && (
+                        <div className="w-[794px] mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 text-amber-800 text-xs shadow-md animate-in slide-in-from-top-2 duration-200 shrink-0">
+                            <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 animate-pulse" />
+                            <div className="space-y-1">
+                                <p className="font-bold uppercase tracking-wider">Chế độ chỉnh sửa trực tiếp</p>
+                                <p className="leading-relaxed">
+                                    Lưu ý: Mọi chỉnh sửa trực tiếp tại đây sẽ <strong>không đồng bộ ngược lại form nhập liệu bên trái</strong>. Bản in PDF chính thức sẽ được xuất theo đúng nội dung bạn sửa tại đây.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    <div 
+                        className="w-[794px] min-w-[794px] h-fit bg-white shadow-2xl relative mb-20 border border-border/50"
+                    >
                         {!editorReady && (
                             <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/90 backdrop-blur-sm">
                                 <div className="flex flex-col items-center gap-3">
@@ -573,7 +585,13 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                                 tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
                                 onInit={(_evt, editor) => {
                                     editorRef.current = editor;
-                                    editor.mode.set("readonly");
+                                    if (isOrderLocked) {
+                                        editor.mode.set("readonly");
+                                    } else {
+                                        editor.mode.set("design");
+                                    }
+                                    editor.on('focus', () => setIsEditorFocused(true));
+                                    editor.on('blur', () => setIsEditorFocused(false));
                                     setEditorReady(true);
                                 }}
                                 initialValue={initialHtml}
@@ -678,6 +696,7 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                     </div>
                 </div>
             )}
+
         </div>
     );
 }
@@ -804,7 +823,7 @@ export function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                     // Always show Tên mẫu thử if it was handled as sampleName and no sampleInfo yet
                     const hasSampleNameInInfo = allSampleInfo.some((i) => i.label === "Tên mẫu thử");
                     const sampleInfoLines = allSampleInfo
-                        .map((info) => `<div><span style="font-weight:300;">${info.label}</span><strong>:</strong> <span style="font-weight:700;">${info.value || ""}</span></div>`)
+                        .map((info) => `<div><span style="font-weight:300;">${info.label}</span><strong>:</strong> <span style="font-weight:700;">${(info.value || "").replace(/\r?\n/g, "<br/>")}</span></div>`)
                         .join("");
 
                     const sampleNameLineHtml =
@@ -826,7 +845,7 @@ export function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                     const descCell = isFirst
                         ? `
               <td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important ; vertical-align:top !important;">
-                <div style="font-size:12px; line-height:1.4; white-space: pre-wrap;">${sample.sampleDesc || ""}</div>
+                <div style="font-size:12px; line-height:1.4;">${(sample.sampleDesc || "").replace(/\r?\n/g, "<br/>")}</div>
               </td>
             `
                         : "";
@@ -840,7 +859,7 @@ export function generateSampleRequestHtml(data: OrderPrintData, t: any) {
                     //         : "";
 
                     const noteCell = isFirst
-                        ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important; width: 18%;">${sample.sampleNote || ""}</td>`
+                        ? `<td rowspan="${rowCount}" style="padding:5px; border: 1px solid #000 !important; vertical-align:top !important; width: 18%;">${(sample.sampleNote || "").replace(/\r?\n/g, "<br/>")}</td>`
                         : "";
 
                     return `
@@ -1021,12 +1040,12 @@ export function generateSampleRequestHtml(data: OrderPrintData, t: any) {
         <table>
             <tr>
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 120px; font-weight: 700;">${t("sampleRequest.section5.title")}<strong>:</strong></td>
-                <td style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;">${(data as any).attachedDocuments || ""}</td>
+                <td style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;">${((data as any).attachedDocuments || "").replace(/\r?\n/g, "<br/>")}</td>
             </tr>
             ${(data as any).orderNote ? `
             <tr>
                 <td style="white-space: nowrap; padding: 2px 5px; border: 0 !important; width: 120px; font-weight: 700;">GHI CHÚ<strong>:</strong></td>
-                <td style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;">${(data as any).orderNote || ""}</td>
+                <td style="padding: 2px 5px; border: 0 !important; word-break: break-word; font-weight: 700;">${((data as any).orderNote || "").replace(/\r?\n/g, "<br/>")}</td>
             </tr>
             ` : ""}
         </table>

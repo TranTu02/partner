@@ -11,7 +11,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Editor } from "@tinymce/tinymce-react";
-import { X, FileDown, HelpCircle, FileText, ArrowLeft, UploadCloud, Loader2, ChevronDown, Tag, Lock } from "lucide-react";
+import { X, FileDown, HelpCircle, FileText, ArrowLeft, UploadCloud, Loader2, ChevronDown, Tag, Lock, AlertTriangle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import Cookies from "js-cookie";
 import { 
@@ -123,6 +123,7 @@ export function CustomerSampleRequestPage() {
     const [isDirty, setIsDirty] = useState(false);
     const [mobileTab, setMobileTab] = useState<"form" | "preview">("form");
     const [showConfirmExportModal, setShowConfirmExportModal] = useState(false);
+    const [isEditorFocused, setIsEditorFocused] = useState(false);
 
     const isOrderLocked = !!(tempData?.orderStatus && 
         tempData.orderStatus.toLowerCase() !== "pending" && 
@@ -1076,8 +1077,21 @@ export function CustomerSampleRequestPage() {
                 </div>
 
                 {/* Center: Editor Preview */}
-                <div className={`${mobileTab === "preview" ? "flex" : "hidden"} lg:flex flex-1 overflow-x-auto overflow-y-auto bg-muted/30 justify-start lg:justify-center p-4 md:p-8 pt-16 md:pt-20`}>
-                    <div className="w-[794px] min-w-[794px] h-fit bg-white shadow-2xl relative mb-20 border border-border/50">
+                <div className={`${mobileTab === "preview" ? "flex" : "hidden"} lg:flex flex-1 overflow-x-auto overflow-y-auto bg-muted/30 flex-col items-start lg:items-center p-4 md:p-8 pt-16 md:pt-20`}>
+                    {isEditorFocused && !isOrderLocked && (
+                        <div className="w-[794px] mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 text-amber-800 text-xs shadow-md animate-in slide-in-from-top-2 duration-200 shrink-0">
+                            <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 animate-pulse" />
+                            <div className="space-y-1">
+                                <p className="font-bold uppercase tracking-wider">Chế độ chỉnh sửa trực tiếp</p>
+                                <p className="leading-relaxed">
+                                    Lưu ý: Mọi chỉnh sửa trực tiếp tại đây sẽ <strong>không đồng bộ ngược lại form nhập liệu bên trái</strong>. Bản in PDF chính thức sẽ được xuất theo đúng nội dung bạn sửa tại đây.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    <div 
+                        className="w-[794px] min-w-[794px] h-fit bg-white shadow-2xl relative mb-20 border border-border/50"
+                    >
                         {!editorReady && (
                             <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/90 backdrop-blur-sm">
                                 <div className="flex flex-col items-center gap-3">
@@ -1091,7 +1105,13 @@ export function CustomerSampleRequestPage() {
                             tinymceScriptSrc="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"
                             onInit={(_evt, editor) => {
                                 editorRef.current = editor;
-                                editor.mode.set("readonly");
+                                if (isOrderLocked) {
+                                    editor.mode.set("readonly");
+                                } else {
+                                    editor.mode.set("design");
+                                }
+                                editor.on('focus', () => setIsEditorFocused(true));
+                                editor.on('blur', () => setIsEditorFocused(false));
                                 setEditorReady(true);
                             }}
                             initialValue={initialHtml}

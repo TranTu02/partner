@@ -27,6 +27,60 @@ function AppRoutes() {
     const location = useLocation();
     const navigate = useNavigate();
 
+    // 00. Auto update version checker on route change
+    React.useEffect(() => {
+        const checkVersion = async () => {
+            try {
+                // Fetch meta.json bypass cache để lấy build version mới nhất
+                const response = await fetch(`/meta.json?t=${Date.now()}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const serverVersion = data.version;
+                    const clientVersion = localStorage.getItem("client_version");
+                    
+                    if (!clientVersion) {
+                        localStorage.setItem("client_version", String(serverVersion));
+                    } else if (clientVersion !== String(serverVersion)) {
+                        console.log("New production version detected. Force reloading...", serverVersion);
+                        localStorage.setItem("client_version", String(serverVersion));
+                        // Xóa Cache Storage nếu có và reload trang
+                        if ("caches" in window) {
+                            try {
+                                const keys = await caches.keys();
+                                await Promise.all(keys.map(key => caches.delete(key)));
+                            } catch (e) {
+                                console.error("Error clearing browser cache:", e);
+                            }
+                        }
+                        window.location.reload();
+                    }
+                }
+            } catch (error) {
+                console.error("Error checking app version:", error);
+            }
+        };
+
+        checkVersion();
+    }, [location.pathname]);
+
+    // 00b. Catch ChunkLoadError (when chunk is deleted on server during new deploy)
+    React.useEffect(() => {
+        const handleChunkError = (event: ErrorEvent) => {
+            const errorText = event.message || "";
+            const isChunkLoadFailed = errorText.includes("Loading chunk") || 
+                                      errorText.includes("Failed to fetch dynamically imported module");
+            if (isChunkLoadFailed) {
+                console.warn("Chunk load failure detected, force reloading page...", errorText);
+                window.location.reload();
+            }
+        };
+
+        window.addEventListener("error", handleChunkError, true);
+        return () => {
+            window.removeEventListener("error", handleChunkError, true);
+        };
+    }, []);
+
     // 0. CAPTURE sessionId from URL if present (Support deep links/copied links)
     React.useEffect(() => {
         const params = new URLSearchParams(location.search);
