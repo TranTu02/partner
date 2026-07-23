@@ -105,9 +105,18 @@ export function CustomerOrdersPage() {
                         const res = await customerGetOrderDetail({ query: { orderId: duplicateId, clientId } });
                         if (res.success && res.data) {
                             const sourceData = { ...res.data } as any;
-                            // Clear files when duplicating
                             sourceData.orderCustomerFileIds = [];
                             sourceData.orderCustomerFiles = [];
+                            sourceData.orderId = undefined;
+                            sourceData.samples = (sourceData.samples || []).map((s: any, sIdx: number) => ({
+                                ...s,
+                                id: `temp-sample-${Date.now()}-${sIdx}-${Math.random().toString(36).slice(2)}`,
+                                sampleId: undefined,
+                                analyses: (s.analyses || []).map((a: any, aIdx: number) => ({
+                                    ...a,
+                                    id: `temp-analysis-${Date.now()}-${sIdx}-${aIdx}-${Math.random().toString(36).slice(2)}`,
+                                })),
+                            }));
                             setSelectedOrder(sourceData as Order);
                         } else {
                             setSelectedOrder(null);

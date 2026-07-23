@@ -30,7 +30,7 @@ function PopoverContent({
         align={align}
         sideOffset={sideOffset}
         className={cn(
-          "z-50 rounded-md border bg-popover text-popover-foreground shadow-md",
+          "z-[9999] rounded-md border bg-popover text-popover-foreground shadow-md",
           "outline-none",
           "origin-[--radix-popover-content-transform-origin]",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",

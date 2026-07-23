@@ -146,9 +146,19 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                         const response = await getQuoteDetail({ query: { quoteId: duplicateId } });
                         if (response.success && response.data) {
                             const sourceData = { ...response.data } as any;
-                            // Only copy samples and clear client and other fields when duplicating
+                            const duplicatedSamples = (sourceData.samples || []).map((s: any, sIdx: number) => ({
+                                ...s,
+                                id: `temp-sample-${Date.now()}-${sIdx}-${Math.random().toString(36).slice(2)}`,
+                                sampleId: undefined,
+                                analyses: (s.analyses || []).map((a: any, aIdx: number) => ({
+                                    ...a,
+                                    id: `temp-analysis-${Date.now()}-${sIdx}-${aIdx}-${Math.random().toString(36).slice(2)}`,
+                                })),
+                            }));
                             const duplicatedQuote = {
-                                samples: sourceData.samples || [],
+                                ...sourceData,
+                                quoteId: undefined,
+                                samples: duplicatedSamples,
                             } as any;
                             setSelectedQuote(duplicatedQuote as Quote);
                         } else {

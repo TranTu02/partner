@@ -168,9 +168,19 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                         const response = await getOrderFull({ query: { orderId: duplicateId } });
                         if (response.success && response.data) {
                             const sourceData = { ...response.data } as any;
-                            // Only copy samples and clear client, files, and other fields when duplicating
+                            const duplicatedSamples = (sourceData.samples || []).map((s: any, sIdx: number) => ({
+                                ...s,
+                                id: `temp-sample-${Date.now()}-${sIdx}-${Math.random().toString(36).slice(2)}`,
+                                sampleId: undefined,
+                                analyses: (s.analyses || []).map((a: any, aIdx: number) => ({
+                                    ...a,
+                                    id: `temp-analysis-${Date.now()}-${sIdx}-${aIdx}-${Math.random().toString(36).slice(2)}`,
+                                })),
+                            }));
                             const duplicatedOrder = {
-                                samples: sourceData.samples || [],
+                                ...sourceData,
+                                orderId: undefined,
+                                samples: duplicatedSamples,
                             } as any;
                             setSelectedOrder(duplicatedOrder as Order);
                         } else {

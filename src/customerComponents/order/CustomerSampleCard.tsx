@@ -395,15 +395,35 @@ export function CustomerSampleCard({
                     <div className="flex gap-2 mt-8">
                         <Popover open={isDuplicatePopoverOpen} onOpenChange={setIsDuplicatePopoverOpen}>
                             <PopoverTrigger asChild>
-                                <button className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
+                                <button
+                                    onClick={() => {
+                                        onDuplicateSample(1);
+                                    }}
+                                    className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                                    title={t("order.duplicateSample")}
+                                >
                                     <Copy className="w-5 h-5" />
                                 </button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-48 p-3" align="end">
+                            <PopoverContent className="w-48 p-3 z-[9999]" align="end">
                                 <div className="space-y-3">
                                     <div className="text-xs font-medium text-muted-foreground">{t("order.duplicateCount")}</div>
                                     <div className="flex gap-2">
-                                        <Input type="number" value={duplicateCount} onChange={(e) => setDuplicateCount(Math.max(1, parseInt(e.target.value) || 1))} className="h-8 text-sm" min={1} />
+                                        <Input
+                                            type="number"
+                                            value={duplicateCount}
+                                            onChange={(e) => setDuplicateCount(Math.max(1, parseInt(e.target.value) || 1))}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    onDuplicateSample(duplicateCount);
+                                                    setIsDuplicatePopoverOpen(false);
+                                                    setDuplicateCount(1);
+                                                }
+                                            }}
+                                            className="h-8 text-sm"
+                                            autoFocus
+                                            min={1}
+                                        />
                                         <Button
                                             size="sm"
                                             className="h-8 w-8 p-0"

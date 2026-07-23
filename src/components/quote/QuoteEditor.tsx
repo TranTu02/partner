@@ -365,23 +365,26 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
 
     const handleDuplicateSample = (sampleId: string, count: number = 1) => {
         if (isReadOnly) return;
-        const sampleToDuplicate = samples.find((s) => s.id === sampleId);
+        const sampleToDuplicate = samples.find((s) => String(s.id) === String(sampleId) || String(s.sampleId) === String(sampleId));
         if (!sampleToDuplicate) return;
 
         const newSamples: SampleWithQuantity[] = [];
+        const baseTs = Date.now();
         for (let i = 0; i < count; i++) {
-            const timestamp = Date.now() + i;
+            const randomStr = Math.random().toString(36).slice(2, 9);
+            const newSampleId = `temp-sample-${baseTs}-${randomStr}-${i}`;
             newSamples.push({
                 ...sampleToDuplicate,
-                id: `S${timestamp}`,
+                id: newSampleId,
                 sampleId: undefined,
-                analyses: sampleToDuplicate.analyses.map((a, idx) => ({
+                analyses: (sampleToDuplicate.analyses || []).map((a, aIdx) => ({
                     ...a,
-                    id: `${a.parameterId}_copy_${timestamp}_${idx}`,
+                    id: `temp-analysis-${baseTs}-${randomStr}-${i}-${aIdx}`,
                 })),
             });
         }
         setSamples([...samples, ...newSamples]);
+        toast.success(`Đã nhân bản ${count} mẫu thử`);
     };
 
     const handleRemoveSample = (sampleId: string) => {

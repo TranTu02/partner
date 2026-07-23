@@ -101,8 +101,20 @@ export function CustomerQuotesPage() {
                 if (duplicateId) {
                     try {
                         const res = await customerGetQuoteDetail({ query: { quoteId: duplicateId, clientId } });
-                        if (res.success && res.data) setSelectedQuote(res.data as Quote);
-                        else setSelectedQuote(null);
+                        if (res.success && res.data) {
+                            const sourceData = { ...res.data } as any;
+                            sourceData.quoteId = undefined;
+                            sourceData.samples = (sourceData.samples || []).map((s: any, sIdx: number) => ({
+                                ...s,
+                                id: `temp-sample-${Date.now()}-${sIdx}-${Math.random().toString(36).slice(2)}`,
+                                sampleId: undefined,
+                                analyses: (s.analyses || []).map((a: any, aIdx: number) => ({
+                                    ...a,
+                                    id: `temp-analysis-${Date.now()}-${sIdx}-${aIdx}-${Math.random().toString(36).slice(2)}`,
+                                })),
+                            }));
+                            setSelectedQuote(sourceData as Quote);
+                        } else setSelectedQuote(null);
                     } catch {
                         setSelectedQuote(null);
                     }

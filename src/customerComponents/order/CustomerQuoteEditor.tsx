@@ -268,14 +268,24 @@ export const CustomerQuoteEditor = forwardRef<CustomerQuoteEditorRef, CustomerQu
     };
     const handleDuplicateSample = (id: string, count: number = 1) => {
         if (isReadOnly) return;
-        const src = samples.find((s) => s.id === id);
+        const src = samples.find((s) => String(s.id) === String(id) || String(s.sampleId) === String(id));
         if (!src) return;
         const copies: SampleWithQuantity[] = [];
+        const baseTs = Date.now();
         for (let i = 0; i < count; i++) {
-            const ts = Date.now() + i;
-            copies.push({ ...src, id: `S${ts}`, sampleId: undefined, analyses: src.analyses.map((a, idx) => ({ ...a, id: `${a.parameterId}_copy_${ts}_${idx}` })) });
+            const randomStr = Math.random().toString(36).slice(2, 9);
+            copies.push({
+                ...src,
+                id: `temp-sample-${baseTs}-${randomStr}-${i}`,
+                sampleId: undefined,
+                analyses: (src.analyses || []).map((a, idx) => ({
+                    ...a,
+                    id: `temp-analysis-${baseTs}-${randomStr}-${i}-${idx}`,
+                })),
+            });
         }
         setSamples([...samples, ...copies]);
+        toast.success(`Đã nhân bản ${count} mẫu thử`);
     };
     const handleRemoveAnalysis = (sampleId: string, analysisId: string) => {
         if (isReadOnly) return;
