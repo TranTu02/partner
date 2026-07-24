@@ -472,7 +472,7 @@ export function SampleCard({
                             <PopoverTrigger asChild>
                                 <button
                                     onClick={() => {
-                                        onDuplicateSample(1);
+                                        setDuplicateCount(1);
                                     }}
                                     className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
                                     title={t("order.duplicateSample")}

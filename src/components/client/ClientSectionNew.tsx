@@ -292,8 +292,8 @@ export function ClientSectionNew({
                                     onChange={(e) => {
                                         setSearchQuery(e.target.value);
                                         setShowDropdown(true);
-                                        // If cleared, allow selection to be cleared or just let user search new
-                                        if (!e.target.value && selectedClient) {
+                                        // Clear client selection when input changes
+                                        if (selectedClient) {
                                             onClientChange(null);
                                         }
                                     }}

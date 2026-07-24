@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import type { EditorMode } from "../order/OrderEditor";
 import type { SampleWithQuantity, AnalysisWithQuantity } from "@/components/order/SampleCard";
-import { getClients, createClient, updateClient, createQuote, updateQuote } from "@/api/index";
+import { getClients, getClientDetail, createClient, updateClient, createQuote, updateQuote } from "@/api/index";
 import type { OtherItem } from "@/types/order";
 import { toast } from "sonner";
 import { DndProvider } from "react-dnd";
@@ -261,26 +261,42 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
         }
     }, [selectedClient, contactPerson, samples, isReadOnly]);
 
-    useEffect(() => {
-        if (selectedClient && !initialData) {
-            setClientAddress(selectedClient.clientAddress);
-            setClientPhone(selectedClient.clientPhone || "");
-            setClientEmail(selectedClient.clientEmail || "");
+    const handleClientChange = async (client: Client | null) => {
+        setSelectedClient(client);
+        setReportRecipient({});
+
+        if (client) {
+            let fullClient = client;
+            if (!client.invoiceInfo || !client.clientContacts || client.clientContacts.length === 0) {
+                try {
+                    const res = await getClientDetail({ query: { clientId: client.clientId } });
+                    if (res.success && res.data) {
+                        fullClient = res.data as Client;
+                        setSelectedClient(fullClient);
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch full client details on change", err);
+                }
+            }
+
+            setClientAddress(fullClient.clientAddress || "");
+            setClientPhone(fullClient.clientPhone || "");
+            setClientEmail(fullClient.clientEmail || "");
 
             // Invoice
-            setTaxName(selectedClient.invoiceInfo?.taxName || "");
-            setTaxCode(selectedClient.invoiceInfo?.taxCode || "");
-            setTaxAddress(selectedClient.invoiceInfo?.taxAddress || "");
-            setTaxEmail(selectedClient.invoiceInfo?.taxEmail || "");
+            setTaxName(fullClient.invoiceInfo?.taxName || "");
+            setTaxCode(fullClient.invoiceInfo?.taxCode || "");
+            setTaxAddress(fullClient.invoiceInfo?.taxAddress || "");
+            setTaxEmail(fullClient.invoiceInfo?.taxEmail || "");
 
             // Contact
-            if (selectedClient.clientContacts?.[0]) {
-                const contact = selectedClient.clientContacts[0];
+            if (fullClient.clientContacts && fullClient.clientContacts.length > 0) {
+                const contact = fullClient.clientContacts[fullClient.clientContacts.length - 1];
                 setContactPerson(contact.contactName || (contact as any).name || "");
                 setContactPhone(contact.contactPhone || (contact as any).phone || "");
                 setContactIdentity(contact.contactId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
-                setContactAddress(contact.contactAddress || "");
+                setContactAddress(contact.contactAddress || fullClient.clientAddress || "");
             } else {
                 setContactPerson("");
                 setContactPhone("");
@@ -288,33 +304,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 setContactEmail("");
                 setContactAddress("");
             }
-        } else if (selectedClient && initialData && selectedClient.clientId !== initialData.client?.clientId) {
-            // Overwrite on client change
-            setClientAddress(selectedClient.clientAddress || "");
-            setClientPhone(selectedClient.clientPhone || "");
-            setClientEmail(selectedClient.clientEmail || "");
-
-            setTaxName(selectedClient.invoiceInfo?.taxName || "");
-            setTaxCode(selectedClient.invoiceInfo?.taxCode || "");
-            setTaxAddress(selectedClient.invoiceInfo?.taxAddress || "");
-            setTaxEmail(selectedClient.invoiceInfo?.taxEmail || "");
-
-            if (selectedClient.clientContacts?.[0]) {
-                const contact = selectedClient.clientContacts[0];
-                setContactPerson(contact.contactName || (contact as any).name || "");
-                setContactPhone(contact.contactPhone || (contact as any).phone || "");
-                setContactIdentity(contact.contactId || "");
-                setContactEmail(contact.contactEmail || (contact as any).email || "");
-                setContactAddress(contact.contactAddress || "");
-            } else {
-                setContactPerson("");
-                setContactPhone("");
-                setContactIdentity("");
-                setContactEmail("");
-                setContactAddress("");
-            }
-        } else if (!selectedClient) {
-            // Clear everything if client is cleared
+        } else {
             setClientAddress("");
             setClientPhone("");
             setClientEmail("");
@@ -328,7 +318,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
             setContactEmail("");
             setContactAddress("");
         }
-    }, [selectedClient, initialData]);
+    };
 
     const handleAddClient = async (newClientData: any) => {
         try {
@@ -337,7 +327,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 toast.success("Client created");
                 const created = response.data as Client;
                 setClients((prev) => [...prev, created]);
-                setSelectedClient(created);
+                handleClientChange(created);
                 setIsClientModalOpen(false);
             } else {
                 toast.error("Failed to create client");
@@ -790,7 +780,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                             taxCode={taxCode}
                             taxAddress={taxAddress}
                             taxEmail={taxEmail}
-                            onClientChange={setSelectedClient}
+                            onClientChange={handleClientChange}
                             onAddressChange={setClientAddress}
                             onContactPersonChange={setContactPerson}
                             onContactPhoneChange={setContactPhone}
@@ -889,7 +879,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                                 toast.success("Client updated");
                                 const updated = response.data as Client;
                                 setClients((prev) => prev.map((c) => (c.clientId === updated.clientId ? updated : c)));
-                                setSelectedClient(updated);
+                                handleClientChange(updated);
 
                                 setClientAddress(updated.clientAddress || "");
                                 setClientPhone(updated.clientPhone || "");

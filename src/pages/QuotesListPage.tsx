@@ -154,6 +154,11 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                                 ...s,
                                 id: `temp-sample-${Date.now()}-${sIdx}-${Math.random().toString(36).slice(2)}`,
                                 sampleId: undefined,
+                                sampleName: "",
+                                sampleInfo: (s.sampleInfo || []).map((info: any) => ({
+                                    ...info,
+                                    value: "",
+                                })),
                                 analyses: (s.analyses || []).map((a: any, aIdx: number) => ({
                                     ...a,
                                     id: `temp-analysis-${Date.now()}-${sIdx}-${aIdx}-${Math.random().toString(36).slice(2)}`,

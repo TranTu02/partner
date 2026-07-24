@@ -31,7 +31,7 @@ export function SampleRequestFormPage() {
     const initialAnalysesRef = useRef<Record<string, { protocolCode: string | null; protocolId: string | null }>>({});
 
     const DEFAULT_SAMPLE_INFO_LABELS = ["Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Địa chỉ sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
-
+    
     // Removed isLocked logic to allow editing at all times
 
     // Removed URI verification effect here, combined below

@@ -15,7 +15,7 @@ import { OrderPrintPreviewModal } from "@/components/order/OrderPrintPreviewModa
 import { SampleRequestPrintPreviewModal } from "@/components/order/SampleRequestPrintPreviewModal";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import { getClients, getQuoteDetail, createClient, updateClient, createOrder, updateOrder, getOrderPresignUrl, deleteOrderFile } from "@/api/index";
+import { getClients, getQuoteDetail, getClientDetail, createClient, updateClient, createOrder, updateOrder, getOrderPresignUrl, deleteOrderFile } from "@/api/index";
 import { toast } from "sonner";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -371,30 +371,44 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
         }
     }, [selectedClient, contactPerson, samples, orderCustomerFileIds, isReadOnly]);
 
-    const handleClientChange = (client: Client | null) => {
+    const handleClientChange = async (client: Client | null) => {
         setSelectedClient(client);
+        setReportRecipient({});
 
         if (client) {
-            setClientAddress(client.clientAddress || "");
-            setClientPhone(client.clientPhone || "");
-            setClientEmail(client.clientEmail || "");
+            let fullClient = client;
+            if (!client.invoiceInfo || !client.clientContacts || client.clientContacts.length === 0) {
+                try {
+                    const res = await getClientDetail({ query: { clientId: client.clientId } });
+                    if (res.success && res.data) {
+                        fullClient = res.data as Client;
+                        setSelectedClient(fullClient);
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch full client details on change", err);
+                }
+            }
+
+            setClientAddress(fullClient.clientAddress || "");
+            setClientPhone(fullClient.clientPhone || "");
+            setClientEmail(fullClient.clientEmail || "");
 
             // Invoice - strictly clear if not present in B's invoiceInfo
-            setTaxName(client.invoiceInfo?.taxName || "");
-            setTaxCode(client.invoiceInfo?.taxCode || "");
-            setTaxAddress(client.invoiceInfo?.taxAddress || "");
-            setTaxEmail(client.invoiceInfo?.taxEmail || "");
+            setTaxName(fullClient.invoiceInfo?.taxName || "");
+            setTaxCode(fullClient.invoiceInfo?.taxCode || "");
+            setTaxAddress(fullClient.invoiceInfo?.taxAddress || "");
+            setTaxEmail(fullClient.invoiceInfo?.taxEmail || "");
 
             // Contact
-            if (client.clientContacts && client.clientContacts.length > 0) {
+            if (fullClient.clientContacts && fullClient.clientContacts.length > 0) {
                 // Use the LAST contact in the array as default
-                const contact = client.clientContacts[client.clientContacts.length - 1];
+                const contact = fullClient.clientContacts[fullClient.clientContacts.length - 1];
                 setContactPerson(contact.contactName || (contact as any).name || "");
                 setContactPhone(contact.contactPhone || (contact as any).phone || "");
                 setContactId(contact.contactId || "");
                 setContactIdentity(contact.contactId || "");
                 setContactEmail(contact.contactEmail || (contact as any).email || "");
-                setContactAddress(contact.contactAddress || client.clientAddress || "");
+                setContactAddress(contact.contactAddress || fullClient.clientAddress || "");
             } else {
                 // Clear contact fields if no contact
                 setContactPerson("");
