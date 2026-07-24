@@ -99,6 +99,8 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
     // Local state to allow editing before saving
     const [tempData, setTempData] = useState<OrderPrintData>(data);
     const [isEditorFocused, setIsEditorFocused] = useState(false);
+    const [showEditorClickNotice, setShowEditorClickNotice] = useState(false);
+    const noticeTimerRef = useRef<any>(null);
 
     const isOrderLocked = useMemo(() => {
         const status = tempData?.orderStatus?.toLowerCase() || "";
@@ -143,6 +145,20 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
             editorRef.current.mode.set("readonly");
         }
     }, [editorReady]);
+
+    useEffect(() => {
+        return () => {
+            if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+        };
+    }, []);
+
+    const triggerEditorNotice = () => {
+        setShowEditorClickNotice(true);
+        if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+        noticeTimerRef.current = setTimeout(() => {
+            setShowEditorClickNotice(false);
+        }, 7000);
+    };
 
     // Always regenerate HTML from current tempData so default texts (like
     // "Thống nhất với IRDOP về phương pháp thử") are always visible.
@@ -557,6 +573,13 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
 
                 {/* Center: Editor Preview */}
                 <div className="flex-1 overflow-x-auto overflow-y-auto bg-muted/30 flex flex-col items-start lg:items-center p-4 md:p-8 pt-16 md:pt-20">
+                    {/* Xem trước thông tin trên phiếu bản in Header */}
+                    <div className="mb-4 flex items-center gap-2 bg-blue-50 border border-blue-200 px-4 py-2.5 rounded-lg shadow-sm w-[794px] justify-center shrink-0">
+                        <FileText className="w-5 h-5 text-blue-600 animate-pulse" />
+                        <span className="text-sm font-bold text-blue-800 uppercase tracking-wide">
+                            Xem trước thông tin trên phiếu bản in
+                        </span>
+                    </div>
                     {isEditorFocused && !isOrderLocked && (
                         <div className="w-[794px] mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 text-amber-800 text-xs shadow-md animate-in slide-in-from-top-2 duration-200 shrink-0">
                             <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 animate-pulse" />
@@ -569,7 +592,8 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                         </div>
                     )}
                     <div 
-                        className="w-[794px] min-w-[794px] h-fit bg-white shadow-2xl relative mb-20 border border-border/50"
+                        onClick={triggerEditorNotice}
+                        className="w-[794px] min-w-[794px] h-fit bg-white shadow-2xl relative mb-20 border border-border/50 cursor-pointer"
                     >
                         {!editorReady && (
                             <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/90 backdrop-blur-sm">
@@ -592,6 +616,16 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                                     }
                                     editor.on('focus', () => setIsEditorFocused(true));
                                     editor.on('blur', () => setIsEditorFocused(false));
+                                    
+                                    // Directly add raw listeners to the iframe document to bypass TinyMCE event suppression
+                                    const doc = editor.getDoc();
+                                    if (doc) {
+                                        const listener = () => triggerEditorNotice();
+                                        doc.addEventListener('click', listener);
+                                        doc.addEventListener('mousedown', listener);
+                                        doc.addEventListener('touchend', listener);
+                                    }
+                                    
                                     setEditorReady(true);
                                 }}
                                 initialValue={initialHtml}
@@ -697,6 +731,87 @@ export function CustomerSampleRequestPrintPreviewModal({ isOpen, onClose, data, 
                 </div>
             )}
 
+            {/* Editor Click Instruction Notice Modal */}
+            {showEditorClickNotice && (
+                <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+                    {/* Backdrop blur */}
+                    <div 
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm" 
+                        onClick={() => setShowEditorClickNotice(false)} 
+                    />
+                    
+                    {/* Modal Card */}
+                    <div className="relative bg-white rounded-xl shadow-2xl border border-blue-100 max-w-xl w-full p-6 text-foreground animate-in fade-in zoom-in duration-200 overflow-hidden">
+                        {/* Close button */}
+                        <button 
+                            onClick={() => setShowEditorClickNotice(false)} 
+                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+
+                        {/* Content */}
+                        <div className="space-y-4 pt-2">
+                            <div className="flex items-center gap-3 text-blue-600 mb-2">
+                                <HelpCircle className="w-8 h-8 shrink-0" />
+                                <h3 className="text-2xl font-extrabold tracking-tight">
+                                    Hướng dẫn Nhập liệu & Chỉnh sửa
+                                </h3>
+                            </div>
+                            
+                            <p className="text-base text-gray-600 font-medium">
+                                Bạn đang click vào <span className="font-bold text-blue-600">Bản xem trước</span> của phiếu in. Để thay đổi thông tin trên phiếu, vui lòng chỉnh sửa tại <span className="font-bold text-blue-600">cột bên trái</span>:
+                            </p>
+
+                            <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-100/80 space-y-3 text-base text-gray-750">
+                                <div className="flex gap-2">
+                                    <span className="font-bold text-blue-600">1.</span>
+                                    <p><strong>Thông tin khách hàng & liên hệ:</strong> Sửa Tên khách hàng, MST, Địa chỉ, Người liên hệ... ở mục <strong>Thông tin thể hiện trên kết quả</strong> & <strong>Thông tin liên hệ</strong>.</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <span className="font-bold text-blue-600">2.</span>
+                                    <p><strong>Người nhận kết quả:</strong> Điền tên, SĐT, địa chỉ nhận bản in kết quả ở mục <strong>Thông tin nhận kết quả</strong>.</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <span className="font-bold text-blue-600">3.</span>
+                                    <p><strong>Xuất hóa đơn đỏ:</strong> Nhập thông tin Công ty, MST, Địa chỉ nhận hóa đơn ở mục <strong>Thông tin xuất hóa đơn</strong>.</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <span className="font-bold text-blue-600">4.</span>
+                                    <p><strong>Chi tiết Mẫu & Chỉ tiêu:</strong> Cuộn xuống phần <strong>Danh sách mẫu</strong> ở cột trái để sửa Tên mẫu, Mô tả, Số lô, Ngày SX, Hạn SD, Phương pháp thử.</p>
+                                </div>
+                            </div>
+
+                            <div className="text-sm font-semibold text-center text-green-600 py-1.5 bg-green-50 rounded-md">
+                                ✓ Mọi thay đổi ở cột bên trái sẽ tự động đồng bộ tức thì vào bản xem trước này!
+                            </div>
+
+                            <button
+                                onClick={() => setShowEditorClickNotice(false)}
+                                className="w-full py-3 mt-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-lg transition-colors shadow-md"
+                            >
+                                Đã hiểu và tiếp tục
+                            </button>
+                        </div>
+
+                        {/* Animated shrinking progress bar */}
+                        <div 
+                            className="absolute bottom-0 left-0 h-1.5 bg-blue-600"
+                            style={{
+                                animation: "shrinkWidth 7s linear forwards"
+                            }}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Styles */}
+            <style>{`
+                @keyframes shrinkWidth {
+                    from { width: 100%; }
+                    to { width: 0%; }
+                }
+            `}</style>
         </div>
     );
 }

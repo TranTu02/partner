@@ -25,6 +25,8 @@ export function SampleRequestFormPage() {
     const [savedContent, setSavedContent] = useState<string>("");
     const [showGuide, setShowGuide] = useState(false); // For mobile modal
     const [showPrintConfirm, setShowPrintConfirm] = useState(false);
+    const [showEditorClickNotice, setShowEditorClickNotice] = useState(false);
+    const noticeTimerRef = useRef<any>(null);
 
     const initialAnalysesRef = useRef<Record<string, { protocolCode: string | null; protocolId: string | null }>>({});
 
@@ -102,6 +104,20 @@ export function SampleRequestFormPage() {
     useEffect(() => {
         setEditorReady(false);
     }, [data?.orderId]);
+
+    useEffect(() => {
+        return () => {
+            if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+        };
+    }, []);
+
+    const triggerEditorNotice = () => {
+        setShowEditorClickNotice(true);
+        if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+        noticeTimerRef.current = setTimeout(() => {
+            setShowEditorClickNotice(false);
+        }, 7000);
+    };
 
     const initialHtml = useMemo(() => {
         if (savedContent) return savedContent;
@@ -730,8 +746,19 @@ export function SampleRequestFormPage() {
                             {/* Toolbar container - full width */}
                             <div className="w-full bg-white shadow-lg rounded-t-lg hidden" id="tinymce-toolbar-container"></div>
 
+                            {/* Xem trước thông tin trên phiếu bản in Header */}
+                            <div className="mb-4 flex items-center gap-2 bg-blue-50 border border-blue-200 px-4 py-2.5 rounded-lg shadow-sm w-[794px] justify-center">
+                                <FileText className="w-5 h-5 text-blue-600 animate-pulse" />
+                                <span className="text-sm font-bold text-blue-800 uppercase tracking-wide">
+                                    Xem trước thông tin trên phiếu bản in
+                                </span>
+                            </div>
+
                             {/* Editor container - A4 width centered */}
-                            <div className="w-[794px] min-w-[794px] mx-auto bg-white shadow-lg">
+                            <div 
+                                onClick={triggerEditorNotice}
+                                className="w-[794px] min-w-[794px] mx-auto bg-white shadow-lg cursor-pointer"
+                            >
                                 {!editorReady && <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted/50">{t("common.loading")}</div>}
                                                 <div
                                     style={{
@@ -746,6 +773,16 @@ export function SampleRequestFormPage() {
                                         onInit={(_evt: any, editor: any) => {
                                             editorRef.current = editor;
                                             editor.mode.set("readonly");
+                                            
+                                            // Directly add raw listeners to the iframe document to bypass TinyMCE event suppression
+                                            const doc = editor.getDoc();
+                                            if (doc) {
+                                                const listener = () => triggerEditorNotice();
+                                                doc.addEventListener('click', listener);
+                                                doc.addEventListener('mousedown', listener);
+                                                doc.addEventListener('touchend', listener);
+                                            }
+                                            
                                             setEditorReady(true);
                                         }}
                                         initialValue={initialHtml}
@@ -775,6 +812,9 @@ export function SampleRequestFormPage() {
                                                     editor.getBody().setAttribute("translate", "no");
                                                     editor.getBody().setAttribute("spellcheck", "false");
                                                     editor.getBody().setAttribute("data-gramm", "false");
+                                                });
+                                                editor.on("click", () => {
+                                                    triggerEditorNotice();
                                                 });
                                             },
                                             content_style: `
@@ -865,11 +905,89 @@ export function SampleRequestFormPage() {
                         </div>
                     </div>
                 )}
+
+                {/* Editor Click Instruction Notice Modal */}
+                {showEditorClickNotice && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        {/* Backdrop blur */}
+                        <div 
+                            className="absolute inset-0 bg-black/40 backdrop-blur-sm" 
+                            onClick={() => setShowEditorClickNotice(false)} 
+                        />
+                        
+                        {/* Modal Card */}
+                        <div className="relative bg-white rounded-xl shadow-2xl border border-blue-100 max-w-xl w-full p-6 text-foreground animate-in fade-in zoom-in duration-200 overflow-hidden">
+                            {/* Close button */}
+                            <button 
+                                onClick={() => setShowEditorClickNotice(false)} 
+                                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+
+                            {/* Content */}
+                            <div className="space-y-4 pt-2">
+                                <div className="flex items-center gap-3 text-blue-600 mb-2">
+                                    <HelpCircle className="w-8 h-8 shrink-0" />
+                                    <h3 className="text-2xl font-extrabold tracking-tight">
+                                        Hướng dẫn Nhập liệu & Chỉnh sửa
+                                    </h3>
+                                </div>
+                                
+                                <p className="text-base text-gray-600 font-medium">
+                                    Bạn đang click vào <span className="font-bold text-blue-600">Bản xem trước</span> của phiếu in. Để thay đổi thông tin trên phiếu, vui lòng chỉnh sửa tại <span className="font-bold text-blue-600">cột bên trái</span>:
+                                </p>
+
+                                <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-100/80 space-y-3 text-base text-gray-750">
+                                    <div className="flex gap-2">
+                                        <span className="font-bold text-blue-600">1.</span>
+                                        <p><strong>Thông tin khách hàng & liên hệ:</strong> Sửa Tên khách hàng, MST, Địa chỉ, Người liên hệ... ở mục <strong>Thông tin cơ bản</strong> & <strong>Thông tin liên hệ</strong>.</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <span className="font-bold text-blue-600">2.</span>
+                                        <p><strong>Người nhận kết quả:</strong> Điền tên, SĐT, địa chỉ nhận bản in kết quả ở mục <strong>Người nhận báo cáo</strong>.</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <span className="font-bold text-blue-600">3.</span>
+                                        <p><strong>Xuất hóa đơn đỏ:</strong> Nhập thông tin Công ty, MST, Địa chỉ nhận hóa đơn ở mục <strong>Thông tin hóa đơn</strong>.</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <span className="font-bold text-blue-600">4.</span>
+                                        <p><strong>Chi tiết Mẫu & Chỉ tiêu:</strong> Cuộn xuống các phần <strong>Mẫu 1, Mẫu 2...</strong> bên trái để sửa Tên mẫu, Mô tả, Số lô, Ngày SX, Hạn SD, Phương pháp thử.</p>
+                                    </div>
+                                </div>
+
+                                <div className="text-sm font-semibold text-center text-green-600 py-1.5 bg-green-50 rounded-md">
+                                    ✓ Mọi thay đổi ở cột bên trái sẽ tự động đồng bộ tức thì vào bản xem trước này!
+                                </div>
+
+                                <button
+                                    onClick={() => setShowEditorClickNotice(false)}
+                                    className="w-full py-3 mt-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-lg transition-colors shadow-md"
+                                >
+                                    Đã hiểu và tiếp tục
+                                </button>
+                            </div>
+
+                            {/* Animated shrinking progress bar */}
+                            <div 
+                                className="absolute bottom-0 left-0 h-1.5 bg-blue-600"
+                                style={{
+                                    animation: "shrinkWidth 7s linear forwards"
+                                }}
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
             <style>{`
                 .tox-tinymce {
                     border-radius: 0 !important;
                     border: none !important;
+                }
+                @keyframes shrinkWidth {
+                    from { width: 100%; }
+                    to { width: 0%; }
                 }
             `}</style>
         </div>
