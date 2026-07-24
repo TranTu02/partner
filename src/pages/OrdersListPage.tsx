@@ -59,15 +59,16 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
 
     const isEditorActive = isCreate || !!orderId;
     const isSampleRequestForm = location.pathname.endsWith("/form/request");
-    const initialViewMode = isCreate ? "create" : isEdit ? "edit" : "view";
-    const [localViewMode, setLocalViewMode] = useState(initialViewMode);
-
-    useEffect(() => {
-        setLocalViewMode(initialViewMode);
-    }, [initialViewMode]);
+    const viewMode = isCreate ? "create" : isEdit ? "edit" : "view";
 
     const toggleLocalMode = () => {
-        setLocalViewMode((prev: any) => (prev === "view" ? "edit" : "view"));
+        const newParams = new URLSearchParams(searchParams);
+        if (isEdit) {
+            newParams.delete("edit");
+        } else {
+            newParams.set("edit", "true");
+        }
+        setSearchParams(newParams, { replace: true });
     };
 
     // Đồng bộ ngược từ URL về local state searchQuery khi URL thay đổi (nhấn Back/Forward)
@@ -197,6 +198,8 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                 } else {
                     setSelectedOrder(null);
                 }
+            } else {
+                setSelectedOrder(null);
             }
         };
         loadSelectedOrder();
@@ -463,7 +466,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                                     <h1 className="text-lg font-semibold text-foreground">
                                         {isCreate
                                             ? t("order.create")
-                                            : initialViewMode === "edit"
+                                            : viewMode === "edit"
                                               ? `${t("order.edit")} ${selectedOrder?.orderId ? `- ${selectedOrder.orderId}` : ""}`
                                               : `${t("order.detail")} ${selectedOrder?.orderId ? `- ${selectedOrder.orderId}` : ""}`}
                                     </h1>
@@ -482,13 +485,13 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                                         </button>
                                     ) : (
                                         <button onClick={toggleLocalMode} className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium">
-                                            {localViewMode === "view" ? <Pencil className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                            <span className="hidden sm:inline">{localViewMode === "view" ? t("common.edit") : t("common.view")}</span>
+                                            {viewMode === "view" ? <Pencil className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            <span className="hidden sm:inline">{viewMode === "view" ? t("common.edit") : t("common.view")}</span>
                                         </button>
                                     )
                                 )}
 
-                                {localViewMode === "view" && (
+                                {viewMode === "view" && (
                                     <>
                                         <button
                                             onClick={() => editorRef.current?.export()}
@@ -512,7 +515,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                                         </button>
                                     </>
                                 )}
-                                {localViewMode !== "view" && (
+                                {viewMode !== "view" && (
                                     <button
                                         onClick={handleSaveTrigger}
                                         className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
@@ -528,7 +531,7 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
                         <div className="flex-1 overflow-hidden">
                             <OrderEditor
                                 ref={editorRef}
-                                mode={localViewMode as any}
+                                mode={viewMode as any}
                                 initialData={selectedOrder || undefined}
                                 onBack={handleBack}
                                 onSaveSuccess={handleSaveSuccess}

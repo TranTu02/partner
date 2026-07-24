@@ -142,6 +142,7 @@ export function SampleCard({
     const [searchedSampleTypes, setSearchedSampleTypes] = useState<any[]>([]);
     const [activeParamDropdownIndex, setActiveParamDropdownIndex] = useState<number | null>(null);
     const [activeSampleTypeDropdownIndex, setActiveSampleTypeDropdownIndex] = useState<number | null>(null);
+    const [activeParamEditIndex, setActiveParamEditIndex] = useState<number | null>(null);
 
     const activeParamName = activeParamDropdownIndex !== null ? (sample.analyses[activeParamDropdownIndex]?.parameterName || "") : "";
     const activeSampleTypeName = activeSampleTypeDropdownIndex !== null ? (sample.analyses[activeSampleTypeDropdownIndex]?.sampleTypeName || "") : "";
@@ -241,6 +242,27 @@ export function SampleCard({
         const updatedAnalysis = { ...newAnalyses[analysisIndex] };
 
         if (typeof fieldOrUpdates === "object" && fieldOrUpdates !== null) {
+            if ("parameterId" in fieldOrUpdates) {
+                const keysToDelete = [
+                    "matrixId",
+                    "protocolId",
+                    "protocolSource",
+                    "scientificField",
+                    "analysisUnit",
+                    "LOD",
+                    "LOQ",
+                    "thresholdLimit",
+                    "turnaroundTime",
+                    "technicianGroupId",
+                    "protocolCode",
+                    "protocolAccreditation",
+                    "sampleTypeId",
+                    "sampleTypeName"
+                ];
+                keysToDelete.forEach(k => {
+                    delete (updatedAnalysis as any)[k];
+                });
+            }
             Object.assign(updatedAnalysis, fieldOrUpdates);
         } else {
             const field = fieldOrUpdates as keyof AnalysisWithQuantity;
@@ -636,14 +658,75 @@ export function SampleCard({
                                                                 </div>
                                                             )}
                                                         </div>
-                                                    ) : (
-                                                        <div>
-                                                            <div className="font-semibold text-sm break-words whitespace-normal text-foreground mb-1 leading-normal select-text">
-                                                                {analysis.parameterName}
-                                                            </div>
-                                                            {analysis.parameterId && <div className="text-xs text-muted-foreground">{analysis.parameterId}</div>}
-                                                        </div>
-                                                    )}
+                                                     ) : activeParamEditIndex === index ? (
+                                                         <div className="relative">
+                                                             <input
+                                                                 type="text"
+                                                                 className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-background text-sm font-semibold mb-1"
+                                                                 value={analysis.parameterName || ""}
+                                                                 onChange={(e) => {
+                                                                     handleAnalysisChange(index, {
+                                                                         parameterName: e.target.value,
+                                                                         parameterId: ""
+                                                                     });
+                                                                     setActiveParamDropdownIndex(index);
+                                                                 }}
+                                                                 onFocus={() => {
+                                                                     setActiveParamDropdownIndex(index);
+                                                                     setActiveSampleTypeDropdownIndex(null);
+                                                                 }}
+                                                                 onBlur={() => {
+                                                                     setTimeout(() => {
+                                                                         setActiveParamEditIndex(null);
+                                                                         setActiveParamDropdownIndex(prev => prev === index ? null : prev);
+                                                                     }, 200);
+                                                                 }}
+                                                                 placeholder={t("order.print.parameter") || "Nhập tên chỉ tiêu..."}
+                                                                 autoFocus
+                                                             />
+                                                             {activeParamDropdownIndex === index && (
+                                                                 <div className="absolute z-50 w-72 mt-1 bg-popover border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto left-0 top-full">
+                                                                     {searchedParameters.length === 0 ? (
+                                                                         <div className="px-3 py-2 text-xs text-muted-foreground text-center">
+                                                                             Không tìm thấy chỉ tiêu
+                                                                         </div>
+                                                                     ) : (
+                                                                         searchedParameters.map((p) => (
+                                                                             <div
+                                                                                 key={p.parameterId}
+                                                                                 className="px-3 py-2 cursor-pointer hover:bg-muted text-xs text-foreground border-b border-border/50 last:border-0 font-semibold"
+                                                                                 onMouseDown={(e) => {
+                                                                                     e.preventDefault();
+                                                                                     handleAnalysisChange(index, {
+                                                                                         parameterId: p.parameterId,
+                                                                                         parameterName: p.parameterName,
+                                                                                         displayStyle: p.displayStyle
+                                                                                     });
+                                                                                     setActiveParamEditIndex(null);
+                                                                                     setActiveParamDropdownIndex(null);
+                                                                                 }}
+                                                                             >
+                                                                                 {p.parameterName}
+                                                                             </div>
+                                                                         ))
+                                                                     )}
+                                                                 </div>
+                                                             )}
+                                                         </div>
+                                                     ) : (
+                                                         <div 
+                                                             className="cursor-pointer hover:bg-muted/80 p-1 rounded transition-colors group/param"
+                                                             onClick={() => {
+                                                                 setActiveParamEditIndex(index);
+                                                                 setActiveParamDropdownIndex(index);
+                                                             }}
+                                                         >
+                                                             <div className="font-semibold text-sm break-words whitespace-normal text-foreground mb-1 leading-normal select-text group-hover/param:text-primary">
+                                                                 {analysis.parameterName}
+                                                             </div>
+                                                             {analysis.parameterId && <div className="text-xs text-muted-foreground">{analysis.parameterId}</div>}
+                                                         </div>
+                                                     )}
                                                 </td>
                                                 <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
                                                     {isReadOnly ? (

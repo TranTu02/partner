@@ -175,6 +175,8 @@ export function QuotesListPage({ activeMenu, onMenuClick }: QuotesListPageProps)
                 } else {
                     setSelectedQuote(null);
                 }
+            } else {
+                setSelectedQuote(null);
             }
         };
         loadSelectedQuote();
