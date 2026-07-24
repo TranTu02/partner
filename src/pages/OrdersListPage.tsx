@@ -72,7 +72,11 @@ export function OrdersListPage({ activeMenu, onMenuClick }: OrdersListPageProps)
 
     // Đồng bộ ngược từ URL về local state searchQuery khi URL thay đổi (nhấn Back/Forward)
     useEffect(() => {
-        setSearchQuery(searchQueryUrl);
+        // Chỉ đồng bộ ngược khi local searchQuery khớp với searchQueryUrl cũ, tránh ghi đè lúc người dùng đang gõ và chờ debounce
+        const isCurrentlyTyping = searchQuery !== searchQueryUrl;
+        if (!isCurrentlyTyping) {
+            setSearchQuery(searchQueryUrl);
+        }
     }, [searchQueryUrl]);
 
     // Debounce search query và đẩy lên URL

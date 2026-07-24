@@ -144,13 +144,7 @@ function AppRoutes() {
         onMenuClick: handleMenuClick,
     };
 
-    // Protected Route Wrapper
-    const ProtectedRoute = ({ menuId, element }: { menuId: string; element: React.ReactNode }) => {
-        if (!hasAccess(menuId)) {
-            return <AccessDeniedPage />;
-        }
-        return element;
-    };
+
 
     return (
         <div className="flex flex-col h-screen bg-[#F0F2F5] overflow-hidden" style={{ fontFamily: "var(--font-family)" }}>
@@ -207,6 +201,14 @@ function App() {
             </BrowserRouter>
         </AuthProvider>
     );
+}
+
+function ProtectedRoute({ menuId, element }: { menuId: string; element: React.ReactNode }) {
+    const { hasAccess } = useAuth();
+    if (!hasAccess(menuId)) {
+        return <AccessDeniedPage />;
+    }
+    return <>{element}</>;
 }
 
 function AccessDeniedPage() {
