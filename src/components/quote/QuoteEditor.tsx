@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { ClientSectionNew } from "@/components/client/ClientSectionNew";
 import { SampleCard } from "@/components/order/SampleCard";
 import { PricingSummary } from "@/components/quote/PricingSummary";
@@ -101,7 +101,7 @@ interface QuoteEditorProps {
 }
 
 export interface QuoteEditorRef {
-    save: () => void;
+    save: (overrideSamples?: SampleWithQuantity[]) => void;
     export: () => void;
     hasUnsavedChanges: () => boolean;
 }
@@ -173,6 +173,8 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
     const [isEditClientModalOpen, setIsEditClientModalOpen] = useState(false);
     const [currentSampleIndex, setCurrentSampleIndex] = useState<number | null>(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [showDecimalWarning, setShowDecimalWarning] = useState(false);
+    const [decimalChanges, setDecimalChanges] = useState<any[]>([]);
 
     const quoteId = initialData?.quoteId;
 
@@ -504,13 +506,14 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
         );
     };
 
-    const calculatePricing = () => {
+    const calculatePricing = (customSamples?: SampleWithQuantity[]) => {
+        const samplesToUse = customSamples || samples;
         let grossSum = 0;
         let lineLevelDiscountAmount = 0;
         let runningNetBeforeOrderDiscount = 0;
         let runningVATBeforeOrderDiscount = 0;
 
-        samples.forEach((sample) => {
+        samplesToUse.forEach((sample) => {
             const sampleQty = Number(sample.quantity || 1);
             sample.analyses.forEach((a) => {
                 const qty = Number(a.quantity || 1) * sampleQty;
@@ -557,17 +560,108 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
 
     const pricing = calculatePricing();
 
-    const handleSave = async () => {
+    const handleApplyDecimalAdjustments = async () => {
+        const updateMap = new Map();
+        decimalChanges.forEach(change => {
+            updateMap.set(`${change.sampleId}-${change.analysisId}`, change);
+        });
+
+        const updatedSamples = samples.map(s => {
+            const updatedAnalyses = s.analyses.map(a => {
+                const key = `${s.id}-${a.id}`;
+                if (updateMap.has(key)) {
+                    const change = updateMap.get(key);
+                    return {
+                        ...a,
+                        unitPrice: change.newUnitPrice,
+                        feeAfterTax: change.newFeeAfterTax
+                    };
+                }
+                return a;
+            });
+            return {
+                ...s,
+                analyses: updatedAnalyses
+            };
+        });
+
+        setSamples(updatedSamples);
+        setShowDecimalWarning(false);
+        setDecimalChanges([]);
+        await handleSave(updatedSamples);
+    };
+
+    const handleSave = async (overrideSamples?: SampleWithQuantity[]) => {
         if (isReadOnly) return;
         if (!selectedClient) {
             toast.error(t("order.errorClientRequired") || "Client is required");
             return;
         }
 
-        if (samples.length === 0) {
+        const activeSamples = overrideSamples || samples;
+
+        if (activeSamples.length === 0) {
             toast.error(t("order.errorSamplesRequired") || "At least one sample is required");
             return;
         }
+
+        const hasDecimalPart = (val: number): boolean => {
+            return Math.abs(val - Math.round(val)) > 0.01;
+        };
+
+        const hasDecimals = activeSamples.some((sample) => {
+            const sampleQty = Number(sample.quantity || 1);
+            let sampleTotal = 0;
+            sample.analyses.forEach((a) => {
+                const qty = Number(a.quantity || 1) * sampleQty;
+                const up = Number(a.unitPrice || 0);
+                const dr = Number(a.discountRate || 0);
+                const tr = Number(a.taxRate || 0);
+                const feeBeforeTax = up * qty * (1 - dr / 100);
+                const feeAfterTax = feeBeforeTax * (1 + tr / 100);
+                sampleTotal += feeAfterTax;
+            });
+            return hasDecimalPart(sampleTotal);
+        });
+
+        if (hasDecimals && !overrideSamples) {
+            const changes: any[] = [];
+            activeSamples.forEach((sample, sIdx) => {
+                sample.analyses.forEach((a, aIdx) => {
+                    const up = Number(a.unitPrice) || 0;
+                    const qty = Number(a.quantity) || 1;
+                    const dr = Number(a.discountRate) || 0;
+                    const tr = Number(a.taxRate) || 0;
+
+                    const rawFeeBeforeTax = up * qty * (1 - dr / 100);
+                    const rawFeeAfterTax = rawFeeBeforeTax * (1 + tr / 100);
+
+                    const rounded = Math.round(rawFeeAfterTax);
+                    if (hasDecimalPart(rawFeeAfterTax)) {
+                        const denominator = qty * (1 - dr / 100) * (1 + tr / 100);
+                        const newUnitPrice = denominator !== 0 ? rounded / denominator : 0;
+                        changes.push({
+                            sampleId: sample.id,
+                            sampleName: sample.sampleName || `Mẫu ${sIdx + 1}`,
+                            analysisId: a.id,
+                            parameterName: a.parameterName || `Chỉ tiêu ${aIdx + 1}`,
+                            oldUnitPrice: up,
+                            newUnitPrice: newUnitPrice,
+                            oldFeeAfterTax: rawFeeAfterTax,
+                            newFeeAfterTax: rounded,
+                        });
+                    }
+                });
+            });
+
+            if (changes.length > 0) {
+                setDecimalChanges(changes);
+                setShowDecimalWarning(true);
+                return;
+            }
+        }
+
+        const activePricing = calculatePricing(activeSamples);
 
         try {
             const clientSnapshot = {
@@ -608,7 +702,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 contactPerson: contactData,
                 reportRecipient,
 
-                samples: samples.map((s) => {
+                samples: activeSamples.map((s) => {
                     const finalInfo = normalizeSampleInfo(s.sampleName || "", parseSampleInfo(s.sampleInfo));
                     const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
                     return {
@@ -642,11 +736,11 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
 
                 otherItems,
 
-                totalFeeBeforeTax: pricing.subtotal,
-                totalDiscountValue: pricing.discountAmount,
-                totalFeeBeforeTaxAndDiscount: pricing.feeBeforeTax,
-                totalTaxValue: pricing.tax,
-                totalAmount: pricing.total,
+                totalFeeBeforeTax: activePricing.subtotal,
+                totalDiscountValue: activePricing.discountAmount,
+                totalFeeBeforeTaxAndDiscount: activePricing.feeBeforeTax,
+                totalTaxValue: activePricing.tax,
+                totalAmount: activePricing.total,
             };
 
             let response;
@@ -754,7 +848,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
     };
 
     useImperativeHandle(ref, () => ({
-        save: handleSave,
+        save: (overrideSamples) => handleSave(overrideSamples),
         export: handleExport,
         hasUnsavedChanges: () => hasUnsavedChanges,
     }));
@@ -910,6 +1004,97 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 />
             )}
             {printData && <QuotePrintPreviewModal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} data={printData} />}
+
+            {showDecimalWarning && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-card w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl border border-border shadow-2xl flex flex-col animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="flex items-center justify-between p-6 border-b border-border">
+                            <h3 className="text-lg font-bold text-foreground">
+                                Cảnh báo giá trị sau thuế lẻ
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setShowDecimalWarning(false);
+                                    setDecimalChanges([]);
+                                }}
+                                className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                                Tổng tiền sau thuế của một số mẫu thử có giá trị lẻ hàng thập phân. Hệ thống đề xuất làm tròn tiền sau thuế của các chỉ tiêu dưới đây về số nguyên gần nhất và tự động tính toán lại đơn giá trước thuế tương ứng.
+                            </p>
+
+                            <div className="border border-border rounded-xl overflow-hidden shadow-sm">
+                                <div className="max-h-[40vh] overflow-y-auto">
+                                    <table className="w-full text-left border-collapse text-xs">
+                                        <thead className="bg-muted/70 sticky top-0 border-b border-border text-muted-foreground font-semibold">
+                                            <tr>
+                                                <th className="p-3">Mẫu thử</th>
+                                                <th className="p-3">Chỉ tiêu</th>
+                                                <th className="p-3 text-right">Tiền sau thuế (Cũ → Mới)</th>
+                                                <th className="p-3 text-right">Đơn giá trước thuế (Cũ → Mới)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border/60">
+                                            {decimalChanges.map((change, idx) => (
+                                                <tr key={idx} className="hover:bg-muted/30 transition-colors">
+                                                    <td className="p-3 font-medium text-foreground max-w-[150px] truncate" title={change.sampleName}>
+                                                        {change.sampleName}
+                                                    </td>
+                                                    <td className="p-3 text-foreground font-medium max-w-[180px] truncate" title={change.parameterName}>
+                                                        {change.parameterName}
+                                                    </td>
+                                                    <td className="p-3 text-right whitespace-nowrap">
+                                                        <span className="text-muted-foreground line-through mr-1.5">
+                                                            {change.oldFeeAfterTax.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} đ
+                                                        </span>
+                                                        <span className="text-primary font-bold">
+                                                            {change.newFeeAfterTax.toLocaleString("vi-VN")} đ
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-3 text-right whitespace-nowrap">
+                                                        <span className="text-muted-foreground line-through mr-1.5">
+                                                            {change.oldUnitPrice.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} đ
+                                                        </span>
+                                                        <span className="text-green-600 font-bold">
+                                                            {Math.round(change.newUnitPrice).toLocaleString("vi-VN")} đ
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex items-center justify-end gap-3 p-6 border-t border-border bg-muted/20">
+                            <button
+                                onClick={() => {
+                                    setShowDecimalWarning(false);
+                                    setDecimalChanges([]);
+                                }}
+                                className="px-4 py-2 border border-border rounded-xl text-foreground hover:bg-muted transition-colors text-sm font-semibold"
+                            >
+                                Quay lại chỉnh sửa
+                            </button>
+                            <button
+                                onClick={handleApplyDecimalAdjustments}
+                                className="px-5 py-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors text-sm font-semibold"
+                            >
+                                Đồng ý sửa đổi
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 });
