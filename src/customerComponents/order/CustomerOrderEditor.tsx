@@ -230,12 +230,17 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                                 let unitPrice = a.unitPrice !== undefined ? Number(a.unitPrice) : Number(a.parameterPrice) || 0;
                                 if (!unitPrice && a.feeAfterTax) unitPrice = Number(a.feeAfterTax) / qty / (1 + taxRate / 100);
                                 if (!unitPrice && a.feeBeforeTax && typeof a.feeBeforeTax === "number") unitPrice = a.feeBeforeTax / qty;
-                                                               return {
+                                                               const dr = Number(a.discountRate) || 0;
+                                const feeBeforeTax = unitPrice * qty * (1 - dr / 100);
+                                const feeAfterTax = feeBeforeTax * (1 + taxRate / 100);
+                                return {
                                     ...a,
                                     id: a.id || `ra-${Date.now()}-${Math.random().toString(36).slice(2)}`,
                                     unitPrice,
-                                    feeBeforeTax: unitPrice * qty,
-                                    feeAfterTax: a.feeAfterTax || unitPrice * qty * (1 + taxRate / 100),
+                                    discountRate: dr,
+                                    feeBeforeTax,
+                                    feeBeforeTaxAndDiscount: unitPrice * qty,
+                                    feeAfterTax: Math.round(feeAfterTax),
                                     taxRate,
                                     quantity: qty,
                                     protocolId: a?.protocolId ?? a?.protocol_id ?? a?.protocol?.protocolId ?? a?.protocol?.protocol_id ?? a?.libraryParameterProtocol?.protocolId ?? a?.libraryParameterProtocol?.protocol_id ?? null,
@@ -664,7 +669,7 @@ export const CustomerOrderEditor = forwardRef<CustomerOrderEditorRef, CustomerOr
                             feeBeforeTax: feeNet,
                             feeBeforeTaxAndDiscount: up * qty,
                             taxRate: tr,
-                            feeAfterTax: a.feeAfterTax || feeNet * (1 + tr / 100),
+                            feeAfterTax: Math.round(feeNet * (1 + tr / 100)),
                             discountRate: dr,
                             quantity: qty,
                             unitPrice: up,

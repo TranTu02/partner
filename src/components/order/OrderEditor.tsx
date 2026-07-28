@@ -301,12 +301,18 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                             }
                         }
 
+                        const dr = Number(a.discountRate) || 0;
+                        const feeBeforeTax = unitPrice * quantity * (1 - dr / 100);
+                        const feeAfterTax = feeBeforeTax * (1 + taxRate / 100);
+
                         return {
                             ...a,
                             id: a.id || `restored-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`,
                             unitPrice: unitPrice,
-                            feeBeforeTax: unitPrice * quantity, // Ensure this is consistent
-                            feeAfterTax: a.feeAfterTax || unitPrice * quantity * (1 + taxRate / 100),
+                            discountRate: dr,
+                            feeBeforeTax: feeBeforeTax,
+                            feeBeforeTaxAndDiscount: unitPrice * quantity,
+                            feeAfterTax: Math.round(feeAfterTax),
                             taxRate: taxRate,
                             quantity: quantity,
                         };
@@ -490,14 +496,25 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                 sampleTypeName: s.sampleTypeName || s.sampleMatrix || s.matrix || s.librarySampleType?.sampleTypeName || "",
                                 sampleNote: s.sampleNote || "",
                                 sampleInfo: normalizeSampleInfo(s.sampleName || s.name || "Sample", parseSampleInfo(s.sampleInfo)),
-                                analyses: (s.analyses || []).map((a: any) => ({
-                                    ...a,
-                                    id: `temp-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}-${i}`,
-                                    unitPrice: Number(a.unitPrice) || Number(a.parameterPrice) || 0,
-                                    quantity: Number(a.quantity) || 1,
-                                    discountRate: Number(a.discountRate) || 0,
-                                    taxRate: Number(a.taxRate) || Number(a.parameterTaxRate) || 0,
-                                })),
+                                analyses: (s.analyses || []).map((a: any) => {
+                                     const unitPrice = Number(a.unitPrice) || Number(a.parameterPrice) || 0;
+                                     const quantity = Number(a.quantity) || 1;
+                                     const discountRate = Number(a.discountRate) || 0;
+                                     const taxRate = Number(a.taxRate) || Number(a.parameterTaxRate) || 0;
+                                     const feeBeforeTax = unitPrice * quantity * (1 - discountRate / 100);
+                                     const feeAfterTax = feeBeforeTax * (1 + taxRate / 100);
+                                     return {
+                                         ...a,
+                                         id: `temp-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}-${i}`,
+                                         unitPrice,
+                                         quantity,
+                                         discountRate,
+                                         taxRate,
+                                         feeBeforeTax,
+                                         feeBeforeTaxAndDiscount: unitPrice * quantity,
+                                         feeAfterTax: Math.round(feeAfterTax),
+                                     };
+                                 }),
                             });
                         }
                     });
@@ -643,7 +660,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                             feeBeforeTax: feeBeforeTax,
                             feeBeforeTaxAndDiscount: feeBeforeTaxAndDiscount,
                             taxRate: taxRate,
-                            feeAfterTax: a.feeAfterTax || feeAfterTax,
+                            feeAfterTax: Math.round(feeAfterTax),
                             discountRate: discountRate,
                             quantity: quantity,
                             unitPrice: unitPrice,
@@ -1135,7 +1152,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                 feeBeforeTax: feeBeforeTax,
                                 feeBeforeTaxAndDiscount: unitPrice * qty,
                                 taxRate: tr,
-                                feeAfterTax: a.feeAfterTax || feeAfterTax,
+                                feeAfterTax: Math.round(feeAfterTax),
                             };
                         }),
                     };
