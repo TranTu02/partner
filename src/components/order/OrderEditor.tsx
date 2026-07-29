@@ -492,6 +492,7 @@ export const OrderEditor = forwardRef<OrderEditorRef, OrderEditorProps>(({ mode,
                                 id: `temp-sample-${Date.now()}-${Math.random().toString(36).slice(2)}-${i}`,
                                 sampleId: undefined, // Create new sample for order
                                 sampleName: s.sampleName || s.name || "Sample",
+                                isMultiPart: s.isMultiPart || false,
                                 sampleTypeId: s.sampleTypeId,
                                 sampleTypeName: s.sampleTypeName || s.sampleMatrix || s.matrix || s.librarySampleType?.sampleTypeName || "",
                                 sampleNote: s.sampleNote || "",

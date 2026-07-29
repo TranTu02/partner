@@ -805,6 +805,7 @@ export const QuoteEditor = forwardRef<QuoteEditorRef, QuoteEditorProps>(({ mode,
                 const apiInfo = finalInfo.filter((info) => info.label === "Tên mẫu thử" || (info.value && info.value.trim() !== ""));
                 return {
                     sampleName: s.sampleName || "",
+                    isMultiPart: s.isMultiPart || false,
                     sampleTypeId: s.sampleTypeId,
                     sampleTypeName: s.sampleTypeName || "",
                     sampleNote: s.sampleNote || "",

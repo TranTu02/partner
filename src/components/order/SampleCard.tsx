@@ -1,4 +1,4 @@
-import { X, Trash2, Copy, Unlink, GripVertical, Check } from "lucide-react";
+import { X, Trash2, Copy, Unlink, GripVertical, Check, Layers, FolderMinus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,10 @@ export interface AnalysisWithQuantity extends Omit<Matrix, "createdAt" | "create
     displayStyle?: any;
     isCustom?: boolean;
     analysisUnit?: string;
+    sampleName?: string; // Tên bộ phận
+    sampleTypeName?: string; // Nền mẫu bộ phận
+    sampleTypeId?: string; // ID nền mẫu bộ phận
+    originalParameterName?: string; // Tên chỉ tiêu gốc chưa chèn tiền tố
 }
 
 import { useDrag, useDrop } from "react-dnd";
@@ -69,6 +73,7 @@ export interface SampleWithQuantity {
     analyses: AnalysisWithQuantity[];
     quantity?: number;
     sampleInfo?: { label: string; value: string }[];
+    isMultiPart?: boolean; // Trạng thái chế độ nhiều bộ phận
 }
 
 const DEFAULT_SAMPLE_INFO_LABELS = ["Số lô", "Ngày sản xuất", "Hạn sử dụng", "Nơi sản xuất", "Địa chỉ sản xuất", "Số công bố", "Số đăng ký", "Thông tin khác"];
@@ -143,6 +148,215 @@ export function SampleCard({
     const [activeParamDropdownIndex, setActiveParamDropdownIndex] = useState<number | null>(null);
     const [activeSampleTypeDropdownIndex, setActiveSampleTypeDropdownIndex] = useState<number | null>(null);
     const [activeParamEditIndex, setActiveParamEditIndex] = useState<number | null>(null);
+
+    // States for Multi-part / grouping
+    const [selectedAnalysisIds, setSelectedAnalysisIds] = useState<string[]>([]);
+    const [showGroupForm, setShowGroupForm] = useState(false);
+    const [newGroupName, setNewGroupName] = useState("");
+    const [newGroupTypeName, setNewGroupTypeName] = useState("");
+    const [newGroupTypeId, setNewGroupTypeId] = useState("");
+    const [activeGroupMatrixIndex, setActiveGroupMatrixIndex] = useState<string | null>(null);
+    const [searchedGroupSampleTypes, setSearchedGroupSampleTypes] = useState<any[]>([]);
+    const [groupSearchQuery, setGroupSearchQuery] = useState("");
+
+    const [isBoxDragging, setIsBoxDragging] = useState(false);
+    const [dragSelectionMode, setDragSelectionMode] = useState<"select" | "deselect">("select");
+
+    useEffect(() => {
+        const handleGlobalMouseUp = () => {
+            setIsBoxDragging(false);
+        };
+        window.addEventListener("mouseup", handleGlobalMouseUp);
+        return () => window.removeEventListener("mouseup", handleGlobalMouseUp);
+    }, []);
+
+    const toggleSelectId = (id: string, select: boolean) => {
+        setSelectedAnalysisIds((prev) => {
+            if (select) {
+                if (prev.includes(id)) return prev;
+                return [...prev, id];
+            } else {
+                return prev.filter((x) => x !== id);
+            }
+        });
+    };
+
+    // Effect to search sample types for groups
+    useEffect(() => {
+        if (activeGroupMatrixIndex === null) {
+            setSearchedGroupSampleTypes([]);
+            return;
+        }
+        const timer = setTimeout(() => {
+            getSampleTypes({
+                query: {
+                    search: groupSearchQuery || undefined,
+                    page: 1,
+                    itemsPerPage: 50,
+                    sortColumn: "createdAt",
+                    sortDirection: "DESC",
+                },
+            }).then((res) => {
+                if (res.success && res.data) {
+                    setSearchedGroupSampleTypes(res.data as any[]);
+                }
+            });
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [groupSearchQuery, activeGroupMatrixIndex]);
+
+    // Grouping computation
+    const groupsData = useMemo(() => {
+        const groupsMap: Record<string, {
+            sampleName: string;
+            sampleTypeName: string;
+            sampleTypeId: string;
+            analyses: (AnalysisWithQuantity & { originalIndex: number })[];
+        }> = {};
+        const ungrouped: (AnalysisWithQuantity & { originalIndex: number })[] = [];
+
+        sample.analyses.forEach((a, index) => {
+            const sName = a.sampleName?.trim() || "";
+            const sType = a.sampleTypeName?.trim() || "";
+            if (sName && sType) {
+                const key = `${sName}|||${sType}`;
+                if (!groupsMap[key]) {
+                    groupsMap[key] = {
+                        sampleName: sName,
+                        sampleTypeName: sType,
+                        sampleTypeId: a.sampleTypeId || "",
+                        analyses: [],
+                    };
+                }
+                groupsMap[key].analyses.push({ ...a, originalIndex: index });
+            } else {
+                ungrouped.push({ ...a, originalIndex: index });
+            }
+        });
+
+        return {
+            groups: Object.entries(groupsMap).map(([key, data]) => ({
+                groupKey: key,
+                ...data,
+            })),
+            ungrouped,
+        };
+    }, [sample.analyses]);
+
+    // Grouping handlers
+    const handleUpdateGroupFields = (groupKey: string, newSampleName: string, newSampleTypeName: string, newSampleTypeId?: string) => {
+        const [oldName, oldType] = groupKey.split("|||");
+        
+        const newAnalyses = sample.analyses.map((a) => {
+            const sName = a.sampleName?.trim() || "";
+            const sType = a.sampleTypeName?.trim() || "";
+            if (sName === oldName && sType === oldType) {
+                const original = a.originalParameterName || a.parameterName;
+                const updatedParamName = newSampleName.trim()
+                    ? `${newSampleName.trim()}: ${original}`
+                    : original;
+
+                return {
+                    ...a,
+                    sampleName: newSampleName,
+                    sampleTypeName: newSampleTypeName,
+                    sampleTypeId: newSampleTypeId ?? a.sampleTypeId,
+                    originalParameterName: original,
+                    parameterName: updatedParamName,
+                };
+            }
+            return a;
+        });
+
+        onUpdateSample({ analyses: newAnalyses });
+    };
+
+    const handleDuplicateGroup = (groupKey: string) => {
+        const [oldName, oldType] = groupKey.split("|||");
+        
+        const groupAnalyses = sample.analyses.filter(
+            (a) => (a.sampleName?.trim() || "") === oldName && (a.sampleTypeName?.trim() || "") === oldType
+        );
+        if (groupAnalyses.length === 0) return;
+
+        let nextSuffix = 1;
+        const escapedName = oldName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const namePattern = new RegExp(`^${escapedName} #(\\d+)$`);
+        
+        sample.analyses.forEach((a) => {
+            if (a.sampleName) {
+                const match = a.sampleName.match(namePattern);
+                if (match) {
+                    const val = parseInt(match[1]);
+                    if (val >= nextSuffix) {
+                        nextSuffix = val + 1;
+                    }
+                }
+            }
+        });
+        
+        const newGroupName = `${oldName} #${nextSuffix}`;
+
+        const clonedAnalyses = groupAnalyses.map((a) => {
+            const original = a.originalParameterName || a.parameterName;
+            const updatedParamName = `${newGroupName}: ${original}`;
+            
+            return {
+                ...a,
+                id: `temp-analysis-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                sampleName: newGroupName,
+                sampleTypeName: a.sampleTypeName,
+                sampleTypeId: a.sampleTypeId,
+                originalParameterName: original,
+                parameterName: updatedParamName,
+            };
+        });
+
+        const lastIndex = sample.analyses.reduce((acc, a, idx) => {
+            if ((a.sampleName?.trim() || "") === oldName && (a.sampleTypeName?.trim() || "") === oldType) {
+                return idx;
+            }
+            return acc;
+        }, -1);
+
+        const newAnalysesList = [...sample.analyses];
+        newAnalysesList.splice(lastIndex + 1, 0, ...clonedAnalyses);
+
+        onUpdateSample({ analyses: newAnalysesList });
+        toast.success(`Đã sao chép bộ phận thành "${newGroupName}"`);
+    };
+
+    const handleUngroup = (groupKey: string) => {
+        const [oldName, oldType] = groupKey.split("|||");
+        const newAnalyses = sample.analyses.map((a) => {
+            const sName = a.sampleName?.trim() || "";
+            const sType = a.sampleTypeName?.trim() || "";
+            if (sName === oldName && sType === oldType) {
+                return {
+                    ...a,
+                    sampleName: "",
+                    sampleTypeName: "",
+                    sampleTypeId: "",
+                    parameterName: a.originalParameterName || a.parameterName,
+                };
+            }
+            return a;
+        });
+        onUpdateSample({ analyses: newAnalyses });
+    };
+
+    const handleRemoveAnalysisFromGroup = (analysisIndex: number) => {
+        const newAnalyses = [...sample.analyses];
+        const a = newAnalyses[analysisIndex];
+        newAnalyses[analysisIndex] = {
+            ...a,
+            sampleName: "",
+            sampleTypeName: "",
+            sampleTypeId: "",
+            parameterName: a.originalParameterName || a.parameterName,
+        };
+        onUpdateSample({ analyses: newAnalyses });
+    };
 
     const activeParamName = activeParamDropdownIndex !== null ? (sample.analyses[activeParamDropdownIndex]?.parameterName || "") : "";
     const activeSampleTypeName = activeSampleTypeDropdownIndex !== null ? (sample.analyses[activeSampleTypeDropdownIndex]?.sampleTypeName || "") : "";
@@ -263,11 +477,27 @@ export function SampleCard({
                     delete (updatedAnalysis as any)[k];
                 });
             }
+
+            // Sync parameterName prefix
+            if ("parameterName" in fieldOrUpdates) {
+                const rawName = fieldOrUpdates.parameterName || "";
+                const prefix = updatedAnalysis.sampleName
+                    ? `${updatedAnalysis.sampleName}: `
+                    : "";
+                updatedAnalysis.originalParameterName = rawName;
+                fieldOrUpdates.parameterName = prefix + rawName;
+            }
+
             Object.assign(updatedAnalysis, fieldOrUpdates);
         } else {
             const field = fieldOrUpdates as keyof AnalysisWithQuantity;
             if (field === "parameterName") {
-                updatedAnalysis.parameterName = value;
+                const rawName = value || "";
+                const prefix = updatedAnalysis.sampleName
+                    ? `${updatedAnalysis.sampleName}: `
+                    : "";
+                updatedAnalysis.originalParameterName = rawName;
+                updatedAnalysis.parameterName = prefix + rawName;
             } else if (field === "feeAfterTax") {
                 // Reverse calculation is hard with discount.
                 // Formula: feeAfterTax = unitPrice * quantity * (1-d%) * (1+t%)
@@ -389,6 +619,434 @@ export function SampleCard({
 
     const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
 
+    const renderAnalysisRow = (analysis: AnalysisWithQuantity, index: number, displayStt: number, dragRef?: any) => {
+        return (
+            <>
+                {!isReadOnly && (
+                    <td 
+                        className={`px-4 py-3 w-10 text-center select-none ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}
+                        onMouseDown={(e) => {
+                            if (sample.isMultiPart) {
+                                const nextMode = !selectedAnalysisIds.includes(analysis.id) ? "select" : "deselect";
+                                setDragSelectionMode(nextMode);
+                                setIsBoxDragging(true);
+                                toggleSelectId(analysis.id, nextMode === "select");
+                            }
+                        }}
+                        onMouseEnter={() => {
+                            if (sample.isMultiPart && isBoxDragging) {
+                                toggleSelectId(analysis.id, dragSelectionMode === "select");
+                            }
+                        }}
+                    >
+                        {sample.isMultiPart ? (
+                            <input
+                                type="checkbox"
+                                checked={selectedAnalysisIds.includes(analysis.id)}
+                                onChange={(e) => {
+                                    if (e.target.checked) {
+                                        if (!selectedAnalysisIds.includes(analysis.id)) {
+                                            setSelectedAnalysisIds([...selectedAnalysisIds, analysis.id]);
+                                        }
+                                    } else {
+                                        setSelectedAnalysisIds(selectedAnalysisIds.filter((id) => id !== analysis.id));
+                                    }
+                                }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4 cursor-pointer select-none"
+                            />
+                        ) : (
+                            <div ref={dragRef} className="cursor-grab active:cursor-grabbing">
+                                <GripVertical className="w-5 h-5 mx-auto text-muted-foreground hover:text-foreground" />
+                            </div>
+                        )}
+                    </td>
+                )}
+                <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>{displayStt}</td>
+                <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
+                    {isReadOnly ? (
+                        <div>
+                            <div>{analysis.originalParameterName || analysis.parameterName}</div>
+                            {analysis.parameterId && <div className="text-xs text-muted-foreground">{analysis.parameterId}</div>}
+                        </div>
+                    ) : analysis.isCustom ? (
+                        <div className="relative">
+                            <input
+                                type="text"
+                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-background text-sm font-semibold mb-1"
+                                value={analysis.originalParameterName || analysis.parameterName || ""}
+                                onChange={(e) => {
+                                    handleAnalysisChange(index, {
+                                        parameterName: e.target.value,
+                                        parameterId: ""
+                                    });
+                                    setActiveParamDropdownIndex(index);
+                                }}
+                                onFocus={() => {
+                                    setActiveParamDropdownIndex(index);
+                                    setActiveSampleTypeDropdownIndex(null);
+                                }}
+                                onBlur={() => {
+                                    setTimeout(() => {
+                                        setActiveParamDropdownIndex(prev => prev === index ? null : prev);
+                                    }, 200);
+                                }}
+                                placeholder={t("order.print.parameter") || "Nhập tên chỉ tiêu..."}
+                            />
+                            {!analysis.parameterId && (
+                                <div className="text-[10px] text-destructive font-medium mt-0.5 animate-pulse">
+                                    * Yêu cầu chọn từ danh sách
+                                </div>
+                            )}
+                            {activeParamDropdownIndex === index && (
+                                <div className="absolute z-50 w-72 mt-1 bg-popover border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto left-0 top-full">
+                                    {searchedParameters.length === 0 ? (
+                                        <div className="px-3 py-2 text-xs text-muted-foreground text-center">
+                                            Không tìm thấy chỉ tiêu
+                                        </div>
+                                    ) : (
+                                        searchedParameters.map((p) => (
+                                            <div
+                                                key={p.parameterId}
+                                                className="px-3 py-2 cursor-pointer hover:bg-muted text-xs text-foreground border-b border-border/50 last:border-0 font-semibold"
+                                                onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    handleAnalysisChange(index, {
+                                                        parameterId: p.parameterId,
+                                                        parameterName: p.parameterName,
+                                                        displayStyle: p.displayStyle
+                                                    });
+                                                    setActiveParamDropdownIndex(null);
+                                                }}
+                                            >
+                                                {p.parameterName}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ) : activeParamEditIndex === index ? (
+                        <div className="relative">
+                            <input
+                                type="text"
+                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-background text-sm font-semibold mb-1"
+                                value={analysis.originalParameterName || analysis.parameterName || ""}
+                                onChange={(e) => {
+                                    handleAnalysisChange(index, {
+                                        parameterName: e.target.value,
+                                        parameterId: ""
+                                    });
+                                    setActiveParamDropdownIndex(index);
+                                }}
+                                onFocus={() => {
+                                    setActiveParamDropdownIndex(index);
+                                    setActiveSampleTypeDropdownIndex(null);
+                                }}
+                                onBlur={() => {
+                                    setTimeout(() => {
+                                        setActiveParamEditIndex(null);
+                                        setActiveParamDropdownIndex(prev => prev === index ? null : prev);
+                                    }, 200);
+                                }}
+                                placeholder={t("order.print.parameter") || "Nhập tên chỉ tiêu..."}
+                                autoFocus
+                            />
+                            {activeParamDropdownIndex === index && (
+                                <div className="absolute z-50 w-72 mt-1 bg-popover border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto left-0 top-full">
+                                    {searchedParameters.length === 0 ? (
+                                        <div className="px-3 py-2 text-xs text-muted-foreground text-center">
+                                            Không tìm thấy chỉ tiêu
+                                        </div>
+                                    ) : (
+                                        searchedParameters.map((p) => (
+                                            <div
+                                                key={p.parameterId}
+                                                className="px-3 py-2 cursor-pointer hover:bg-muted text-xs text-foreground border-b border-border/50 last:border-0 font-semibold"
+                                                onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    handleAnalysisChange(index, {
+                                                        parameterId: p.parameterId,
+                                                        parameterName: p.parameterName,
+                                                        displayStyle: p.displayStyle
+                                                    });
+                                                    setActiveParamEditIndex(null);
+                                                    setActiveParamDropdownIndex(null);
+                                                }}
+                                            >
+                                                {p.parameterName}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div 
+                            className="cursor-pointer hover:bg-muted/80 p-1 rounded transition-colors group/param"
+                            onClick={() => {
+                                setActiveParamEditIndex(index);
+                                setActiveParamDropdownIndex(index);
+                            }}
+                        >
+                            <div className="font-semibold text-sm break-words whitespace-normal text-foreground mb-1 leading-normal select-text group-hover/param:text-primary">
+                                {analysis.originalParameterName || analysis.parameterName}
+                            </div>
+                            {analysis.parameterId && <div className="text-xs text-muted-foreground">{analysis.parameterId}</div>}
+                        </div>
+                    )}
+                </td>
+                <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
+                    {isReadOnly ? (
+                        analysis.sampleTypeName || sample.sampleTypeName
+                    ) : analysis.isCustom ? (
+                        <div className="relative">
+                            <input
+                                type="text"
+                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-background text-sm font-semibold"
+                                value={analysis.sampleTypeName || ""}
+                                onChange={(e) => {
+                                    handleAnalysisChange(index, {
+                                        sampleTypeName: e.target.value,
+                                        sampleTypeId: ""
+                                    });
+                                    setActiveSampleTypeDropdownIndex(index);
+                                }}
+                                onFocus={() => {
+                                    setActiveSampleTypeDropdownIndex(index);
+                                    setActiveParamDropdownIndex(null);
+                                }}
+                                onBlur={() => {
+                                    setTimeout(() => {
+                                        setActiveSampleTypeDropdownIndex(prev => prev === index ? null : prev);
+                                    }, 200);
+                                }}
+                                placeholder={t("order.sampleMatrixPlaceholder", "Chọn nền mẫu...")}
+                            />
+                            {activeSampleTypeDropdownIndex === index && (
+                                <div className="absolute z-50 w-64 mt-1 bg-popover border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto left-0 top-full">
+                                    {searchedSampleTypes.length === 0 ? (
+                                        <div className="px-3 py-2 text-xs text-muted-foreground text-center">
+                                            Không tìm thấy nền mẫu
+                                        </div>
+                                    ) : (
+                                        searchedSampleTypes.map((st) => (
+                                            <div
+                                                key={st.sampleTypeId}
+                                                className="px-3 py-2 cursor-pointer hover:bg-muted text-xs text-foreground border-b border-border/50 last:border-0 font-semibold"
+                                                onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    handleAnalysisChange(index, {
+                                                        sampleTypeId: st.sampleTypeId,
+                                                        sampleTypeName: st.sampleTypeName
+                                                    });
+                                                    setActiveSampleTypeDropdownIndex(null);
+                                                }}
+                                            >
+                                                {st.sampleTypeName}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        analysis.sampleTypeName || sample.sampleTypeName
+                    )}
+                </td>
+                <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
+                    {isReadOnly ? (
+                        (analysis as any).protocolCode
+                    ) : (
+                        <input
+                            type="text"
+                            className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent"
+                            value={(analysis as any).protocolId ? "" : ((analysis as any).protocolCode || "")}
+                            onChange={(e) => handleAnalysisChange(index, "protocolCode" as any, e.target.value)}
+                            placeholder="Thống nhất với IRDOP"
+                        />
+                    )}
+                </td>
+                <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
+                    {(() => {
+                        let accHtml = "--";
+                        let accObj = analysis.protocolAccreditation;
+                        if (typeof accObj === "string" && accObj.startsWith("{")) {
+                            try {
+                                accObj = JSON.parse(accObj);
+                            } catch {
+                                accObj = null;
+                            }
+                        }
+                        if (accObj && typeof accObj === "object") {
+                            const accs = Object.entries(accObj)
+                                .filter(([, v]) => v)
+                                .map(([k]) => k);
+                            if (accs.length > 0) accHtml = accs.join(", ");
+                        }
+                        return accHtml;
+                    })()}
+                </td>
+                <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
+                    {isReadOnly ? (
+                        analysis.analysisUnit || "--"
+                    ) : (
+                        <input
+                            type="text"
+                            className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent"
+                            value={analysis.analysisUnit || ""}
+                            onChange={(e) => handleAnalysisChange(index, "analysisUnit" as any, e.target.value)}
+                            placeholder={t("order.print.unit", "Đơn vị")}
+                        />
+                    )}
+                </td>
+                <td className={`px-2 py-3 text-right text-sm text-foreground w-[130px] ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
+                    <div className="flex flex-col items-end">
+                        {isReadOnly ? (
+                            (() => {
+                                const sampleQty = sample.quantity || 1;
+                                const analysisQty = analysis.quantity || 1;
+                                const totalQty = isQuote ? (sampleQty * analysisQty) : 1;
+
+                                const originalUP = (Number(analysis.unitPrice) || 0) * totalQty;
+                                const lineDiscountRate = Number(analysis.discountRate) || 0;
+                                const actualUP = originalUP * (1 - lineDiscountRate / 100);
+                                const discountedUP = actualUP * (1 - globalDiscountRate / 100);
+                                const hasDiscount = isQuote && discountedUP < originalUP - 0.1;
+
+                                if (hasDiscount) {
+                                    return (
+                                        <>
+                                            <span className="font-bold">{discountedUP.toLocaleString("vi-VN")} đ</span>
+                                            <span className="text-[10px] text-muted-foreground line-through">{originalUP.toLocaleString("vi-VN")} đ</span>
+                                        </>
+                                    );
+                                }
+                                return originalUP.toLocaleString("vi-VN") + " đ";
+                            })()
+                        ) : (
+                            <input
+                                type="number"
+                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent text-right"
+                                value={Math.round((analysis.unitPrice || 0) * (isQuote ? (sample.quantity || 1) * (analysis.quantity || 1) : 1))}
+                                onChange={(e) => {
+                                    const totalQty = isQuote ? (sample.quantity || 1) * (analysis.quantity || 1) : 1;
+                                    handleAnalysisChange(index, "unitPrice", Number(e.target.value) / totalQty);
+                                }}
+                                onKeyDown={handleNumberKeyDown}
+                                onWheel={(e) => e.currentTarget.blur()}
+                            />
+                        )}
+                        {!isQuote && (Number(analysis.discountRate) || 0) > 0 && (
+                            <span className="text-xs text-green-600 font-medium leading-none block mt-1">(-{analysis.discountRate}%)</span>
+                        )}
+                    </div>
+                </td>
+                <td className={`px-4 py-3 text-center text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
+                    {isReadOnly ? (
+                        analysis.taxRate + "%"
+                    ) : (
+                        <div className="flex items-center justify-center">
+                            <input
+                                type="number"
+                                className="w-16 px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent text-center"
+                                value={analysis.taxRate}
+                                onChange={(e) => handleAnalysisChange(index, "taxRate", e.target.value)}
+                                onFocus={(e) => e.target.select()}
+                                onKeyDown={handleNumberKeyDown}
+                                onWheel={(e) => e.currentTarget.blur()}
+                            />
+                            <span className="ml-1">%</span>
+                        </div>
+                    )}
+                </td>
+                <td
+                    className={`px-2 py-3 text-right text-sm font-medium text-foreground w-[150px] ${
+                        analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""
+                    }`}
+                >
+                    {isReadOnly ? (
+                        (() => {
+                            const quantity = (sample.quantity || 1) * (analysis.quantity || 1);
+                            const originalUP = Number(analysis.unitPrice) || 0;
+                            const taxRate = Number(analysis.taxRate) || 0;
+
+                            const originalTotal = originalUP * quantity * (1 + taxRate / 100);
+                            const finalTotal = calculateFeeAfterTax(analysis);
+                            const hasDiscount = isQuote && finalTotal < originalTotal - 0.1;
+
+                            if (hasDiscount) {
+                                return (
+                                    <>
+                                        <span className="font-bold text-primary">{finalTotal.toLocaleString("vi-VN")} đ</span>
+                                        <span className="text-[10px] text-muted-foreground line-through block">{originalTotal.toLocaleString("vi-VN")} đ</span>
+                                    </>
+                                );
+                            }
+                            return finalTotal.toLocaleString("vi-VN") + " đ";
+                        })()
+                    ) : (
+                        <div className="flex flex-col items-end">
+                            <input
+                                type="number"
+                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent text-right"
+                                value={analysis.feeAfterTax || calculateFeeAfterTax(analysis)}
+                                onChange={(e) => handleAnalysisChange(index, "feeAfterTax", e.target.value)}
+                                onKeyDown={handleNumberKeyDown}
+                                onWheel={(e) => e.currentTarget.blur()}
+                            />
+                        </div>
+                    )}
+                </td>
+                {!isReadOnly && (
+                    <td className={`px-4 py-3 text-center ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
+                        <div className="flex items-center justify-center gap-1">
+                            {analysis.sampleName && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveAnalysisFromGroup(index)}
+                                    className="p-1 text-muted-foreground hover:text-amber-600 transition-colors"
+                                    title="Gỡ khỏi bộ phận"
+                                >
+                                    <FolderMinus className="w-4 h-4 text-amber-500" />
+                                </button>
+                            )}
+                            {analysis.parameterId && (
+                                <button
+                                    onClick={() => handleUnlinkAnalysis(index)}
+                                    className="p-1 text-muted-foreground hover:text-orange-500 transition-colors"
+                                    title={t("parameter.unlink", "Ngắt liên kết")}
+                                >
+                                    <Unlink className="w-4 h-4" />
+                                </button>
+                            )}
+                            <button
+                                onClick={() => {
+                                    if (analysis.groupId) {
+                                        handleRemoveGroup(analysis.groupId);
+                                    } else {
+                                        onRemoveAnalysis(analysis.id);
+                                    }
+                                }}
+                                onMouseEnter={() => {
+                                    if (analysis.groupId) setHoveredGroupId(analysis.groupId);
+                                }}
+                                onMouseLeave={() => {
+                                    setHoveredGroupId(null);
+                                }}
+                                className={`p-1 text-muted-foreground hover:text-destructive transition-colors ${
+                                    analysis.groupId && hoveredGroupId === analysis.groupId ? "text-destructive bg-destructive/10 rounded" : ""
+                                }`}
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </td>
+                )}
+            </>
+        );
+    };
+
     return (
         <div className="bg-card rounded-lg border border-border p-6">
             {/* Header */}
@@ -468,6 +1126,21 @@ export function SampleCard({
                 </div>
                 {!isReadOnly && (
                     <div className="flex gap-2 mt-8">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onUpdateSample({ isMultiPart: !sample.isMultiPart });
+                            }}
+                            className={`p-2 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-semibold ${
+                                sample.isMultiPart
+                                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                    : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                            }`}
+                            title="Bật/Tắt chế độ nhiều bộ phận cho mẫu này"
+                        >
+                            <Layers className="w-4 h-4" />
+                            {sample.isMultiPart ? "Chế độ bộ phận" : "Chia bộ phận"}
+                        </button>
                         <Popover open={isDuplicatePopoverOpen} onOpenChange={setIsDuplicatePopoverOpen}>
                             <PopoverTrigger asChild>
                                 <button
@@ -556,11 +1229,140 @@ export function SampleCard({
                 })}
             </div>
 
+            {sample.isMultiPart && selectedAnalysisIds.length > 0 && !isReadOnly && (
+                <div className="mb-4 p-4 bg-primary/5 border border-primary/20 rounded-xl flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-primary">
+                            Đã chọn {selectedAnalysisIds.length} chỉ tiêu
+                        </span>
+                    </div>
+                    {!showGroupForm ? (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setNewGroupName("");
+                                setNewGroupTypeName("");
+                                setNewGroupTypeId("");
+                                setShowGroupForm(true);
+                            }}
+                            className="px-3 py-1.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-xs font-semibold"
+                        >
+                            Gom nhóm bộ phận
+                        </button>
+                    ) : (
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <input
+                                type="text"
+                                className="px-3 py-1.5 border border-border rounded-lg bg-input text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary w-48"
+                                placeholder="Tên bộ phận (VD: Phần nhựa...)"
+                                value={newGroupName}
+                                onChange={(e) => setNewGroupName(e.target.value)}
+                            />
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    className="px-3 py-1.5 border border-border rounded-lg bg-input text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary w-48"
+                                    placeholder="Nền mẫu bộ phận (VD: Nhựa...)"
+                                    value={newGroupTypeName}
+                                    onChange={(e) => {
+                                        setNewGroupTypeName(e.target.value);
+                                        setNewGroupTypeId("");
+                                        setGroupSearchQuery(e.target.value);
+                                        setActiveGroupMatrixIndex("new-group");
+                                    }}
+                                    onFocus={() => {
+                                        setGroupSearchQuery(newGroupTypeName);
+                                        setActiveGroupMatrixIndex("new-group");
+                                    }}
+                                    onBlur={() => {
+                                        setTimeout(() => {
+                                            setActiveGroupMatrixIndex((prev) => prev === "new-group" ? null : prev);
+                                        }, 200);
+                                    }}
+                                />
+                                {activeGroupMatrixIndex === "new-group" && searchedGroupSampleTypes.length > 0 && (
+                                    <div className="absolute z-[9999] w-full mt-1 bg-popover border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto left-0 top-full">
+                                        {searchedGroupSampleTypes.map((st) => (
+                                            <div
+                                                key={st.sampleTypeId}
+                                                className="px-3 py-2 cursor-pointer hover:bg-muted text-xs text-foreground border-b border-border/50 last:border-0"
+                                                onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    setNewGroupTypeName(st.sampleTypeName);
+                                                    setNewGroupTypeId(st.sampleTypeId);
+                                                    setActiveGroupMatrixIndex(null);
+                                                }}
+                                            >
+                                                {st.sampleTypeName}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!newGroupName.trim() || !newGroupTypeName.trim()) {
+                                        toast.error("Vui lòng nhập đầy đủ tên bộ phận và nền mẫu!");
+                                        return;
+                                    }
+                                    const updatedAnalyses = sample.analyses.map((a) => {
+                                        if (selectedAnalysisIds.includes(a.id)) {
+                                            const original = a.originalParameterName || a.parameterName;
+                                            const updatedParamName = `${newGroupName.trim()}: ${original}`;
+                                            return {
+                                                ...a,
+                                                sampleName: newGroupName.trim(),
+                                                sampleTypeName: newGroupTypeName.trim(),
+                                                sampleTypeId: newGroupTypeId || a.sampleTypeId,
+                                                originalParameterName: original,
+                                                parameterName: updatedParamName,
+                                            };
+                                        }
+                                        return a;
+                                    });
+                                    onUpdateSample({ analyses: updatedAnalyses });
+                                    setSelectedAnalysisIds([]);
+                                    setShowGroupForm(false);
+                                }}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold"
+                            >
+                                Xác nhận
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowGroupForm(false)}
+                                className="px-3 py-1.5 bg-muted text-muted-foreground hover:bg-muted/80 rounded-lg text-xs font-semibold"
+                            >
+                                Hủy
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
             <div className="border border-border rounded-lg overflow-hidden">
                 <table className="w-full">
                     <thead className="bg-muted/50">
                         <tr>
-                            {!isReadOnly && <th className="px-4 py-3 w-10 text-center"></th>}
+                            {!isReadOnly && (
+                                <th className="px-4 py-3 w-10 text-center">
+                                    {sample.isMultiPart ? (
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedAnalysisIds.length === sample.analyses.length && sample.analyses.length > 0}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setSelectedAnalysisIds(sample.analyses.map((a) => a.id));
+                                                } else {
+                                                    setSelectedAnalysisIds([]);
+                                                }
+                                            }}
+                                            className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                                        />
+                                    ) : null}
+                                </th>
+                            )}
                             <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.print.stt")}</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.print.parameter")}</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">{t("order.sampleMatrix")}</th>
@@ -574,403 +1376,157 @@ export function SampleCard({
                         </tr>
                     </thead>
                     <tbody>
-                        {sample.analyses.length === 0 ? (
-                            <tr>
-                                <td colSpan={isReadOnly ? 9 : 11} className="px-4 py-8 text-center text-muted-foreground text-sm">
-                                    {t("order.noAnalyses")}
-                                </td>
-                            </tr>
-                        ) : (
-                            sample.analyses.map((analysis, index) => {
-                                return (
+                        {(() => {
+                            if (!sample.isMultiPart) {
+                                if (sample.analyses.length === 0) {
+                                    return (
+                                        <tr>
+                                            <td colSpan={isReadOnly ? 9 : 11} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                                                {t("order.noAnalyses")}
+                                            </td>
+                                        </tr>
+                                    );
+                                }
+                                return sample.analyses.map((analysis, index) => (
                                     <SortableAnalysisRow key={analysis.id} id={analysis.id} index={index} moveRow={moveAnalysis}>
-                                        {(dragRef: any) => (
-                                            <>
-                                                {/* Group header row removed as per requirement */}
-                                                {!isReadOnly && (
-                                                    <td className={`px-4 py-3 w-10 text-center ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
-                                                        <div ref={dragRef} className="cursor-grab active:cursor-grabbing">
-                                                            <GripVertical className="w-5 h-5 mx-auto text-muted-foreground hover:text-foreground" />
-                                                        </div>
-                                                    </td>
-                                                )}
-                                                <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>{index + 1}</td>
-                                                <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
+                                        {(dragRef: any) => renderAnalysisRow(analysis, index, index + 1, dragRef)}
+                                    </SortableAnalysisRow>
+                                ));
+                            }
+
+                            // Multi-part grouped rendering
+                            const rows: React.ReactNode[] = [];
+                            let rowStt = 1;
+
+                            groupsData.groups.forEach((group) => {
+                                // Group Header Row
+                                rows.push(
+                                    <tr key={`group-hdr-${group.groupKey}`} className="bg-primary/5 border-t border-b border-border/80">
+                                        <td colSpan={isReadOnly ? 9 : 11} className="px-4 py-3">
+                                            <div className="flex items-center justify-between gap-4 flex-wrap">
+                                                <div className="flex items-center gap-3 flex-wrap">
+                                                    <span className="font-bold text-xs text-primary uppercase tracking-wider">Bộ phận:</span>
                                                     {isReadOnly ? (
-                                                        <div>
-                                                            <div>{analysis.parameterName}</div>
-                                                            {analysis.parameterId && <div className="text-xs text-muted-foreground">{analysis.parameterId}</div>}
-                                                        </div>
-                                                    ) : analysis.isCustom ? (
-                                                        <div className="relative">
+                                                        <span className="text-sm font-semibold text-foreground">
+                                                            {group.sampleName} ({group.sampleTypeName})
+                                                        </span>
+                                                    ) : (
+                                                        <>
                                                             <input
                                                                 type="text"
-                                                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-background text-sm font-semibold mb-1"
-                                                                value={analysis.parameterName || ""}
-                                                                onChange={(e) => {
-                                                                    handleAnalysisChange(index, {
-                                                                        parameterName: e.target.value,
-                                                                        parameterId: ""
-                                                                    });
-                                                                    setActiveParamDropdownIndex(index);
-                                                                }}
-                                                                onFocus={() => {
-                                                                    setActiveParamDropdownIndex(index);
-                                                                    setActiveSampleTypeDropdownIndex(null);
-                                                                }}
-                                                                onBlur={() => {
-                                                                    setTimeout(() => {
-                                                                        setActiveParamDropdownIndex(prev => prev === index ? null : prev);
-                                                                    }, 200);
-                                                                }}
-                                                                placeholder={t("order.print.parameter") || "Nhập tên chỉ tiêu..."}
+                                                                className="px-2 py-1 border border-border rounded bg-background text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-primary w-48"
+                                                                value={group.sampleName}
+                                                                onChange={(e) => handleUpdateGroupFields(group.groupKey, e.target.value, group.sampleTypeName, group.sampleTypeId)}
+                                                                placeholder="Tên bộ phận"
                                                             />
-                                                            {!analysis.parameterId && (
-                                                                <div className="text-[10px] text-destructive font-medium mt-0.5 animate-pulse">
-                                                                    * Yêu cầu chọn từ danh sách
-                                                                 </div>
-                                                            )}
-                                                            {activeParamDropdownIndex === index && (
-                                                                <div className="absolute z-50 w-72 mt-1 bg-popover border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto left-0 top-full">
-                                                                    {searchedParameters.length === 0 ? (
-                                                                        <div className="px-3 py-2 text-xs text-muted-foreground text-center">
-                                                                            Không tìm thấy chỉ tiêu
-                                                                        </div>
-                                                                    ) : (
-                                                                        searchedParameters.map((p) => (
-                                                                            <div
-                                                                                key={p.parameterId}
-                                                                                className="px-3 py-2 cursor-pointer hover:bg-muted text-xs text-foreground border-b border-border/50 last:border-0 font-semibold"
-                                                                                onMouseDown={(e) => {
-                                                                                    e.preventDefault();
-                                                                                    handleAnalysisChange(index, {
-                                                                                        parameterId: p.parameterId,
-                                                                                        parameterName: p.parameterName,
-                                                                                        displayStyle: p.displayStyle
-                                                                                    });
-                                                                                    setActiveParamDropdownIndex(null);
-                                                                                }}
-                                                                            >
-                                                                                {p.parameterName}
-                                                                            </div>
-                                                                        ))
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                     ) : activeParamEditIndex === index ? (
-                                                         <div className="relative">
-                                                             <input
-                                                                 type="text"
-                                                                 className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-background text-sm font-semibold mb-1"
-                                                                 value={analysis.parameterName || ""}
-                                                                 onChange={(e) => {
-                                                                     handleAnalysisChange(index, {
-                                                                         parameterName: e.target.value,
-                                                                         parameterId: ""
-                                                                     });
-                                                                     setActiveParamDropdownIndex(index);
-                                                                 }}
-                                                                 onFocus={() => {
-                                                                     setActiveParamDropdownIndex(index);
-                                                                     setActiveSampleTypeDropdownIndex(null);
-                                                                 }}
-                                                                 onBlur={() => {
-                                                                     setTimeout(() => {
-                                                                         setActiveParamEditIndex(null);
-                                                                         setActiveParamDropdownIndex(prev => prev === index ? null : prev);
-                                                                     }, 200);
-                                                                 }}
-                                                                 placeholder={t("order.print.parameter") || "Nhập tên chỉ tiêu..."}
-                                                                 autoFocus
-                                                             />
-                                                             {activeParamDropdownIndex === index && (
-                                                                 <div className="absolute z-50 w-72 mt-1 bg-popover border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto left-0 top-full">
-                                                                     {searchedParameters.length === 0 ? (
-                                                                         <div className="px-3 py-2 text-xs text-muted-foreground text-center">
-                                                                             Không tìm thấy chỉ tiêu
-                                                                         </div>
-                                                                     ) : (
-                                                                         searchedParameters.map((p) => (
-                                                                             <div
-                                                                                 key={p.parameterId}
-                                                                                 className="px-3 py-2 cursor-pointer hover:bg-muted text-xs text-foreground border-b border-border/50 last:border-0 font-semibold"
-                                                                                 onMouseDown={(e) => {
-                                                                                     e.preventDefault();
-                                                                                     handleAnalysisChange(index, {
-                                                                                         parameterId: p.parameterId,
-                                                                                         parameterName: p.parameterName,
-                                                                                         displayStyle: p.displayStyle
-                                                                                     });
-                                                                                     setActiveParamEditIndex(null);
-                                                                                     setActiveParamDropdownIndex(null);
-                                                                                 }}
-                                                                             >
-                                                                                 {p.parameterName}
-                                                                             </div>
-                                                                         ))
-                                                                     )}
-                                                                 </div>
-                                                             )}
-                                                         </div>
-                                                     ) : (
-                                                         <div 
-                                                             className="cursor-pointer hover:bg-muted/80 p-1 rounded transition-colors group/param"
-                                                             onClick={() => {
-                                                                 setActiveParamEditIndex(index);
-                                                                 setActiveParamDropdownIndex(index);
-                                                             }}
-                                                         >
-                                                             <div className="font-semibold text-sm break-words whitespace-normal text-foreground mb-1 leading-normal select-text group-hover/param:text-primary">
-                                                                 {analysis.parameterName}
-                                                             </div>
-                                                             {analysis.parameterId && <div className="text-xs text-muted-foreground">{analysis.parameterId}</div>}
-                                                         </div>
-                                                     )}
-                                                </td>
-                                                <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
-                                                    {isReadOnly ? (
-                                                        analysis.sampleTypeName
-                                                    ) : analysis.isCustom ? (
-                                                        <div className="relative">
-                                                            <input
-                                                                type="text"
-                                                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-background text-sm font-semibold"
-                                                                value={analysis.sampleTypeName || sample.sampleTypeName || ""}
-                                                                onChange={(e) => {
-                                                                    handleAnalysisChange(index, {
-                                                                        sampleTypeName: e.target.value,
-                                                                        sampleTypeId: ""
-                                                                    });
-                                                                    setActiveSampleTypeDropdownIndex(index);
-                                                                }}
-                                                                onFocus={() => {
-                                                                    setActiveSampleTypeDropdownIndex(index);
-                                                                    setActiveParamDropdownIndex(null);
-                                                                }}
-                                                                onBlur={() => {
-                                                                    setTimeout(() => {
-                                                                        setActiveSampleTypeDropdownIndex(prev => prev === index ? null : prev);
-                                                                    }, 200);
-                                                                }}
-                                                                placeholder={t("order.sampleMatrixPlaceholder", "Chọn nền mẫu...")}
-                                                            />
-                                                            {activeSampleTypeDropdownIndex === index && (
-                                                                <div className="absolute z-50 w-64 mt-1 bg-popover border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto left-0 top-full">
-                                                                    {searchedSampleTypes.length === 0 ? (
-                                                                        <div className="px-3 py-2 text-xs text-muted-foreground text-center">
-                                                                            Không tìm thấy nền mẫu
-                                                                        </div>
-                                                                    ) : (
-                                                                        searchedSampleTypes.map((st) => (
+                                                            <div className="relative">
+                                                                <input
+                                                                    type="text"
+                                                                    className="px-2 py-1 border border-border rounded bg-background text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-primary w-48"
+                                                                    value={group.sampleTypeName}
+                                                                    onChange={(e) => {
+                                                                        handleUpdateGroupFields(group.groupKey, group.sampleName, e.target.value, "");
+                                                                        setGroupSearchQuery(e.target.value);
+                                                                        setActiveGroupMatrixIndex(group.groupKey);
+                                                                    }}
+                                                                    onFocus={() => {
+                                                                        setGroupSearchQuery(group.sampleTypeName);
+                                                                        setActiveGroupMatrixIndex(group.groupKey);
+                                                                    }}
+                                                                    onBlur={() => {
+                                                                        setTimeout(() => {
+                                                                            setActiveGroupMatrixIndex((prev) => prev === group.groupKey ? null : prev);
+                                                                        }, 200);
+                                                                    }}
+                                                                    placeholder="Nền mẫu bộ phận"
+                                                                />
+                                                                {activeGroupMatrixIndex === group.groupKey && searchedGroupSampleTypes.length > 0 && (
+                                                                    <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto left-0 top-full">
+                                                                        {searchedGroupSampleTypes.map((st) => (
                                                                             <div
                                                                                 key={st.sampleTypeId}
                                                                                 className="px-3 py-2 cursor-pointer hover:bg-muted text-xs text-foreground border-b border-border/50 last:border-0 font-semibold"
                                                                                 onMouseDown={(e) => {
                                                                                     e.preventDefault();
-                                                                                    handleAnalysisChange(index, {
-                                                                                        sampleTypeId: st.sampleTypeId,
-                                                                                        sampleTypeName: st.sampleTypeName
-                                                                                    });
-                                                                                    setActiveSampleTypeDropdownIndex(null);
+                                                                                    handleUpdateGroupFields(group.groupKey, group.sampleName, st.sampleTypeName, st.sampleTypeId);
+                                                                                    setActiveGroupMatrixIndex(null);
                                                                                 }}
                                                                             >
                                                                                 {st.sampleTypeName}
                                                                             </div>
-                                                                        ))
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        analysis.sampleTypeName || sample.sampleTypeName
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </>
                                                     )}
-                                                </td>
-                                                <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
-                                                    {isReadOnly ? (
-                                                        (analysis as any).protocolCode
-                                                    ) : (
-                                                        <input
-                                                            type="text"
-                                                            className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent"
-                                                            value={(analysis as any).protocolId ? "" : ((analysis as any).protocolCode || "")}
-                                                            onChange={(e) => handleAnalysisChange(index, "protocolCode" as any, e.target.value)}
-                                                            placeholder="Thống nhất với IRDOP"
-                                                        />
-                                                    )}
-                                                </td>
-                                                <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
-                                                    {(() => {
-                                                        let accHtml = "--";
-                                                        let accObj = analysis.protocolAccreditation;
-                                                        if (typeof accObj === "string" && accObj.startsWith("{")) {
-                                                            try {
-                                                                accObj = JSON.parse(accObj);
-                                                            } catch {
-                                                                accObj = null;
-                                                            }
-                                                        }
-                                                        if (accObj && typeof accObj === "object") {
-                                                            const accs = Object.entries(accObj)
-                                                                .filter(([, v]) => v)
-                                                                .map(([k]) => k);
-                                                            if (accs.length > 0) accHtml = accs.join(", ");
-                                                        }
-                                                        return accHtml;
-                                                    })()}
-                                                </td>
-                                                <td className={`px-4 py-3 text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
-                                                    {isReadOnly ? (
-                                                        analysis.analysisUnit || "--"
-                                                    ) : (
-                                                        <input
-                                                            type="text"
-                                                            className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent"
-                                                            value={analysis.analysisUnit || ""}
-                                                            onChange={(e) => handleAnalysisChange(index, "analysisUnit" as any, e.target.value)}
-                                                            placeholder={t("order.print.unit", "Đơn vị")}
-                                                        />
-                                                    )}
-                                                </td>
-                                                <td className={`px-2 py-3 text-right text-sm text-foreground w-[130px] ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
-                                                    <div className="flex flex-col items-end">
-                                                        {isReadOnly ? (
-                                                            (() => {
-                                                                const sampleQty = sample.quantity || 1;
-                                                                const analysisQty = analysis.quantity || 1;
-                                                                const totalQty = isQuote ? (sampleQty * analysisQty) : 1;
-
-                                                                const originalUP = (Number(analysis.unitPrice) || 0) * totalQty;
-                                                                const lineDiscountRate = Number(analysis.discountRate) || 0;
-                                                                const actualUP = originalUP * (1 - lineDiscountRate / 100);
-                                                                const discountedUP = actualUP * (1 - globalDiscountRate / 100);
-                                                                const hasDiscount = isQuote && discountedUP < originalUP - 0.1;
-
-                                                                if (hasDiscount) {
-                                                                    return (
-                                                                        <>
-                                                                            <span className="font-bold">{discountedUP.toLocaleString("vi-VN")} đ</span>
-                                                                            <span className="text-[10px] text-muted-foreground line-through">{originalUP.toLocaleString("vi-VN")} đ</span>
-                                                                        </>
-                                                                    );
-                                                                }
-                                                                return originalUP.toLocaleString("vi-VN") + " đ";
-                                                            })()
-                                                        ) : (
-                                                            <input
-                                                                type="number"
-                                                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent text-right"
-                                                                value={Math.round((analysis.unitPrice || 0) * (isQuote ? (sample.quantity || 1) * (analysis.quantity || 1) : 1))}
-                                                                onChange={(e) => {
-                                                                    const totalQty = isQuote ? (sample.quantity || 1) * (analysis.quantity || 1) : 1;
-                                                                    handleAnalysisChange(index, "unitPrice", Number(e.target.value) / totalQty);
-                                                                }}
-                                                                onKeyDown={handleNumberKeyDown}
-                                                                onWheel={(e) => e.currentTarget.blur()}
-                                                            />
-                                                        )}
-                                                        {!isQuote && (Number(analysis.discountRate) || 0) > 0 && (
-                                                            <span className="text-xs text-green-600 font-medium leading-none block mt-1">(-{analysis.discountRate}%)</span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className={`px-4 py-3 text-center text-sm text-foreground ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
-                                                    {isReadOnly ? (
-                                                        analysis.taxRate + "%"
-                                                    ) : (
-                                                        <div className="flex items-center justify-center">
-                                                            <input
-                                                                type="number"
-                                                                className="w-16 px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent text-center"
-                                                                value={analysis.taxRate}
-                                                                onChange={(e) => handleAnalysisChange(index, "taxRate", e.target.value)}
-                                                                onFocus={(e) => e.target.select()}
-                                                                onKeyDown={handleNumberKeyDown}
-                                                                onWheel={(e) => e.currentTarget.blur()}
-                                                            />
-                                                            <span className="ml-1">%</span>
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td
-                                                    className={`px-2 py-3 text-right text-sm font-medium text-foreground w-[150px] ${
-                                                        analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""
-                                                    }`}
-                                                >
-                                                    {isReadOnly ? (
-                                                        (() => {
-                                                            const quantity = (sample.quantity || 1) * (analysis.quantity || 1);
-                                                            const originalUP = Number(analysis.unitPrice) || 0;
-                                                            const taxRate = Number(analysis.taxRate) || 0;
-
-                                                            const originalTotal = originalUP * quantity * (1 + taxRate / 100);
-                                                            const finalTotal = calculateFeeAfterTax(analysis);
-                                                            const hasDiscount = isQuote && finalTotal < originalTotal - 0.1;
-
-                                                            if (hasDiscount) {
-                                                                return (
-                                                                    <>
-                                                                        <span className="font-bold text-primary">{finalTotal.toLocaleString("vi-VN")} đ</span>
-                                                                        <span className="text-[10px] text-muted-foreground line-through block">{originalTotal.toLocaleString("vi-VN")} đ</span>
-                                                                    </>
-                                                                );
-                                                            }
-                                                            return finalTotal.toLocaleString("vi-VN") + " đ";
-                                                        })()
-                                                    ) : (
-                                                        <div className="flex flex-col items-end">
-                                                            <input
-                                                                type="number"
-                                                                className="w-full px-2 py-1 border border-border rounded focus:border-primary focus:outline-none bg-transparent text-right"
-                                                                value={analysis.feeAfterTax || calculateFeeAfterTax(analysis)} // Display feeAfterTax, calculate if not set
-                                                                onChange={(e) => handleAnalysisChange(index, "feeAfterTax", e.target.value)}
-                                                                onKeyDown={handleNumberKeyDown}
-                                                                onWheel={(e) => e.currentTarget.blur()}
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </td>
+                                                </div>
                                                 {!isReadOnly && (
-                                                    <td className={`px-4 py-3 text-center ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}>
-                                                        <div className="flex items-center justify-center gap-1">
-                                                            {analysis.parameterId && (
-                                                                <button
-                                                                    onClick={() => handleUnlinkAnalysis(index)}
-                                                                    className="p-1 text-muted-foreground hover:text-orange-500 transition-colors"
-                                                                    title={t("parameter.unlink", "Ngắt liên kết")}
-                                                                >
-                                                                    <Unlink className="w-4 h-4" />
-                                                                </button>
-                                                            )}
-                                                            <button
-                                                                onClick={() => {
-                                                                    if (analysis.groupId) {
-                                                                        handleRemoveGroup(analysis.groupId);
-                                                                    } else {
-                                                                        onRemoveAnalysis(analysis.id);
-                                                                    }
-                                                                }}
-                                                                onMouseEnter={() => {
-                                                                    if (analysis.groupId) setHoveredGroupId(analysis.groupId);
-                                                                }}
-                                                                onMouseLeave={() => {
-                                                                    setHoveredGroupId(null);
-                                                                }}
-                                                                className={`p-1 text-muted-foreground hover:text-destructive transition-colors ${
-                                                                    analysis.groupId && hoveredGroupId === analysis.groupId ? "text-destructive bg-destructive/10 rounded" : ""
-                                                                }`}
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        </div>
-                                                    </td>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDuplicateGroup(group.groupKey)}
+                                                            className="px-3 py-1 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded text-xs font-semibold transition-colors flex items-center gap-1"
+                                                        >
+                                                            <Copy className="w-3.5 h-3.5" />
+                                                            Sao chép bộ phận
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleUngroup(group.groupKey)}
+                                                            className="px-3 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 rounded text-xs font-semibold transition-colors"
+                                                        >
+                                                            Rã nhóm
+                                                        </button>
+                                                    </div>
                                                 )}
-                                            </>
-                                        )}
-                                    </SortableAnalysisRow>
+                                            </div>
+                                        </td>
+                                    </tr>
                                 );
-                            })
-                        )}
+
+                                // Group members
+                                group.analyses.forEach((analysis) => {
+                                    rows.push(
+                                        <tr key={analysis.id} className="border-t border-border hover:bg-muted/30">
+                                            {renderAnalysisRow(analysis, analysis.originalIndex, rowStt++)}
+                                        </tr>
+                                    );
+                                });
+                            });
+
+                            // Render ungrouped header if we have at least one group
+                            if (groupsData.groups.length > 0 && groupsData.ungrouped.length > 0) {
+                                rows.push(
+                                    <tr key="ungrouped-header" className="bg-muted/30 border-t border-b border-border/50">
+                                        <td colSpan={isReadOnly ? 9 : 11} className="px-4 py-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                            Chỉ tiêu chưa phân bộ phận
+                                        </td>
+                                    </tr>
+                                );
+                            }
+
+                            // Render ungrouped members
+                            groupsData.ungrouped.forEach((analysis) => {
+                                rows.push(
+                                    <tr key={analysis.id} className="border-t border-border hover:bg-muted/30">
+                                        {renderAnalysisRow(analysis, analysis.originalIndex, rowStt++)}
+                                    </tr>
+                                );
+                            });
+
+                            if (sample.analyses.length === 0) {
+                                return (
+                                    <tr>
+                                        <td colSpan={isReadOnly ? 9 : 11} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                                            {t("order.noAnalyses")}
+                                        </td>
+                                    </tr>
+                                );
+                            }
+
+                            return rows;
+                        })()}
                     </tbody>
                     <tfoot className="bg-muted/20 font-medium">
                         <tr>

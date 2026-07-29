@@ -60,6 +60,8 @@ export interface OrderAnalysis {
     sampleTypeId?: string;
     sampleTypeName?: string;
     protocolAccreditation?: any;
+    sampleName?: string; // Tên bộ phận trong mẫu
+    originalParameterName?: string; // Tên chỉ tiêu gốc chưa gom nhóm
 }
 
 /**
@@ -74,6 +76,7 @@ export interface OrderSample {
     sampleInfo?: { label: string; value: string }[]; // Thông tin chi tiết mẫu
     quantity?: number;
     analyses: OrderAnalysis[];
+    isMultiPart?: boolean; // Trạng thái chế độ nhiều bộ phận
 }
 
 /**
