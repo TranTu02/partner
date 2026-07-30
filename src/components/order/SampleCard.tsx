@@ -4,8 +4,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Matrix } from "@/types/parameter";
+import { toast } from "sonner";
 
-export interface AnalysisWithQuantity extends Omit<Matrix, "createdAt" | "createdById" | "modifiedAt" | "modifiedById" | "feeAfterTax" | "taxRate"> {
+export interface AnalysisWithQuantity extends Omit<Matrix, "createdAt" | "createdById" | "modifiedAt" | "modifiedById" | "feeAfterTax" | "taxRate" | "sampleTypeId" | "sampleTypeName"> {
     id: string;
     unitPrice: number;
     quantity: number;
@@ -625,7 +626,7 @@ export function SampleCard({
                 {!isReadOnly && (
                     <td 
                         className={`px-4 py-3 w-10 text-center select-none ${analysis.groupId && hoveredGroupId === analysis.groupId ? "bg-red-50" : ""}`}
-                        onMouseDown={(e) => {
+                        onMouseDown={() => {
                             if (sample.isMultiPart) {
                                 const nextMode = !selectedAnalysisIds.includes(analysis.id) ? "select" : "deselect";
                                 setDragSelectionMode(nextMode);
